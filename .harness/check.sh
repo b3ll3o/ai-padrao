@@ -183,6 +183,91 @@ note "INC-003: NestJS DI files don't use import type (requires per-file analysis
 note "INC-005: e2e test for /api/health without token (requires jest run)"
 note "INC-010: NestJS 11 + Swagger 8 peer warning (acceptable upstream)"
 
+# ---------------------------------------------------------------
+# INC-013 — Capture tool dependencies: python3 required, jq forbidden in capture paths
+# (Hard lesson: the existing prettier PostToolUse hook depends on jq and
+# has been silently a no-op. Capture paths MUST be bash + python3 only.)
+# ---------------------------------------------------------------
+check "INC-013: capture deps (python3 required, jq forbidden)" \
+  bash -c '
+    if ! command -v python3 >/dev/null 2>&1; then
+      echo "  python3 missing — capture.sh and detect.sh will silently no-op."
+      exit 1
+    fi
+    bad=$(grep -nE "\bjq\b" .harness/capture.sh .harness/detect.sh .harness/digest.sh .harness/pattern_match.py 2>/dev/null | grep -vE "^[^:]+:[0-9]+:#" || true)
+    if [ -n "$bad" ]; then
+      echo "  capture scripts must not depend on jq (silent no-op risk):"
+      echo "$bad" | sed "s/^/    /"
+      exit 1
+    fi
+  '
+
+# ---------------------------------------------------------------
+# INC-014 — events/ directory is git-ignored (per-session state, not source of truth)
+# ---------------------------------------------------------------
+check "INC-014: events/ is gitignored" \
+  bash -c '
+    # Find the .gitignore that covers the harness dir.
+    gi=$(grep -E "^\.harness/events" .gitignore 2>/dev/null || true)
+    if [ -z "$gi" ]; then
+      echo "  .gitignore does not contain an entry for .harness/events/"
+      echo "  Add a line like: .harness/events/"
+      exit 1
+    fi
+  '
+
+# ---------------------------------------------------------------
+# INC-015 — digest freshness: at least one digest/ entry mtime < 25h
+# (The daily agent must be running. If no digest was written in the
+# last 25h, the harness has stopped learning.)
+# ---------------------------------------------------------------
+check "INC-015: digest freshness" \
+  bash -c '
+    if [ ! -d .harness/digest ]; then
+      echo "  .harness/digest/ does not exist — daily agent never ran."
+      echo "  Run: pnpm harness:digest"
+      exit 1
+    fi
+    latest=$(find .harness/digest -maxdepth 1 -type f -name "*.md" -printf "%T@\n" 2>/dev/null | sort -n | tail -1)
+    if [ -z "$latest" ]; then
+      echo "  no digest files found in .harness/digest/"
+      echo "  Run: pnpm harness:digest"
+      exit 1
+    fi
+    now=$(date +%s)
+    age=$(( now - ${latest%.*} ))
+    if [ "$age" -gt 90000 ]; then
+      echo "  newest digest is ${age}s old (>25h). Daily agent not running."
+      echo "  Run: pnpm harness:digest"
+      exit 1
+    fi
+  '
+
+# ---------------------------------------------------------------
+# INC-016 — No hardcoded secrets in any tracked source file
+# (Heuristic: grep for Anthropic/GitHub/OpenAI/AWS token shapes in the
+# first-party source. .env, .env.example, and node_modules are excluded.)
+# ---------------------------------------------------------------
+check "INC-016: no hardcoded secrets in tracked source" \
+  bash -c '
+    set +e
+    hits=$(
+      grep -rnE "sk-ant-[A-Za-z0-9_-]{8,}|sk-cp-[A-Za-z0-9_-]{8,}|ghp_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{16,}|sk-[A-Za-z0-9]{32,}|AKIA[0-9A-Z]{16}" \
+        apps packages \
+        --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
+        --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=dist --exclude-dir=.turbo --exclude-dir=coverage --exclude-dir=standalone \
+        2>/dev/null \
+        | grep -vE "(envSchema|test|spec|mock|fixture)" \
+        || true
+    )
+    if [ -n "$hits" ]; then
+      echo "  Hardcoded token-shaped strings detected in source:"
+      echo "$hits" | sed "s/^/    /"
+      echo "  Move to .env (which is gitignored) or a secret store."
+      exit 1
+    fi
+  '
+
 echo
 echo "========================================"
 echo -e "  ${GREEN}PASS${NC}: $PASS_COUNT  ${RED}FAIL${NC}: $FAIL_COUNT  ${YELLOW}SKIP${NC}: $SKIP_COUNT"

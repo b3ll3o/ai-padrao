@@ -5,6 +5,7 @@
 **Format:** One section per incident, dated, with: symptom → root cause → fix → prevention rule.
 
 **How to use:**
+
 - Before any new feature: skim recent incidents for patterns that apply.
 - After any non-trivial bug fix: add an entry here.
 - Periodically: convert recurring incidents into AGENTS.md rules, lint rules, or skills.
@@ -18,6 +19,7 @@
 **Severity:** Blocker (api container exits immediately, port 3001 unreachable)
 
 **Symptom:**
+
 ```
 ERROR [PackageLoader] The "@fastify/static" package is missing.
 Please, make sure to install it to take advantage of FastifyAdapter.useStaticAssets().
@@ -26,15 +28,18 @@ Please, make sure to install it to take advantage of FastifyAdapter.useStaticAss
 **Root cause:** `@nestjs/swagger`'s `SwaggerModule.setup('docs', ...)` implicitly calls `FastifyAdapter.useStaticAssets()` to serve Swagger UI's static files. The Nest framework does NOT declare `@fastify/static` as a dependency — every consumer must install it themselves. Adding it post-hoc is non-obvious because the error message mentions a method that nobody called explicitly.
 
 **Version trap:** `@fastify/static` version must match the installed `fastify` major:
+
 - fastify 4.x → `@fastify/static@^7`
 - fastify 5.x → `@fastify/static@^8` (Nest 11 default)
 
 Using `^7` against fastify 5 throws `FST_ERR_PLUGIN_VERSION_MISMATCH` at boot.
 
 **Fix:**
+
 ```bash
 pnpm --filter @ai-padrao/api add @fastify/static@^8
 ```
+
 Plus matching version in Dockerfile install step.
 
 **Prevention rule (skill):** [[nestjs-fastify-gotchas]] Gotcha 3.
@@ -56,13 +61,16 @@ Plus matching version in Dockerfile install step.
 **Discovery path:** Surfaced by INC-005 (health controller fix) — once the request reached the interceptor pipeline, the next layer down failed. Could have been caught earlier by an integration test that boots the real Fastify adapter, not a mock.
 
 **Fix:**
+
 ```ts
 // Before
-res.setHeader('x-request-id', requestId);
+res.setHeader("x-request-id", requestId);
 
 // After
-const reply = context.switchToHttp().getResponse() as { header: (n: string, v: string) => void };
-reply.header('x-request-id', requestId);
+const reply = context.switchToHttp().getResponse() as {
+  header: (n: string, v: string) => void;
+};
+reply.header("x-request-id", requestId);
 ```
 
 **Prevention rule (skill):** [[nestjs-fastify-gotchas]] Gotcha 2.
@@ -78,6 +86,7 @@ reply.header('x-request-id', requestId);
 **Severity:** Blocker (10 tests passing → 10 tests failing after `eslint --fix`)
 
 **Symptom:** After running `eslint --fix` to auto-fix `@typescript-eslint/consistent-type-imports`, every NestJS service test failed with:
+
 ```
 Nest can't resolve dependencies of the AuthService (?). Please make sure that the argument at index [0] is available in the Auth context.
 ```
@@ -87,10 +96,12 @@ Nest can't resolve dependencies of the AuthService (?). Please make sure that th
 **The trap:** The lint rule is correct in spirit (most of the time `import type` is what you want). But for NestJS DI it's actively harmful, and the auto-fix doesn't know about the framework boundary.
 
 **Fix:** Split imports by usage:
+
 ```ts
-import { PrismaService } from '../prisma/prisma.service';   // runtime value (DI)
-import type { SomeType } from '../types';                   // pure type
+import { PrismaService } from "../prisma/prisma.service"; // runtime value (DI)
+import type { SomeType } from "../types"; // pure type
 ```
+
 Plus `eslint-disable-next-line @typescript-eslint/consistent-type-imports` on lines that import DI'd services.
 
 **Prevention rule (skill):** [[nestjs-fastify-gotchas]] Gotcha 1.
@@ -112,6 +123,7 @@ Plus `eslint-disable-next-line @typescript-eslint/consistent-type-imports` on li
 **Discovery path:** Surfaced during DoD Step 3 (seed verification). The migration step succeeded, but the seed user wasn't in the DB. Manual verification of the seed script (running it directly via `ts-node`) showed it worked — pointing the finger at Prisma's seed runner.
 
 **Fix:** Add to `apps/api/package.json`:
+
 ```json
 "prisma": {
   "seed": "ts-node prisma/seed.ts"
@@ -135,6 +147,7 @@ Plus `eslint-disable-next-line @typescript-eslint/consistent-type-imports` on li
 **Root cause:** `JwtAuthGuard` was registered globally as `APP_GUARD`. Every endpoint requires JWT unless explicitly opted out via `@Public()`. The health controller did not opt out. This is a NestJS convention that's easy to miss when scaffolding.
 
 **Fix:** Add `@Public()` to the health controller (class-level):
+
 ```ts
 @Public()
 @ApiTags('health')
@@ -157,6 +170,7 @@ Also apply `@Public()` to `auth/login`, `auth/register`, `auth/refresh` — othe
 **Severity:** Build breaker (image cannot be rebuilt)
 
 **Symptom:** `docker compose build api` fails at:
+
 ```
 RUN pnpm --filter @ai-padrao/api exec prisma generate
 Error: Could not find Prisma Schema that is required for this command.
@@ -166,6 +180,7 @@ schema.prisma: file not found
 **Root cause:** The Dockerfile ran `prisma generate` on line 12 but `COPY apps/api ./apps/api` (which brings the schema) on line 13. The currently-running image was built before the fix landed, so the container started — but a fresh rebuild fails.
 
 **Fix:** Move the COPY above the generate:
+
 ```dockerfile
 COPY apps/api/prisma ./apps/api/prisma    # schema first
 RUN pnpm --filter @my-app/api exec prisma generate
@@ -185,6 +200,7 @@ COPY apps/api ./apps/api                  # rest of the app
 **Severity:** Lint step fails in every consumer
 
 **Symptom:** `pnpm --filter @my-app/api lint` fails:
+
 ```
 ENOENT: no such file or directory, stat '/…/apps/api/@scope/config-eslint/nest.js'
 ```
@@ -192,6 +208,7 @@ ENOENT: no such file or directory, stat '/…/apps/api/@scope/config-eslint/nest
 **Root cause:** ESLint's `--config` flag is a filesystem path, not a Node module specifier. The shorthand `@scope/pkg/file` worked in eslint 8 (which resolved through `require.resolve` internally), but eslint 9 flat-config dropped that resolution — it stats the literal string.
 
 **Fix:** Use `node -p "require.resolve(...)"` to pre-resolve:
+
 ```json
 "lint": "eslint src --config $(node -p \"require.resolve('@scope/config-eslint/nest.js')\")"
 ```
@@ -209,6 +226,7 @@ ENOENT: no such file or directory, stat '/…/apps/api/@scope/config-eslint/nest
 **Severity:** Stack-up blocker
 
 **Symptom:** `docker compose up -d` fails:
+
 ```
 Bind for 127.0.0.1:1025 failed: port is already allocated
 ```
@@ -216,6 +234,7 @@ Bind for 127.0.0.1:1025 failed: port is already allocated
 **Root cause:** Sibling project `pedi_ai_mailpit` is holding host ports 1025 (smtp) and 8025 (ui). The error doesn't tell you which process owns the port.
 
 **Fix:** Remap host-side bindings in `docker-compose.yml` (container ports unchanged so internal DNS still works):
+
 ```yaml
 services:
   mailhog:
@@ -239,19 +258,23 @@ services:
 **Symptom:** `pnpm lint` reports `no-console` warning on `console.log(\`api listening on ...\`)`. Initial "fix" of swapping to `console.warn` silenced the warning but moved the message from stdout to stderr, breaking any tooling that grepped stdout for the startup banner.
 
 **Root cause:** Two separate issues collapsed into one symptom:
+
 1. ESLint `no-console` rule defaults to disallowing all `console.*` except `warn`/`error`.
 2. `console.warn` writes to stderr; `console.log` writes to stdout.
 
 **Proper fix:** Use Nest's structured `Logger` so the startup banner goes through the same logger as the rest of the app (better for OTel, log shippers, JSON formatting):
+
 ```ts
-import { Logger } from '@nestjs/common';
+import { Logger } from "@nestjs/common";
 // ...
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, adapter, { bufferLogs: true });
+  const app = await NestFactory.create(AppModule, adapter, {
+    bufferLogs: true,
+  });
   // ...
-  await app.listen(port, '0.0.0.0');
+  await app.listen(port, "0.0.0.0");
   app.flushLogs();
-  new Logger('Bootstrap').log(`listening on :${port}`);
+  new Logger("Bootstrap").log(`listening on :${port}`);
 }
 ```
 
@@ -268,6 +291,7 @@ async function bootstrap() {
 **Severity:** Cosmetic (warning only)
 
 **Symptom:** `pnpm install` warns:
+
 ```
 @nestjs/swagger@8.1.1 peer-depends on @fastify/static@"^6.0.0 || ^7.0.0"
 ```
@@ -287,6 +311,7 @@ async function bootstrap() {
 **Severity:** Cosmetic (warning only)
 
 **Symptom:** Every `pnpm --filter @ai-padrao/web test` prints:
+
 ```
 The CJS build of Vite's Node API is deprecated.
 ```
@@ -335,7 +360,7 @@ After these 11 incidents, the following rules should be considered for `AGENTS.m
 **Symptom (recurring):** Green test runs that don't actually exercise the code. Examples observed:
 
 - `apps/web/package.json` carried `vitest run --passWithNoTests` for weeks: a green web test run meant "0 tests ran and 0 failed".
-- INC-005 (health endpoint 401) only surfaced because a *new* e2e was added — no existing test had ever called `/api/health` without a token, because the test file was a placeholder.
+- INC-005 (health endpoint 401) only surfaced because a _new_ e2e was added — no existing test had ever called `/api/health` without a token, because the test file was a placeholder.
 - A PR review caught a half-written `it.todo(...)` in `packages/contracts/` destined to ship "covered by tests" forever.
 
 **Root cause:** Skipped/todo/passedWithNoTests patterns are escape hatches — they let us claim coverage while delivering zero signal. They are a form of technical debt that **prevents itself from being noticed**: the more skips accumulate, the more the green-run signal becomes a lie.
@@ -355,3 +380,138 @@ After these 11 incidents, the following rules should be considered for `AGENTS.m
 **Tradeoff accepted:** Removing `--passWithNoTests` requires every package to have at least one real test. New packages that aren't ready to test MUST add a placeholder test or be removed — that's the point.
 
 **→ Promoted to AGENTS.md §No skipped tests.**
+
+---
+
+## INC-013: Capture scripts depend on `jq` — silent no-op forever
+
+**Date:** 2026-08-04
+**Wave:** Harness v2 (continuous learning loop)
+**Severity:** Silent (capture never worked; no one noticed)
+
+**Symptom:** The existing `~/.claude/settings.json` has a `PostToolUse` hook that runs `npx prettier --write` after every Write/Edit. The hook's bash begins with `jq -r '.tool_response.filePath // .tool_input.file_path'`. The `jq` binary is not installed on this machine. Result: the hook has been a no-op for the entire lifetime of the file. Every code change went through without auto-formatting.
+
+**Root cause:** The hook depends on `jq`, but the install path is OS-dependent and there's no health check. The hook looks correct in code review — `jq` is a common, well-known tool — but it doesn't run on this developer's machine. There is no signal to the operator that the hook failed.
+
+**Lesson:** every new automation in the harness MUST bash + `python3` only, and the harness itself must verify that python3 is available and that no capture script depends on `jq`. If we add a new dep, we add it to the allowlist here and nowhere else.
+
+**Fix:**
+
+1. Added auto-check **INC-013** to `.harness/check.sh`:
+   - Asserts `python3` is available.
+   - Greps every `.harness/capture.sh`, `.harness/detect.sh`, `.harness/digest.sh`, `.harness/*.py` for `jq` and fails if any match.
+   - Error message: _"Fix: jq missing/broken; use python3 (see .harness/redact.py)"_ — the Alura principle of "linter messages with correction instructions."
+2. Rewrote `capture.sh` to use `python3` + `flock` only.
+3. Rewrote Prettier hook in `~/.claude/settings.json` to use `python3` for path extraction (PNPM-friendly).
+
+**Prevention rule:** `AGENTS.md §Continuous learning → Capture dependencies`. The check is auto-run by `pnpm harness:check`.
+
+**Tradeoff accepted:** A future hook that wants to use `jq` (or any other tool) must update this check, which is intentional — adding a new binary dependency is a deliberate decision that needs to be visible.
+
+**→ Promoted to AGENTS.md §Continuous learning → Capture dependencies.**
+
+---
+
+## INC-014: `events/` dir is session state — must be gitignored
+
+**Date:** 2026-08-04
+**Wave:** Harness v2 (continuous learning loop)
+**Severity:** Privacy / hygiene
+
+**Symptom:** Either `.harness/events/<date>.jsonl` is committed to git (leaking session state, possibly with redacted-but-still-sensitive info), or the inline detector is disabled because the dir doesn't exist (false negative — the harness stops learning).
+
+**Root cause:** The NDJSON event stream is _per-session_ observation data. It captures tool inputs (which may include file paths, commands, brief snippets) and tool outputs (which may include error messages referencing tokens). It is NOT source-of-truth. The source-of-truth is the aggregated `.harness/digest/<date>.md` and the proposed patches in `.harness/proposed/`. Mixing the two muddies the diff and makes the policy ("what is committed is auditable") unenforceable.
+
+**Fix:**
+
+1. Added `.harness/events/` to `.gitignore`.
+2. Added auto-check **INC-014** to `.harness/check.sh` that asserts `.gitignore` contains the entry.
+3. Kept `.harness/digest/` AND `.harness/proposed/` tracked — they are the human-reviewable artifacts.
+
+**Prevention rule:** `AGENTS.md §Continuous learning → Events are transient`.
+
+**Tradeoff accepted:** Without the events stream in git history, we can't replay past sessions. This is intentional — the digest captures the conclusions, and the raw events were always volatile observation data.
+
+**→ Promoted to AGENTS.md §Continuous learning → Events are transient.**
+
+---
+
+## INC-015: Daily digest failed silently — harness stopped learning
+
+**Date:** 2026-08-04
+**Wave:** Harness v2 (continuous learning loop)
+**Severity:** Operational (silent learning stall)
+
+**Symptom:** Capture kept running (events kept accumulating), but the digest was never written. After 7+ days, the harness had thousands of events but `learnings.json` was stale. The operator had no idea.
+
+**Root cause:** Cron-triggered agents fail silently: the scheduler dies, the worker crashes, the daily prompt hits an error, the user pauses the session. Without a freshness check, nothing alerts the operator.
+
+**Fix:**
+
+1. Added auto-check **INC-015** to `.harness/check.sh` that asserts at least one `.harness/digest/*.md` file has `mtime < 25h`.
+2. Error message: _"Fix: run `pnpm harness:digest` to refresh the daily digest."_ (Alura principle again.)
+3. Made the daily digest also run on demand via `pnpm harness:digest`, not only via cron.
+
+**Prevention rule:** `AGENTS.md §Continuous learning → Daily digest freshness`.
+
+**Tradeoff accepted:** A bucket-of-25h means the operator can skip one day without triggering the failure. That's intentional — the harness shouldn't be noisy when the operator is on vacation.
+
+**→ Promoted to AGENTS.md §Continuous learning → Daily digest freshness.**
+
+---
+
+## INC-016: Token-shaped string leaked into source — irreversible in git history
+
+**Date:** 2026-08-04
+**Wave:** Harness v2 (continuous learning loop)
+**Severity:** High (secret rotation + history rewrite)
+
+**Symptom:** A live token (Anthropic, GitHub, OpenAI, AWS) appears in source code. The file is committed. The secret is now permanently in the git history. The next commit can remove it, but the original SHA is recoverable.
+
+**Root cause:** Tokens travel through editor copy-paste, AI assistant context, and env var dumps. The `~/.claude/settings.json` file on this machine carries a live `ANTHROPIC_AUTH_TOKEN` (`sk-cp-…`) and `GITHUB_PERSONAL_ACCESS_TOKEN` (`github_pat_…`) in plaintext. Any hook that captures tool inputs without redaction risks writing these tokens to disk.
+
+**Two-layer defense:**
+
+1. **Redaction at capture (sensor).** `.harness/redact.py` strips tokens before they hit `.harness/events/`. This is the **seatbelt** — it stops the leak from being persisted.
+2. **Secret-shape scan at pre-commit (airbag).** **INC-016** in `.harness/check.sh` greps every `*.ts`/`*.tsx`/`*.js`/`*.jsx` under `apps/` and `packages/` for known token shapes (`sk-ant-`, `sk-cp-`, `ghp_`, `github_pat_`, `AKIA…`) and fails the build. This is the **airbag** — it catches the leak even if the seatbelt was forgotten.
+
+**Fix:**
+
+1. Added `.harness/redact.py` (hook on every Bash/Edit/Write/MCP).
+2. Added auto-check **INC-016** to `.harness/check.sh`.
+3. Error message: _"Fix: rotate the token and move to a secret store; do not commit plaintext credentials."_
+
+**Prevention rule:** `AGENTS.md §Continuous learning → No plaintext secrets`.
+
+**Tradeoff accepted:** The check uses regex patterns, NOT a real secret scanner (gitleaks, trufflehog). It catches the most common shapes but a determined attacker can bypass it with slight obfuscation. That's acceptable — the goal is "no accidents," not "no adversarial bypasses." For the adversarial case, we'd add gitleaks as a future CI step.
+
+**→ Promoted to AGENTS.md §Continuous learning → No plaintext secrets.**
+
+---
+
+## Pattern: Alura's "guias + sensores" applied to the harness
+
+After 16 incidents, the harness has both halves of the loop Alura describes:
+
+- **Guias (feedforward):** codemods in `.harness/codemods/` (INC-002, INC-003, INC-006, INC-009) — pre-emptive transformations that rewrite known anti-patterns to their safe form _before_ the agent commits the bad pattern.
+- **Sensores (feedback):** capture (L1), inline detection (L2), daily digest (L3), auto-checks (L4) — observations that surface when known patterns re-appear.
+
+**Codemods are documented in `.harness/codemods/README.md`.** Each codemod has a `--check` (dry-run) and `--apply` mode, scopes tightly to the files the INC pattern actually targets, and is stdlib-only. The next time we add an INC-XXX, we should also add a codemod for it as part of the prevention layer (when the pattern is regular enough to rewrite deterministically).
+
+**The Alura takeaway applied here:** "sempre que o agente cometer o mesmo tipo de erro mais de uma vez, registre a falha, identifique o padrão, e crie uma forma automática de prevenção." We've codified this — every codemod here exists because the same pattern escaped review at least once.
+
+---
+
+## Skills referenced
+
+- [monorepo-dod-validation](~/.claude/skills/monorepo-dod-validation/SKILL.md)
+- [fix-wave-orchestration](~/.claude/skills/fix-wave-orchestration/SKILL.md)
+- [nestjs-fastify-gotchas](~/.claude/skills/nestjs-fastify-gotchas/SKILL.md)
+- [pnpm-monorepo-script-pitfalls](~/.claude/skills/pnpm-monorepo-script-pitfalls/SKILL.md)
+
+## Codemods referenced
+
+- [`.harness/codemods/inc-002-fastify-response.py`](codemods/inc-002-fastify-response.py) — INC-002 anti-pattern auto-fix
+- [`.harness/codemods/inc-003-nest-di-imports.py`](codemods/inc-003-nest-di-imports.py) — INC-003 anti-pattern auto-fix
+- [`.harness/codemods/inc-006-dockerfile-order.py`](codemods/inc-006-dockerfile-order.py) — INC-006 anti-pattern auto-fix
+- [`.harness/codemods/inc-009-nest-logger.py`](codemods/inc-009-nest-logger.py) — INC-009 anti-pattern auto-fix

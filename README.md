@@ -19,41 +19,41 @@ pnpm db:seed
 
 Open:
 
-| Service     | URL                                |
-|-------------|------------------------------------|
-| Web app     | <http://localhost:3000>            |
-| API         | <http://localhost:3001>            |
-| Swagger UI  | <http://localhost:3001/docs>       |
-| MailHog UI  | <http://localhost:18025>           |
+| Service    | URL                          |
+| ---------- | ---------------------------- |
+| Web app    | <http://localhost:3000>      |
+| API        | <http://localhost:3001>      |
+| Swagger UI | <http://localhost:3001/docs> |
+| MailHog UI | <http://localhost:18025>     |
 
 Default seed user: `admin@ai-padrao.local` / `admin123`.
 
 ## Stack
 
-| Layer            | Choice                                             |
-|------------------|----------------------------------------------------|
-| Monorepo         | pnpm 9 + Turborepo 2 workspaces                    |
-| Backend          | NestJS 11 on Fastify + Prisma 6 + Zod (`nestjs-zod`) |
-| Frontend         | Next.js 15 (App Router) + Tailwind 4 + shadcn/ui  |
-| Auth             | JWT (15m access) + rotated refresh in httpOnly cookie + Argon2id |
-| Database         | PostgreSQL 16                                      |
-| Observability    | OpenTelemetry SDK + OTLP Collector                 |
-| Email (dev)      | MailHog (host ports `11125` / `18025` to avoid sibling collisions) |
-| Container        | 5-service `docker-compose.yml` (postgres, api, web, mailhog, otel-collector) |
-| Editor           | Visual Studio Code (workspace config in `.vscode/`) |
+| Layer         | Choice                                                                       |
+| ------------- | ---------------------------------------------------------------------------- |
+| Monorepo      | pnpm 9 + Turborepo 2 workspaces                                              |
+| Backend       | NestJS 11 on Fastify + Prisma 6 + Zod (`nestjs-zod`)                         |
+| Frontend      | Next.js 15 (App Router) + Tailwind 4 + shadcn/ui                             |
+| Auth          | JWT (15m access) + rotated refresh in httpOnly cookie + Argon2id             |
+| Database      | PostgreSQL 16                                                                |
+| Observability | OpenTelemetry SDK + OTLP Collector                                           |
+| Email (dev)   | MailHog (host ports `11125` / `18025` to avoid sibling collisions)           |
+| Container     | 5-service `docker-compose.yml` (postgres, api, web, mailhog, otel-collector) |
+| Editor        | Visual Studio Code (workspace config in `.vscode/`)                          |
 
 ## Architecture
 
 See [`docs/superpowers/specs/`](docs/superpowers/specs/) for the full design spec.
 
-| App / Package        | Purpose                                       |
-|----------------------|-----------------------------------------------|
-| `apps/api`           | NestJS 11 + Fastify REST API                  |
-| `apps/web`           | Next.js 15 (App Router) frontend              |
-| `packages/db`        | Prisma client re-export                       |
-| `packages/contracts` | Zod schemas shared front + back               |
-| `packages/ui`        | shadcn/ui components                          |
-| `packages/config-eslint` | Shared flat ESLint 9 configs            |
+| App / Package            | Purpose                          |
+| ------------------------ | -------------------------------- |
+| `apps/api`               | NestJS 11 + Fastify REST API     |
+| `apps/web`               | Next.js 15 (App Router) frontend |
+| `packages/db`            | Prisma client re-export          |
+| `packages/contracts`     | Zod schemas shared front + back  |
+| `packages/ui`            | shadcn/ui components             |
+| `packages/config-eslint` | Shared flat ESLint 9 configs     |
 
 ## Spec-Driven Development (mandatory)
 
@@ -63,52 +63,82 @@ Full workflow + templates: [`AGENTS.md`](AGENTS.md) and [`.openspec/AGENTS.md`](
 
 ## Self-improving harness
 
-The `.harness/` directory is a **learning loop** that turns real defects into durable guardrails:
+The `.harness/` directory is a **closed feedback loop** that turns real defects into durable guardrails AND learns from every tool call in this repo. The model is **agente = modelo + harness**, with two halves:
+
+- **Guias (feedforward):** tell the agent the safe form BEFORE it writes the bad form. Codemods in `.harness/codemods/` are guias.
+- **Sensores (feedback):** observe what the agent did and surface it. Capture (L1), inline detection (L2), daily digest (L3), auto-checks (L4) are sensores.
 
 ```
-real defect ──→ .harness/INCIDENTS.md ──→ .harness/learnings.json ──→ prevention rule
-                                                                          ↓
-                                          AGENTS.md  •  lint config  •  prebuild check  •  skill
-                                                                  ↓
-                                                       blocks reincarnation
+every tool call → L1 Capture ─→ L2 Inline detect ─→ L3 Daily digest ─→ L4 Auto-check
+                    ↓                  ↓                    ↓                  ↓
+              .harness/events/  match → confirmation  .harness/digest/   .harness/check.sh
+                                   prompt + codemod  + .harness/proposed/  (16 checks)
+                                     applied                                     ↓
+                                                                       blocks reincarnation
 ```
 
-- **`.harness/INCIDENTS.md`** — narrative log of every real defect that escaped review (12 entries to date).
-- **`.harness/learnings.json`** — structured, queryable DB mapping `trigger_pattern` → `prevention` → `auto_check`.
-- **`.harness/check.sh`** — runs the auto_checks before every build. Currently 10 PASS / 0 FAIL / 3 SKIP (manual).
+### The four layers
+
+| Layer                  | What it does                                                                          | Where it lives                                                     |
+| ---------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| **L1 — Capture**       | Append one JSONL line per tool call (after `redact.py`)                               | `.harness/capture.sh` + `~/.claude/settings.json` PostToolUse hook |
+| **L2 — Inline detect** | Compare last 20 events against `learnings.json`; match → blocking confirmation prompt | `.harness/detect.sh` + `.harness/pattern_match.py`                 |
+| **L3 — Daily digest**  | Cron @ 22:03 local: aggregate events → markdown digest + proposed patch               | `.harness/digest.py` (CronCreate)                                  |
+| **L4 — Enforce**       | All 16 auto-checks (`INC-001`..`INC-016`) before every build                          | `.harness/check.sh` (wired into `pnpm prebuild`)                   |
+
+### The data flow
+
+- **`.harness/INCIDENTS.md`** — narrative log of every real defect that escaped review (16 entries to date).
+- **`.harness/learnings.json`** — structured DB mapping `trigger_pattern` → `prevention` → `auto_check`.
+- **`.harness/events/`** — _session state, gitignored_. Per-day NDJSON. Don't commit.
+- **`.harness/digest/`** — _committed_. Daily digest the human reviews.
+- **`.harness/proposed/`** — _committed_. Unified-diff patches the daily agent proposes.
+- **`.harness/codemods/`** — _committed_. Feedforward transformations for known-safe rewrites (e.g. `inc-002-fastify-response` rewrites `res.setHeader` → `reply.header`).
+- **`.harness/check.sh`** — runs all auto-checks before every build. Currently 16 PASS / 0 FAIL / 3 SKIP (manual).
 
 To run: `pnpm harness:check`. Wired into `pnpm prebuild`, so any build will block on a regression.
+
+### Available harness scripts
+
+| Command                                         | What it does                                                                |
+| ----------------------------------------------- | --------------------------------------------------------------------------- |
+| `pnpm harness:check`                            | Run all 16 auto-checks                                                      |
+| `pnpm harness:detect`                           | Run the inline pattern detector once (no-op if no event in last 20 matches) |
+| `pnpm harness:digest`                           | Generate today's digest + proposed patch (manual run of the L3 agent)       |
+| `pnpm harness:apply`                            | Apply today's proposed patch (refuses forbidden paths)                      |
+| `pnpm harness:codemod inc-XXX … --check <file>` | Show the safe rewrite for file                                              |
+| `pnpm harness:codemod inc-XXX … --apply <file>` | Apply the safe rewrite                                                      |
 
 ## Project policies (zero-tolerance)
 
 The repo enforces several "zero-tolerance" policies via harness auto-checks. They are documented in [AGENTS.md](AGENTS.md) and enforced by [`.harness/check.sh`](.harness/check.sh):
 
-- ❌ **No skipped tests** — `it.skip`, `xit`, `xdescribe`, `xtest`, `it.todo`, `--passWithNoTests`, and conditional `describe/it` are all forbidden. Tests are real or they don't exist. *Enforced by INC-012.*
-- ❌ No `console.*` in `apps/api/src/main.ts` — use the Nest `Logger`. *Enforced by INC-009.*
-- ❌ No Express-only response API (`res.setHeader`, `res.cookie`) under Fastify. *Enforced by INC-002.*
-- ❌ Default well-known host ports (1025, 8025, 3000, 5432, etc.) in `docker-compose.yml` — they collide with sibling projects. *Enforced by INC-008.*
-- ❌ `import type` for class references in NestJS DI'd files (controllers, services, guards, strategies, interceptors, decorators). *Enforced by INC-003 (manual).*
+- ❌ **No skipped tests** — `it.skip`, `xit`, `xdescribe`, `xtest`, `it.todo`, `--passWithNoTests`, and conditional `describe/it` are all forbidden. Tests are real or they don't exist. _Enforced by INC-012._
+- ❌ No `console.*` in `apps/api/src/main.ts` — use the Nest `Logger`. _Enforced by INC-009._
+- ❌ No Express-only response API (`res.setHeader`, `res.cookie`) under Fastify. _Enforced by INC-002._
+- ❌ Default well-known host ports (1025, 8025, 3000, 5432, etc.) in `docker-compose.yml` — they collide with sibling projects. _Enforced by INC-008._
+- ❌ `import type` for class references in NestJS DI'd files (controllers, services, guards, strategies, interceptors, decorators). _Enforced by INC-003 (manual)._
 
 Every change that touches these areas MUST be reviewed against the matching skill before merge.
 
 ## Scripts
 
-| Command              | What it does                                  |
-|----------------------|-----------------------------------------------|
-| `pnpm up`            | Start all Docker services                     |
-| `pnpm down`          | Stop all services                             |
-| `pnpm logs`          | Tail logs from all services                   |
-| `pnpm db:migrate`    | Apply Prisma migrations (in api container)    |
-| `pnpm db:seed`       | Run seed script                               |
-| `pnpm db:reset`      | Reset DB + re-run migrations + seed           |
-| `pnpm build`         | Build all packages (runs harness check first) |
-| `pnpm dev`           | Run all dev servers                           |
-| `pnpm test`          | Run unit + e2e tests across packages          |
-| `pnpm lint`          | Lint all packages                             |
-| `pnpm typecheck`     | TypeScript checks across packages             |
+| Command              | What it does                                      |
+| -------------------- | ------------------------------------------------- |
+| `pnpm up`            | Start all Docker services                         |
+| `pnpm down`          | Stop all services                                 |
+| `pnpm logs`          | Tail logs from all services                       |
+| `pnpm db:migrate`    | Apply Prisma migrations (in api container)        |
+| `pnpm db:seed`       | Run seed script                                   |
+| `pnpm db:reset`      | Reset DB + re-run migrations + seed               |
+| `pnpm build`         | Build all packages (runs harness check first)     |
+| `pnpm dev`           | Run all dev servers                               |
+| `pnpm test`          | Run unit + e2e tests across packages              |
+| `pnpm lint`          | Lint all packages                                 |
+| `pnpm typecheck`     | TypeScript checks across packages                 |
 | `pnpm harness:check` | Run the harness auto-checks (always before build) |
-| `pnpm prebuild`      | Same as `harness:check` — wired into build    |
-| `pnpm clean`         | Wipe dist, `.next`, `.turbo`, `node_modules`  |
+| `pnpm prebuild`      | Same as `harness:check` — wired into build        |
+| `pnpm clean`         | Wipe dist, `.next`, `.turbo`, `node_modules`      |
 
 ## Conventions
 

@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "description": "Structured incident knowledge for the ai-padrao harness. Each entry maps a real defect pattern to the prevention rule (skill or lint config). Query by trigger_pattern before starting work that might re-introduce a known issue.",
   "stats": {
-    "total_incidents": 12,
+    "total_incidents": 16,
     "with_skill_prevention": 11,
-    "with_policy_prevention": 12,
+    "with_policy_prevention": 16,
+    "with_codemod_prevention": 4,
     "last_updated": "2026-08-04",
     "convergence_target": 0
   },
@@ -41,7 +42,12 @@
       "category": "api-compat",
       "trigger_pattern": {
         "files": ["apps/api/src/**/*.ts"],
-        "symbols": ["res.setHeader", "res\\.json\\(", "res\\.send\\(", "res\\.status\\("],
+        "symbols": [
+          "res.setHeader",
+          "res\\.json\\(",
+          "res\\.send\\(",
+          "res\\.status\\("
+        ],
         "frameworks": ["@nestjs/platform-fastify"]
       },
       "symptom": "res.setHeader is not a function (HTTP 500 on every request)",
@@ -63,7 +69,13 @@
       "trigger_pattern": {
         "files": ["apps/api/src/**/*.ts"],
         "symbols": ["import type"],
-        "contexts": ["constructor params with DI", "@Body()", "@Query()", "@Param()", "@CurrentUser()"]
+        "contexts": [
+          "constructor params with DI",
+          "@Body()",
+          "@Query()",
+          "@Param()",
+          "@CurrentUser()"
+        ]
       },
       "symptom": "Nest can't resolve dependencies of the X service (?). Argument at index [0] is unavailable",
       "root_cause_summary": "import type erases the runtime value reference that emitDecoratorMetadata relies on for design:paramtypes",
@@ -103,7 +115,10 @@
       "id": "INC-005",
       "category": "auth-guard",
       "trigger_pattern": {
-        "files": ["apps/api/src/modules/health/**", "apps/api/src/modules/auth/auth.controller.ts"],
+        "files": [
+          "apps/api/src/modules/health/**",
+          "apps/api/src/modules/auth/auth.controller.ts"
+        ],
         "missing": ["@Public()"],
         "context": "global APP_GUARD with JwtAuthGuard"
       },
@@ -247,8 +262,24 @@
       "id": "INC-012",
       "category": "test-discipline",
       "trigger_pattern": {
-        "files": ["**/*.spec.ts", "**/*.test.ts", "**/*.spec.tsx", "**/*.test.tsx", "**/package.json", "**/vitest.config.*", "**/jest.config.*"],
-        "symbols": [".skip(", "xit", "xdescribe", "xtest", ".todo(", "--passWithNoTests", "skip: true"]
+        "files": [
+          "**/*.spec.ts",
+          "**/*.test.ts",
+          "**/*.spec.tsx",
+          "**/*.test.tsx",
+          "**/package.json",
+          "**/vitest.config.*",
+          "**/jest.config.*"
+        ],
+        "symbols": [
+          ".skip(",
+          "xit",
+          "xdescribe",
+          "xtest",
+          ".todo(",
+          "--passWithNoTests",
+          "skip: true"
+        ]
       },
       "symptom": "Zero-day: skipped tests hide defects because they don't run. INC-005 was the trigger — /api/health returned 401 in production because no e2e test exercised it without a token.",
       "root_cause_summary": "Project policy adopted on 2026-08-04: any pattern that masks a test (skip, todo, passWithNoTests, conditional describe/it) is forbidden. Either the test is real and runs, or it doesn't exist.",
@@ -264,17 +295,153 @@
       },
       "blast_radius": "high",
       "evidence": "Pre-commit self-check: removing --passWithNoTests + adding env.client.spec.ts in apps/web triggered zero test failures"
+    },
+    {
+      "id": "INC-013",
+      "category": "tooling-deps",
+      "trigger_pattern": {
+        "files": [
+          ".harness/capture.sh",
+          ".harness/detect.sh",
+          ".harness/digest.sh",
+          ".harness/digest.py",
+          ".harness/pattern_match.py",
+          ".harness/redact.py"
+        ],
+        "symbols": ["\\bjq\\b"],
+        "context": "capture scripts that depend on jq silently no-op when jq is not installed"
+      },
+      "symptom": "The existing Prettier PostToolUse hook in ~/.claude/settings.json depends on jq. jq is not installed on this machine. The hook has been silently a no-op for months — every code change in the repo has gone through without ever being formatted by the hook.",
+      "root_cause_summary": "Capture scripts that depend on untested tools fail silently. The user has no way to know the hook is broken except by reading the hook's bash and noticing the `jq` call.",
+      "prevention": {
+        "type": "policy",
+        "ref": "AGENTS.md §Continuous learning",
+        "section": "Capture dependencies"
+      },
+      "auto_check": {
+        "type": "tool_dependency",
+        "python3_required": true,
+        "forbidden_in_capture": ["jq"],
+        "rationale": "python3 is the only required interpreter; future hooks MUST NOT add new top-level deps without updating this check."
+      },
+      "alura_principle": "linter messages with correction instructions — the auto-check prints 'Fix: jq missing/broken; use python3 (see .harness/redact.py)' so the next maintainer knows the remediation path."
+    },
+    {
+      "id": "INC-014",
+      "category": "data-governance",
+      "trigger_pattern": {
+        "files": [".gitignore"],
+        "missing": ["^.harness/events/"]
+      },
+      "symptom": "Either events/<date>.jsonl is committed by mistake (leaking session state into the repo), or the agent refuses to capture because the dir doesn't exist (false negative).",
+      "root_cause_summary": "The events stream is session state, not source-of-truth. It MUST be gitignored. The digest output (.harness/digest/) is the human-reviewable artifact and stays committed.",
+      "prevention": {
+        "type": "policy",
+        "ref": "AGENTS.md §Continuous learning",
+        "section": "Events are transient"
+      },
+      "auto_check": {
+        "type": "gitignore_entry",
+        "required": ".harness/events/",
+        "rationale": "Anything committed to events/ becomes permanent. Per-session data must be allowed to be discarded."
+      },
+      "alura_principle": "the sensor (capture) must never become the source of truth. The digest (L3) is the source of truth; the events stream is the volatile input."
+    },
+    {
+      "id": "INC-015",
+      "category": "operational-discipline",
+      "trigger_pattern": {
+        "files": [".harness/digest/"],
+        "freshness": "no digest mtime < 25h"
+      },
+      "symptom": "The daily agent silently stopped running. The harness kept capturing events but never converted them into learnings. After 7+ days, the system had ~10k events but the learnings.json was stale.",
+      "root_cause_summary": "Schedule-based jobs fail silently when the scheduler dies, the worker crashes, or the cron payload starts erroring. Without a freshness check, the operator has no signal that learning has stopped.",
+      "prevention": {
+        "type": "policy",
+        "ref": "AGENTS.md §Continuous learning",
+        "section": "Daily digest freshness"
+      },
+      "auto_check": {
+        "type": "freshness_check",
+        "path": ".harness/digest/",
+        "max_age_seconds": 90000,
+        "rationale": "90000s = 25h, slightly over 24h to allow for timezone jitter but tight enough to catch a missed day."
+      },
+      "alura_principle": "the sensor (capture) must have a heartbeat (digest) and the heartbeat must have a watchdog (this check)."
+    },
+    {
+      "id": "INC-016",
+      "category": "secret-management",
+      "trigger_pattern": {
+        "files": [
+          "apps/**/*.ts",
+          "apps/**/*.tsx",
+          "packages/**/*.ts",
+          "packages/**/*.tsx"
+        ],
+        "shapes": [
+          "sk-ant-[A-Za-z0-9_-]{8,}",
+          "sk-cp-[A-Za-z0-9_-]{8,}",
+          "ghp_[A-Za-z0-9]{16,}",
+          "github_pat_[A-Za-z0-9_]{16,}",
+          "sk-[A-Za-z0-9]{32,}",
+          "AKIA[0-9A-Z]{16}"
+        ]
+      },
+      "symptom": "A live token appears in source code, the file is pushed, and the secret is now permanently in the git history. Even if the next commit removes it, the original is recoverable from the previous SHA.",
+      "root_cause_summary": "Tokens that travel through editor copy-paste, AI assistant context, or env var dumps end up in source code by accident. Once committed, the rotation cost is high (rotate, redact history, notify reviewers).",
+      "prevention": {
+        "type": "policy",
+        "ref": "AGENTS.md §Continuous learning",
+        "section": "No plaintext secrets"
+      },
+      "auto_check": {
+        "type": "secret_shape_scan",
+        "scope": ["apps/", "packages/"],
+        "exclude": [
+          "node_modules",
+          ".next",
+          "dist",
+          ".turbo",
+          "coverage",
+          "standalone"
+        ],
+        "exclude_terms": ["envSchema", "test", "spec", "mock", "fixture"],
+        "rationale": "Token-shaped strings in first-party source are always a leak. Tests are excluded because they may legitimately contain mock tokens."
+      },
+      "alura_principle": "the sensor must catch leaks before they become permanent. The redactor (.harness/redact.py) is the seatbelt; the secret-shape scan is the airbag."
     }
   ],
   "prevention_summary": {
     "by_skill": {
-      "nestjs-fastify-gotchas": ["INC-001", "INC-002", "INC-003", "INC-005", "INC-009"],
-      "pnpm-monorepo-script-pitfalls": ["INC-004", "INC-006", "INC-007", "INC-008"],
+      "nestjs-fastify-gotchas": [
+        "INC-001",
+        "INC-002",
+        "INC-003",
+        "INC-005",
+        "INC-009"
+      ],
+      "pnpm-monorepo-script-pitfalls": [
+        "INC-004",
+        "INC-006",
+        "INC-007",
+        "INC-008"
+      ],
       "monorepo-dod-validation": [],
       "fix-wave-orchestration": []
     },
     "by_policy": {
-      "no-skipped-tests": ["INC-012"]
+      "no-skipped-tests": ["INC-012"],
+      "no-jq-in-capture": ["INC-013"],
+      "events-gitignored": ["INC-014"],
+      "digest-freshness": ["INC-015"],
+      "no-hardcoded-secrets": ["INC-016"]
+    },
+    "by_codemod": {
+      "inc-002-fastify-response": ["INC-002"],
+      "inc-003-nest-di-imports": ["INC-003"],
+      "inc-006-dockerfile-order": ["INC-006"],
+      "inc-009-nest-logger": ["INC-009"]
     },
     "by_auto_check_type": {
       "grep_audit": ["INC-002", "INC-007", "INC-009", "INC-011", "INC-012"],
@@ -283,7 +450,11 @@
       "lint_rule_override": ["INC-003"],
       "dockerfile_lint": ["INC-006"],
       "compose_lint": ["INC-008"],
-      "e2e_test": ["INC-005"]
+      "e2e_test": ["INC-005"],
+      "tool_dependency": ["INC-013"],
+      "gitignore_entry": ["INC-014"],
+      "freshness_check": ["INC-015"],
+      "secret_shape_scan": ["INC-016"]
     },
     "next_skill_to_create": null,
     "suggested_agent_rule_updates": [
@@ -296,6 +467,11 @@
         "target": "AGENTS.md",
         "section": "## Forbidden actions",
         "content": "Promoted 2026-08-04: skipped tests are forbidden. See AGENTS.md §No skipped tests for the full rule and .harness/check.sh INC-012 for the auto-check."
+      },
+      {
+        "target": "AGENTS.md",
+        "section": "## Continuous learning",
+        "content": "Promoted 2026-08-04: the harness learns from every event. Capture (L1), inline detection (L2), daily digest (L3), and enforcement (L4) form a closed loop. Skipping or bypassing the inline detector is a forbidden action — see AGENTS.md §Continuous learning."
       }
     ]
   }
