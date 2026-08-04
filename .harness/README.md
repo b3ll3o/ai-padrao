@@ -52,10 +52,11 @@ Run the [harness-self-improvement](~/.claude/skills/harness-self-improvement/SKI
 
 | Metric | Value |
 |---|---|
-| Total incidents logged | 11 |
-| With skill prevention | 11 (100%) |
-| With auto_check (machine-verifiable) | 8 (73%) |
-| Categories covered | 7 distinct |
+| Total incidents logged | 12 |
+| With skill prevention | 11 (92%) |
+| With policy prevention | 12 (100%) |
+| With auto_check (machine-verifiable) | 10 (83%) |
+| Categories covered | 8 distinct |
 | Skills referenced | 2 (`nestjs-fastify-gotchas`, `pnpm-monorepo-script-pitfalls`) |
 | Skills to create | 0 (no gap detected) |
 
@@ -74,8 +75,9 @@ Run the [harness-self-improvement](~/.claude/skills/harness-self-improvement/SKI
 | logger-pattern (INC-009) | nestjs-fastify-gotchas | grep_audit |
 | peer-warning (INC-010) | docs only | — |
 | vite-cjs (INC-011) | env_var | grep_audit |
+| test-discipline (INC-012) | AGENTS.md §No skipped tests | grep_audit |
 
-All 11 incidents have prevention rules. 8 of 11 are machine-verifiable.
+All 12 incidents have prevention rules. 10 of 12 are machine-verifiable.
 
 ## What this is NOT
 

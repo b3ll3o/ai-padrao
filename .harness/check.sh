@@ -152,6 +152,31 @@ check "INC-011: VITE_CJS_IGNORE_WARNING in web test" \
   bash -c 'grep -q "VITE_CJS_IGNORE_WARNING" apps/web/package.json'
 
 # ---------------------------------------------------------------
+# INC-012 — Zero skipped tests (no .skip / xit / xdescribe / .todo / --passWithNoTests)
+# Scans every tracked source file for forbidden patterns.
+# Excludes: node_modules, .next, dist, .turbo, coverage, .standalone.
+# Only first-party source under apps/ and packages/ is checked.
+# Uses find + grep with explicit prune so deeply-nested build dirs are skipped.
+# ---------------------------------------------------------------
+check "INC-012: no skipped tests" \
+  bash -c '
+    set +e
+    # Build a list of candidate files, skipping build/cache directories.
+    files=$(find apps packages \
+      \( -name node_modules -o -name ".next" -o -name dist -o -name ".turbo" -o -name coverage -o -name standalone \) -prune -o \
+      -type f \( -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" -o -name "*.json" \) -print 2>/dev/null)
+    src_pattern=$(printf "%s\n" "$files" | grep -E "\.(ts|tsx|js|jsx)$" | xargs grep -nE "\b(it|test|describe|context)\.skip\(|\b(xit|xdescribe|xtest)\b|\b(it|test)\.todo\(" 2>/dev/null || true)
+    pkg_pattern=$(printf "%s\n" "$files" | grep -E "/package\.json$" | xargs grep -nE -- "--passWithNoTests" 2>/dev/null || true)
+    cfg_pattern=$(printf "%s\n" "$files" | grep -E "vitest\.config\.|jest\.config\." | xargs grep -nE "(passWithNoTests|skip[[:space:]]*:)" 2>/dev/null || true)
+    if [ -n "$src_pattern$pkg_pattern$cfg_pattern" ]; then
+      [ -n "$src_pattern" ] && { echo "  SOURCE code skip patterns:"; echo "$src_pattern" | sed "s/^/    /"; }
+      [ -n "$pkg_pattern" ] && { echo "  package.json runner flags:"; echo "$pkg_pattern" | sed "s/^/    /"; }
+      [ -n "$cfg_pattern" ] && { echo "  vitest/jest config skip:"; echo "$cfg_pattern" | sed "s/^/    /"; }
+      exit 1
+    fi
+  '
+
+# ---------------------------------------------------------------
 # Manual checks (no auto-run — require human judgment)
 # ---------------------------------------------------------------
 note "INC-003: NestJS DI files don't use import type (requires per-file analysis)"

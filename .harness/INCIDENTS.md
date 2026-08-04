@@ -323,3 +323,35 @@ After these 11 incidents, the following rules should be considered for `AGENTS.m
 - [fix-wave-orchestration](~/.claude/skills/fix-wave-orchestration/SKILL.md)
 - [nestjs-fastify-gotchas](~/.claude/skills/nestjs-fastify-gotchas/SKILL.md)
 - [pnpm-monorepo-script-pitfalls](~/.claude/skills/pnpm-monorepo-script-pitfalls/SKILL.md)
+
+---
+
+## INC-012: No skipped tests — zero tolerance policy adopted
+
+**Date:** 2026-08-04
+**Wave:** post-stabilization (rule promotion, not a defect)
+**Severity:** Policy (prevents future defects)
+
+**Symptom (recurring):** Green test runs that don't actually exercise the code. Examples observed:
+
+- `apps/web/package.json` carried `vitest run --passWithNoTests` for weeks: a green web test run meant "0 tests ran and 0 failed".
+- INC-005 (health endpoint 401) only surfaced because a *new* e2e was added — no existing test had ever called `/api/health` without a token, because the test file was a placeholder.
+- A PR review caught a half-written `it.todo(...)` in `packages/contracts/` destined to ship "covered by tests" forever.
+
+**Root cause:** Skipped/todo/passedWithNoTests patterns are escape hatches — they let us claim coverage while delivering zero signal. They are a form of technical debt that **prevents itself from being noticed**: the more skips accumulate, the more the green-run signal becomes a lie.
+
+**Fix:**
+
+1. Added `## No skipped tests` section to `AGENTS.md` listing every forbidden pattern.
+2. Added auto-check **INC-012** to `.harness/check.sh` (find + grep, with `node_modules`, `.next`, `dist`, `.turbo`, `coverage`, `standalone` pruned).
+3. Removed `--passWithNoTests` from `apps/web/package.json`.
+4. Added `apps/web/src/lib/env.client.spec.ts` (2 tests) so removing `--passWithNoTests` doesn't immediately break the web test job.
+5. Added INC-012 entry to `learnings.json` with `prevention.type: "policy"`.
+
+**Prevention rule:** `AGENTS.md §No skipped tests` — enforced by `.harness/check.sh` INC-012.
+
+**Would have been caught by:** Always (the auto-check runs in `pnpm prebuild`).
+
+**Tradeoff accepted:** Removing `--passWithNoTests` requires every package to have at least one real test. New packages that aren't ready to test MUST add a placeholder test or be removed — that's the point.
+
+**→ Promoted to AGENTS.md §No skipped tests.**

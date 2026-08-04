@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint src --config $(node -p \"require.resolve('@ai-padrao/config-eslint/next.js')\")",
     "typecheck": "tsc --noEmit",
-    "test": "VITE_CJS_IGNORE_WARNING=true vitest run --passWithNoTests"
+    "test": "VITE_CJS_IGNORE_WARNING=true vitest run"
   },
   "dependencies": {
     "@ai-padrao/config-tailwind": "workspace:*",

@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "Structured incident knowledge for the ai-padrao harness. Each entry maps a real defect pattern to the prevention rule (skill or lint config). Query by trigger_pattern before starting work that might re-introduce a known issue.",
   "stats": {
-    "total_incidents": 11,
+    "total_incidents": 12,
     "with_skill_prevention": 11,
+    "with_policy_prevention": 12,
     "last_updated": "2026-08-04",
     "convergence_target": 0
   },
@@ -241,6 +242,28 @@
         "command": "grep 'VITE_CJS_IGNORE_WARNING' apps/web/package.json",
         "expected": "match in test script"
       }
+    },
+    {
+      "id": "INC-012",
+      "category": "test-discipline",
+      "trigger_pattern": {
+        "files": ["**/*.spec.ts", "**/*.test.ts", "**/*.spec.tsx", "**/*.test.tsx", "**/package.json", "**/vitest.config.*", "**/jest.config.*"],
+        "symbols": [".skip(", "xit", "xdescribe", "xtest", ".todo(", "--passWithNoTests", "skip: true"]
+      },
+      "symptom": "Zero-day: skipped tests hide defects because they don't run. INC-005 was the trigger — /api/health returned 401 in production because no e2e test exercised it without a token.",
+      "root_cause_summary": "Project policy adopted on 2026-08-04: any pattern that masks a test (skip, todo, passWithNoTests, conditional describe/it) is forbidden. Either the test is real and runs, or it doesn't exist.",
+      "prevention": {
+        "type": "policy",
+        "ref": "AGENTS.md §No skipped tests",
+        "section": "Forbidden actions + No skipped tests"
+      },
+      "auto_check": {
+        "type": "grep_audit",
+        "command": "find apps packages -type d \\( -name node_modules -o -name .next -o -name dist -o -name .turbo -o -name coverage -o -name standalone \\) -prune -o -type f \\( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' -o -name '*.json' \\) -print | xargs grep -nE '\\b(it|test|describe|context)\\.skip\\(|\\b(xit|xdescribe|xtest)\\b|\\b(it|test)\\.todo\\(|--passWithNoTests|skip[[:space:]]*:'",
+        "expected": "no matches in first-party source"
+      },
+      "blast_radius": "high",
+      "evidence": "Pre-commit self-check: removing --passWithNoTests + adding env.client.spec.ts in apps/web triggered zero test failures"
     }
   ],
   "prevention_summary": {
@@ -250,8 +273,11 @@
       "monorepo-dod-validation": [],
       "fix-wave-orchestration": []
     },
+    "by_policy": {
+      "no-skipped-tests": ["INC-012"]
+    },
     "by_auto_check_type": {
-      "grep_audit": ["INC-002", "INC-007", "INC-009", "INC-011"],
+      "grep_audit": ["INC-002", "INC-007", "INC-009", "INC-011", "INC-012"],
       "package_json_field": ["INC-004"],
       "package_json_dep": ["INC-001"],
       "lint_rule_override": ["INC-003"],
@@ -265,6 +291,11 @@
         "target": "AGENTS.md",
         "section": "## Common pitfalls",
         "content": "Before any change involving [NestJS interceptors/guards/decorators] [Docker] [ESLint config] [Prisma seed] [Swagger] [JWT auth], invoke the matching skill. See .harness/INCIDENTS.md for full history."
+      },
+      {
+        "target": "AGENTS.md",
+        "section": "## Forbidden actions",
+        "content": "Promoted 2026-08-04: skipped tests are forbidden. See AGENTS.md §No skipped tests for the full rule and .harness/check.sh INC-012 for the auto-check."
       }
     ]
   }
