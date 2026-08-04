@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Structured incident knowledge for the ai-padrao harness. Each entry maps a real defect pattern to the prevention rule (skill or lint config). Query by trigger_pattern before starting work that might re-introduce a known issue.",
   "stats": {
-    "total_incidents": 16,
+    "total_incidents": 17,
     "with_skill_prevention": 11,
     "with_policy_prevention": 16,
     "with_codemod_prevention": 4,
@@ -410,6 +410,27 @@
         "rationale": "Token-shaped strings in first-party source are always a leak. Tests are excluded because they may legitimately contain mock tokens."
       },
       "alura_principle": "the sensor must catch leaks before they become permanent. The redactor (.harness/redact.py) is the seatbelt; the secret-shape scan is the airbag."
+    },
+    {
+      "id": "INC-017",
+      "category": "detector-design",
+      "trigger_pattern": {
+        "files": [],
+        "symbols": []
+      },
+      "symptom": "L2 inline detector fires INC-002 or INC-003 confirmation prompts during documentation work (Write events under docs/decisions/, .harness/INCIDENTS.md, or .harness/learnings.json whose bodies quote the trigger patterns).",
+      "root_cause_summary": "The file-axis check uses substring matching against the trigger_pattern.files values declared in this file. Write events whose tool_input.content contains those substrings count as file-axis hits even when the Write targets a documentation path, not the runtime source the INC was designed to protect.",
+      "prevention": {
+        "type": "policy",
+        "ref": "AGENTS.md §Continuous learning",
+        "section": "Capture dependencies (extended to detection dependencies)"
+      },
+      "auto_check": {
+        "type": "grep_audit",
+        "command": "grep -n SOURCE_PATH_PATTERNS .harness/pattern_match.py",
+        "expected": "match"
+      },
+      "alura_principle": "the L2 detector must never mistake prose about a rule for code violating the rule. The path filter at pattern_match.py is the seatbelt; the regression test at .harness/test_pattern_match.py is the regression net."
     }
   ],
   "prevention_summary": {
@@ -435,7 +456,8 @@
       "no-jq-in-capture": ["INC-013"],
       "events-gitignored": ["INC-014"],
       "digest-freshness": ["INC-015"],
-      "no-hardcoded-secrets": ["INC-016"]
+      "no-hardcoded-secrets": ["INC-016"],
+      "detector-excludes-docs": ["INC-017"]
     },
     "by_codemod": {
       "inc-002-fastify-response": ["INC-002"],
@@ -444,7 +466,14 @@
       "inc-009-nest-logger": ["INC-009"]
     },
     "by_auto_check_type": {
-      "grep_audit": ["INC-002", "INC-007", "INC-009", "INC-011", "INC-012"],
+      "grep_audit": [
+        "INC-002",
+        "INC-007",
+        "INC-009",
+        "INC-011",
+        "INC-012",
+        "INC-017"
+      ],
       "package_json_field": ["INC-004"],
       "package_json_dep": ["INC-001"],
       "lint_rule_override": ["INC-003"],
