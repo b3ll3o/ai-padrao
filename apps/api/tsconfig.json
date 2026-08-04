@@ -1,7 +1,7 @@
 {
   "extends": "@ai-padrao/config-tsconfig/nest.json",
   "compilerOptions": {
-    "rootDir": "src",
+    "rootDir": ".",
     "outDir": "dist",
     "baseUrl": ".",
     "paths": { "@/*": ["src/*"] }
