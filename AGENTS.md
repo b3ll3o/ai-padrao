@@ -41,6 +41,30 @@ These MUST still use [Conventional Commits](https://www.conventionalcommits.org/
 - Auth: JWT access (15m) + rotated refresh in httpOnly cookie, Argon2id passwords
 - Observability: OpenTelemetry SDK + OTel Collector (OTLP)
 
+## Architecture and coverage requirements
+
+Both applications MUST follow Domain-Driven Design (DDD) and hexagonal
+architecture. Organize business capabilities as vertical bounded contexts,
+keep dependencies pointing toward the domain, and isolate frameworks and
+infrastructure behind ports and adapters. Apply DDD pragmatically: do not create
+domain abstractions for code that is purely presentational or declarative.
+
+Detailed app-specific rules:
+
+- [`apps/api/AGENTS.md`](apps/api/AGENTS.md) — API bounded contexts, domain and
+  application boundaries, NestJS/Prisma adapters, and API testing rules.
+- [`apps/web/AGENTS.md`](apps/web/AGENTS.md) — frontend feature contexts,
+  presentation/infrastructure adapters, and web testing rules.
+
+Each app MUST independently maintain at least **80%** statements, branches,
+functions, and lines. CI and the coverage command MUST fail if any one metric in
+either app is below 80%. Another app or workspace cannot compensate for the
+shortfall. Do not lower thresholds, exclude business code, add coverage-ignore
+directives, or write meaningless tests to satisfy the gate.
+
+These local rule files extend this root rulebook and MUST NOT weaken the SDD,
+security, harness, or no-skipped-test requirements below.
+
 ## Common commands
 
 ```bash
