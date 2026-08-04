@@ -7,6 +7,6 @@ const envSchema = z.object({
 });
 
 export const env = envSchema.parse({
-  API_URL: process.env.API_URL,
-  WEB_ORIGIN: process.env.WEB_ORIGIN,
+  API_URL: process.env.API_URL ?? 'http://api:3001',
+  WEB_ORIGIN: process.env.WEB_ORIGIN ?? 'http://localhost:3000',
 });
