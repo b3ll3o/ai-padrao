@@ -29,6 +29,22 @@ import pathlib
 from typing import Any
 
 
+# INC-017: documentation-path filter. Events that target docs paths
+# (or are read-only diagnostic bash) are excluded from the file-axis count
+# so that prose about an INC pattern is not mistaken for code violating it.
+# The symbol-axis still uses the full combined text. See the INC-017
+# narrative in .harness/INCIDENTS.md for the full design rationale.
+SOURCE_PATH_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"^docs/"),
+    re.compile(r"^\.harness/INCIDENTS\.md$"),
+    re.compile(r"^\.harness/learnings\.json$"),
+)
+_DIAGNOSTIC_BASH_RE: re.Pattern[str] = re.compile(
+    r"^\s*(?:grep|cat|head|tail|wc|ls|find|md5sum)\b"
+    r"|python3\s+-c\b"
+)
+
+
 ROOT = pathlib.Path(__file__).parent
 WINDOW_SIZE = 20
 MIN_HITS = 2
@@ -52,6 +68,28 @@ def _event_text(event: dict[str, Any]) -> str:
     if isinstance(tool_input, dict):
         parts.append(json.dumps(tool_input, ensure_ascii=False))
     return " ".join(parts)
+
+
+def _is_documentation_event(event: dict[str, Any]) -> bool:
+    """Return True when the event should be excluded from the file-axis count.
+
+    See INC-017. The file-axis gate exists to catch code violations under
+    the runtime source globs declared in learnings.json. Write/Edit events
+    whose `file_path` lives under a documentation tree, plus read-only
+    diagnostic bash, do not touch runtime source — even if their payloads
+    happen to mention a trigger symbol. Excluding them here keeps the gate
+    accurate without weakening symbol-axis coverage.
+    """
+    fp = event.get("file_path") or event.get("filePath") or ""
+    if isinstance(fp, str) and fp:
+        for rx in SOURCE_PATH_PATTERNS:
+            if rx.search(fp):
+                return True
+    if event.get("tool_name") == "Bash":
+        cmd = event.get("command") or ""
+        if isinstance(cmd, str) and _DIAGNOSTIC_BASH_RE.search(cmd):
+            return True
+    return False
 
 
 def main() -> int:
@@ -102,6 +140,11 @@ def main() -> int:
                 for f in files
             ]
             for ev in window:
+                if _is_documentation_event(ev):
+                    # INC-017: docs-path and diagnostic-bash events are
+                    # excluded from the file-axis count. The symbol-axis
+                    # still sees them via the combined text.
+                    continue
                 ev_text = _event_text(ev)
                 for rx in compiled_files:
                     if rx.search(ev_text):
