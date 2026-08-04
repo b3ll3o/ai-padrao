@@ -36,25 +36,24 @@ if [[ ! -f "$PATCH" ]]; then
 fi
 
 # Risk guard: refuse if patch tries to modify a forbidden path.
-FORBIDDEN_PATTERNS=(
-  '^apps/'
-  '^packages/'
-  '^docker-compose\.yml$'
-  'Dockerfile\.dev$'
-  'Dockerfile\.prod$'
-  '\.harness/check\.sh$'
-  '\.harness/learnings\.json$'
-)
+# Diff headers look like "+++ b/apps/api/foo.ts" or "--- a/apps/api/foo.ts",
+# so the regexes must match the path portion, not the whole line. The
+# leading "+++ b/" or "--- a/" prefix is stripped before matching.
+_FORBIDDEN_PATH_RE='((apps|packages)/|docker-compose\.yml|Dockerfile\.(dev|prod)$|\.harness/(check\.sh|learnings\.json)$)'
 
 # Look at the file paths declared in the diff (lines like "+++ b/path" or "--- a/path").
 HIT=""
 while IFS= read -r line; do
-  for pat in "${FORBIDDEN_PATTERNS[@]}"; do
-    if [[ "$line" =~ $pat ]]; then
-      HIT+="$line (matches $pat)\n"
-      break
-    fi
-  done
+  # Strip the "+++ b/" or "--- a/" prefix.
+  path="${line#+++ b/}"
+  path="${path#--- a/}"
+  case "$path" in
+    ''|'/dev/null') continue ;;
+  esac
+  if [[ "$path" =~ $_FORBIDDEN_PATH_RE ]]; then
+    HIT+="$line (matches forbidden path: $path)\n"
+    break
+  fi
 done < <(grep -E '^(---|\+\+\+) ' "$PATCH" 2>/dev/null || true)
 
 if [[ -n "$HIT" ]]; then

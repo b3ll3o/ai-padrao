@@ -77,9 +77,19 @@ _SECRET_VALUE_PATTERNS: tuple[re.Pattern[str], ...] = (
 )
 
 
-# Regex for `KEY=value` form (e.g. `JWT_SECRET=abc123`).
+# Regex for `KEY=value` form. Three variants matched:
+#   - bare:        JWT_SECRET=abc123
+#   - double-quoted: JWT_SECRET="abc 123"
+#   - single-quoted: JWT_SECRET='abc 123'
+# The value group may NOT contain the closing quote (we want the whole token
+# inside the quotes, including any spaces).
 _ASSIGNMENT_RE = re.compile(
-    r"(" + "|".join(re.escape(n) for n in _SECRET_VAR_NAMES) + r")\s*=\s*([^\s'\";&|<>`]+)"
+    r"(" + "|".join(re.escape(n) for n in _SECRET_VAR_NAMES) + r")\s*=\s*"
+    r"(?:"
+        r"([^'\"\s;&|<>`][^\s;&|<>`]*)"          # bare (no whitespace, no quotes)
+        r"|\"([^\"]*)\""                          # double-quoted
+        r"|'([^']*)'"                             # single-quoted
+    r")"
 )
 
 

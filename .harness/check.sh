@@ -256,8 +256,10 @@ check "INC-016: no hardcoded secrets in tracked source" \
         apps packages \
         --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
         --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=dist --exclude-dir=.turbo --exclude-dir=coverage --exclude-dir=standalone \
+        --exclude="*.spec.ts" --exclude="*.spec.tsx" --exclude="*.spec.js" --exclude="*.spec.jsx" \
+        --exclude="*.test.ts" --exclude="*.test.tsx" --exclude="*.test.js" --exclude="*.test.jsx" \
+        --exclude="*.mock.ts" --exclude="*.fixture.ts" \
         2>/dev/null \
-        | grep -vE "(envSchema|test|spec|mock|fixture)" \
         || true
     )
     if [ -n "$hits" ]; then

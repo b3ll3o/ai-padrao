@@ -37,6 +37,12 @@ import sys
 
 _SCOPE = ("apps/api/Dockerfile.dev", "apps/api/Dockerfile.prod")
 
+
+def _in_scope(path: pathlib.Path) -> bool:
+    """Match either workspace-relative or absolute paths ending in scope."""
+    s = _normalize(path)
+    return any(s.endswith(scope) for scope in _SCOPE)
+
 _RUN_GENERATE_RE = re.compile(r"^\s*RUN\b.*prisma\s+generate\b", re.MULTILINE)
 _COPY_SCHEMA_RE = re.compile(
     r"^\s*COPY\s+(apps/api/prisma|apps/api)\b",
@@ -51,10 +57,6 @@ def _normalize(path: pathlib.Path) -> str:
         return str(path.relative_to(pathlib.Path.cwd())).replace("\\", "/")
     except ValueError:
         return s
-
-
-def _in_scope(path: pathlib.Path) -> bool:
-    return _normalize(path) in _SCOPE
 
 
 def _rewrite(text: str) -> tuple[str, list[str]]:

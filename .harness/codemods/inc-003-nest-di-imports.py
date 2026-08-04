@@ -40,7 +40,7 @@ import re
 import sys
 
 
-_SCOPE_RE = re.compile(r"^apps/api/src/.+\.ts$")
+_SCOPE_RE = re.compile(r"apps/api/src/.+\.ts$")
 _SKIP_RE = re.compile(r"\.(spec|test)\.ts$")
 
 
@@ -197,7 +197,7 @@ def main() -> int:
         print("inc-003: must specify --check or --apply", file=sys.stderr)
         return 1
 
-    if not _SCOPE_RE.match(s) or _SKIP_RE.search(s):
+    if not _SCOPE_RE.search(s) or _SKIP_RE.search(s):
         return 0
 
     original = args.path.read_text()

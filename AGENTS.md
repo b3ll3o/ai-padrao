@@ -52,6 +52,11 @@ pnpm db:seed          # seed admin user
 pnpm test             # run unit + e2e tests across packages
 pnpm lint             # lint all packages
 pnpm typecheck        # type-check all packages
+pnpm harness:check    # run all 16 auto-checks (also runs on prebuild)
+pnpm harness:digest   # write today's digest + propose safe updates
+pnpm harness:apply    # apply a proposed patch under .harness/proposed/
+pnpm harness:codemod  # invoke a codemod (e.g. inc-002-fastify-response)
+pnpm harness:test     # run codemod unit tests
 ```
 
 ## No skipped tests

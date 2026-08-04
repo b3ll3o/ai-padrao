@@ -25,6 +25,7 @@
     "harness:digest": "python3 .harness/digest.py",
     "harness:apply": "bash .harness/apply.sh",
     "harness:codemod": "bash .harness/codemods/run.sh",
+    "harness:test": "python3 .harness/codemods/tests/test_codemods.py",
     "prebuild": "bash .harness/check.sh",
     "clean": "turbo run clean && rm -rf node_modules"
   },

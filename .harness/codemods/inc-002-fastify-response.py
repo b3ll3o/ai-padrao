@@ -41,7 +41,10 @@ import sys
 
 
 # Scope guard: only apply to non-test files inside apps/api/src.
-_SCOPE_RE = re.compile(r"^apps/api/src/.+\.(ts|tsx)$")
+# No `^` anchor — we want the regex to match anywhere in the path so that
+# absolute paths (`/tmp/test/apps/api/src/foo.ts`) also resolve. The end
+# anchor (`$`) is preserved.
+_SCOPE_RE = re.compile(r"apps/api/src/.+\.(ts|tsx)$")
 _DELIBERATELY_SKIP_RE = re.compile(r"\.(spec|test)\.ts$|(^|/)main\.ts$|(^|/)controller\.ts$")
 
 
@@ -79,6 +82,11 @@ _RULES: tuple[tuple[re.Pattern[str], str, str], ...] = (
 def _in_scope(path: pathlib.Path) -> bool:
     """Return True if the codemod should touch this file."""
     s = _normalize(path)
+    if not _SCOPE_RE.search(s):
+        return False
+    if _DELIBERATELY_SKIP_RE.search(s):
+        return False
+    return True
 
 
 def _normalize(path: pathlib.Path) -> str:
@@ -94,11 +102,6 @@ def _normalize(path: pathlib.Path) -> str:
         return str(path.relative_to(pathlib.Path.cwd())).replace("\\", "/")
     except ValueError:
         return s
-    if not _SCOPE_RE.match(s):
-        return False
-    if _DELIBERATELY_SKIP_RE.search(s):
-        return False
-    return True
 
 
 def _rewrite(text: str) -> tuple[str, list[str]]:

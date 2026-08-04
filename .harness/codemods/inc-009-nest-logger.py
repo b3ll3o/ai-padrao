@@ -39,7 +39,7 @@ import re
 import sys
 
 
-_SCOPE_RE = re.compile(r"^apps/api/src/main\.ts$")
+_SCOPE_RE = re.compile(r"apps/api/src/main\.ts$")
 
 
 def _normalize(path: pathlib.Path) -> str:
@@ -52,7 +52,7 @@ def _normalize(path: pathlib.Path) -> str:
 
 
 def _in_scope(path: pathlib.Path) -> bool:
-    return bool(_SCOPE_RE.match(_normalize(path)))
+    return bool(_SCOPE_RE.search(_normalize(path)))
 
 
 def _ensure_logger_import(text: str) -> tuple[str, bool]:
@@ -80,19 +80,25 @@ def _ensure_logger_import(text: str) -> tuple[str, bool]:
 def _rewrite(text: str) -> tuple[str, list[str]]:
     descriptions: list[str] = []
 
-    new_text, added = _ensure_logger_import(text)
-    if added:
-        descriptions.append("added `import { Logger } from '@nestjs/common'`")
-
+    # Only add the Logger import if at least one console.* rewrite is needed;
+    # otherwise we'd add an unused import.
     patterns = [
         (re.compile(r"\bconsole\.log\(\s*"), "new Logger('Bootstrap').log(", "console.log → Logger.log"),
         (re.compile(r"\bconsole\.warn\(\s*"), "new Logger('Bootstrap').warn(", "console.warn → Logger.warn"),
         (re.compile(r"\bconsole\.error\(\s*"), "new Logger('Bootstrap').error(", "console.error → Logger.error"),
     ]
+    new_text = text
+    rewrites: list[str] = []
     for pat, repl, desc in patterns:
         new_text, n = pat.subn(repl, new_text)
         if n:
-            descriptions.append(f"{desc} ({n}×)")
+            rewrites.append(f"{desc} ({n}×)")
+
+    if rewrites:
+        new_text, added = _ensure_logger_import(new_text)
+        if added:
+            rewrites.append("added `import { Logger } from '@nestjs/common'`")
+        descriptions.extend(rewrites)
 
     return new_text, descriptions
 

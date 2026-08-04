@@ -11,6 +11,10 @@ Match heuristic: a pattern is considered matched when, within the window:
   - any of `trigger_pattern.symbols[]` appears as a substring in the
     combined event text.
 
+Either axis may be empty. A pattern with no `files` matches on symbols alone;
+a pattern with no `symbols` matches on file hits alone. A pattern with both
+axes requires both.
+
 The check is intentionally conservative — false positives are surfaced as
 confirmation prompts (the user can always say "continue"), but false
 negatives let known bugs reincarnate. Stdlib only.
@@ -80,41 +84,46 @@ def main() -> int:
 
     for entry in learnings.get("entries", []):
         pat = entry.get("trigger_pattern") or {}
-        files = pat.get("files") or []
-        symbols = pat.get("symbols") or []
-
-        # A match requires the recent window to contain ≥ MIN_HITS events
-        # whose flattened text touches any of the pattern's files (or
-        # symbols — same concept, different axis). The "any-of" logic
-        # matters because some patterns list `Dockerfile.dev` and
-        # `Dockerfile.prod` as alternatives — we want the count of events
-        # that touched one of them, not the count of distinct files hit.
-        compiled_files = [
-            re.compile(
-                re.escape(f).replace(r"\*", ".*").replace(r"\?", "."),
-                flags=re.IGNORECASE,
-            )
-            for f in files
-            if isinstance(f, str)
-        ]
-        file_hits = 0
-        for ev in window:
-            ev_text = _event_text(ev)
-            for rx in compiled_files:
-                if rx.search(ev_text):
-                    file_hits += 1
-                    break  # one match per event is enough
-        if file_hits < MIN_HITS:
+        files = [f for f in (pat.get("files") or []) if isinstance(f, str)]
+        symbols = [s for s in (pat.get("symbols") or []) if isinstance(s, str)]
+        if not files and not symbols:
+            # No trigger pattern declared — detector can't fire.
             continue
 
-        for sym in symbols:
-            if not isinstance(sym, str):
+        # File-axis check (skip if no files declared; symbols-only patterns
+        # don't need a file hit).
+        file_hits = 0
+        if files:
+            compiled_files = [
+                re.compile(
+                    re.escape(f).replace(r"\*", ".*").replace(r"\?", "."),
+                    flags=re.IGNORECASE,
+                )
+                for f in files
+            ]
+            for ev in window:
+                ev_text = _event_text(ev)
+                for rx in compiled_files:
+                    if rx.search(ev_text):
+                        file_hits += 1
+                        break  # one match per event is enough
+            if file_hits < MIN_HITS:
                 continue
-            if sym in combined_text:
-                sys.stdout.write(entry["id"] + "\n")
-                return 0
+
+        # Symbol-axis check (skip if no symbols declared; files-only
+        # patterns match on file hits alone).
+        if symbols:
+            if not any(s in combined_text for s in symbols):
+                continue
+
+        sys.stdout.write(entry["id"] + "\n")
+        return 0
 
     return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
 
 
 if __name__ == "__main__":
