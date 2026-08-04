@@ -38,7 +38,7 @@ Default seed user: `admin@ai-padrao.local` / `admin123`.
 | Auth          | JWT (15m access) + rotated refresh in httpOnly cookie + Argon2id             |
 | Database      | PostgreSQL 16                                                                |
 | Observability | OpenTelemetry SDK + OTLP Collector                                           |
-| Email (dev)   | MailHog (host ports `11125` / `18025` to avoid sibling collisions)           |
+| Email (dev)   | MailHog (host ports `11025` / `18025` to avoid sibling collisions)           |
 | Container     | 5-service `docker-compose.yml` (postgres, api, web, mailhog, otel-collector) |
 | Editor        | Visual Studio Code (workspace config in `.vscode/`)                          |
 
@@ -84,17 +84,17 @@ every tool call → L1 Capture ─→ L2 Inline detect ─→ L3 Daily digest �
 | **L1 — Capture**       | Append one JSONL line per tool call (after `redact.py`)                               | `.harness/capture.sh` + `~/.claude/settings.json` PostToolUse hook |
 | **L2 — Inline detect** | Compare last 20 events against `learnings.json`; match → blocking confirmation prompt | `.harness/detect.sh` + `.harness/pattern_match.py`                 |
 | **L3 — Daily digest**  | Cron @ 22:03 local: aggregate events → markdown digest + proposed patch               | `.harness/digest.py` (CronCreate)                                  |
-| **L4 — Enforce**       | All 16 auto-checks (`INC-001`..`INC-016`) before every build                          | `.harness/check.sh` (wired into `pnpm prebuild`)                   |
+| **L4 — Enforce**       | All 15 auto-checks (`INC-001`..`INC-017`) before every build                          | `.harness/check.sh` (wired into `pnpm prebuild`)                   |
 
 ### The data flow
 
-- **`.harness/INCIDENTS.md`** — narrative log of every real defect that escaped review (16 entries to date).
+- **`.harness/INCIDENTS.md`** — narrative log of every real defect that escaped review (17 entries to date).
 - **`.harness/learnings.json`** — structured DB mapping `trigger_pattern` → `prevention` → `auto_check`.
 - **`.harness/events/`** — _session state, gitignored_. Per-day NDJSON. Don't commit.
 - **`.harness/digest/`** — _committed_. Daily digest the human reviews.
 - **`.harness/proposed/`** — _committed_. Unified-diff patches the daily agent proposes.
 - **`.harness/codemods/`** — _committed_. Feedforward transformations for known-safe rewrites (e.g. `inc-002-fastify-response` rewrites `res.setHeader` → `reply.header`).
-- **`.harness/check.sh`** — runs all auto-checks before every build. Currently 16 PASS / 0 FAIL / 3 SKIP (manual).
+- **`.harness/check.sh`** — runs all auto-checks before every build. Currently 15 PASS / 0 FAIL / 3 SKIP (manual).
 
 To run: `pnpm harness:check`. Wired into `pnpm prebuild`, so any build will block on a regression.
 
@@ -102,7 +102,7 @@ To run: `pnpm harness:check`. Wired into `pnpm prebuild`, so any build will bloc
 
 | Command                                         | What it does                                                                |
 | ----------------------------------------------- | --------------------------------------------------------------------------- |
-| `pnpm harness:check`                            | Run all 16 auto-checks                                                      |
+| `pnpm harness:check`                            | Run all 15 auto-checks                                                      |
 | `pnpm harness:detect`                           | Run the inline pattern detector once (no-op if no event in last 20 matches) |
 | `pnpm harness:digest`                           | Generate today's digest + proposed patch (manual run of the L3 agent)       |
 | `pnpm harness:apply`                            | Apply today's proposed patch (refuses forbidden paths)                      |
@@ -142,14 +142,14 @@ Every change that touches these areas MUST be reviewed against the matching skil
 
 ## Conventions
 
-- **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) with `commitlint` + `husky` + `lint-staged`. Allowed scopes: `api`, `web`, `db`, `contracts`, `ui`, `config`, `sdd`, `harness`, `root`.
+- **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) with `commitlint` + `husky` + `lint-staged`. Allowed scopes (per [`.commitlintrc.json`](.commitlintrc.json)): `root`, `api`, `web`, `contracts`, `db`, `ui`, `config`, `docker`, `sdd`, `deps`.
 - **Branches:** Trunk-based; default branch is `main`.
 - **Editor:** VSCode. Workspace settings in [`.vscode/settings.json`](.vscode/settings.json) (format-on-save, ESLint flat config, monorepo-aware); recommended extensions in [`.vscode/extensions.json`](.vscode/extensions.json).
 - **AI-assistant rules:** Single source of truth is [`AGENTS.md`](AGENTS.md). Claude Code, Gemini CLI, Codex, and any other AI assistant working in this repo all read the same file.
 
 ## Further reading
 
-- [`.harness/INCIDENTS.md`](.harness/INCIDENTS.md) — the 12 incidents that shaped the policies above.
+- [`.harness/INCIDENTS.md`](.harness/INCIDENTS.md) — the 17 incidents that shaped the policies above.
 - [`.harness/learnings.json`](.harness/learnings.json) — machine-readable incident DB.
 - [`AGENTS.md`](AGENTS.md) — the SDD workflow, forbidden actions, and editor config.
 - [`docs/superpowers/specs/2026-08-04-ai-padrao-blueprint-design.md`](docs/superpowers/specs/2026-08-04-ai-padrao-blueprint-design.md) — the design spec that started it all.
