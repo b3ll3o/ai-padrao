@@ -1,17 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable } from "@nestjs/common";
 // Nest DI needs the runtime value here; `import type` erases it from design:paramtypes.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { ConfigService } from '@nestjs/config';
-import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
+import { ConfigService } from "@nestjs/config";
+import { PassportStrategy } from "@nestjs/passport";
+import { ExtractJwt, Strategy } from "passport-jwt";
 
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
+export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
   constructor(config: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: config.get<string>('JWT_ACCESS_SECRET') ?? '',
+      secretOrKey: config.get<string>("JWT_ACCESS_SECRET") ?? "",
     });
   }
 
