@@ -42,3 +42,20 @@ characterization tests) were intentionally left unchecked in the original
 proposal because they were superseded by the dedicated commits above and are
 not required for the archived capability. The final archival commit (Task 15.5)
 closes out the change folder.
+# OpenSpec Changelog
+
+Archived specs in `.openspec/specs/<area>/<feature>.md` are the source of
+truth. Entries here record when each spec moved from `changes/` to `specs/`.
+
+## 2026-08-04
+
+- **inc-017-detector-excludes-docs** — `.harness/pattern_match.py` (L2
+  detector) now excludes documentation-path Write events from the
+  file-axis computation while preserving them in the symbol-axis
+  combined blob. Prevents INC-002/INC-003 false positives when agents
+  edit `docs/decisions/`, `.harness/INCIDENTS.md`, or
+  `.harness/learnings.json`. Spec archived at
+  `.openspec/specs/harness/inc-017-detector-excludes-docs.md`.
+  Implementation tasks 1–6 (INCIDENTS.md, learnings.json,
+  pattern_match.py, test_pattern_match.py, check.sh wire-up, full
+  green run) completed; PASS=15, SKIP=3.
