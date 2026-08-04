@@ -1,0 +1,32 @@
+---
+description: SDD is mandatory for any feature or behavior change.
+globs: ["**/*"]
+---
+
+# SDD Enforcement Rule
+
+Any change that adds or modifies **behavior** in this project MUST go through the OpenSpec SDD workflow before code is written.
+
+## Required steps
+
+1. Create `.openspec/changes/<feature-name>/` with `proposal.md`, `tasks.md`, `design.md`, and `specs/<area>/spec.md`.
+2. The proposal MUST be approved by a human.
+3. Only then implement the tasks in order.
+
+## Allowed without SDD
+
+- Cosmetic changes (no behavior impact)
+- Dependency bumps without API change
+- Documentation fixes
+
+## Forbidden
+
+- Open PRs with behavior changes that lack a `.openspec/changes/<feature>/`
+- Starting code before proposal approval
+- `localStorage` for auth tokens (use httpOnly cookies)
+- Importing Prisma into `apps/web`
+- Editing `apps/api/prisma/schema.prisma` without coordinating with `packages/contracts`
+
+## Reference
+
+Full workflow: see `AGENTS.md` (root) and `.openspec/AGENTS.md`.
