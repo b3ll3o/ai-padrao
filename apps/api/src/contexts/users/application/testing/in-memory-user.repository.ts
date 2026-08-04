@@ -55,11 +55,6 @@ export class InMemoryUserRepository implements UserRepositoryPort {
     return null;
   }
 
-  async create(user: User): Promise<User> {
-    this.store.set(user.id, user);
-    return user;
-  }
-
   async update(
     id: string,
     patch: { name?: string; email?: string },

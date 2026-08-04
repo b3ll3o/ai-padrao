@@ -43,7 +43,7 @@ describe("apiClient", () => {
     await apiClient.get("users").json();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const calledArg = fetchMock.mock.calls[0][0];
+    const calledArg = fetchMock.mock.calls[0]?.[0];
     const url =
       typeof calledArg === "string" ? calledArg : (calledArg as Request).url;
     expect(url.startsWith(`${baseUrl}/users`)).toBe(true);
