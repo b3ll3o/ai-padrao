@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint src --config $(node -p \"require.resolve('@ai-padrao/config-eslint/next.js')\")",
+    "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "VITE_CJS_IGNORE_WARNING=true vitest run",
     "test:coverage:baseline": "VITE_CJS_IGNORE_WARNING=true vitest run --coverage"
