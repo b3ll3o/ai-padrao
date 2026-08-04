@@ -1,0 +1,15 @@
+{
+  "name": "@ai-padrao/config-tailwind",
+  "version": "0.1.0",
+  "private": true,
+  "main": "preset.js",
+  "exports": {
+    ".": "./preset.js",
+    "./globals.css": "./index.css"
+  },
+  "files": ["preset.js", "index.css"],
+  "dependencies": {
+    "tailwindcss": "^4.0.0",
+    "tailwindcss-animate": "^1.0.7"
+  }
+}
