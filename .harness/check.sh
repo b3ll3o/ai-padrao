@@ -270,6 +270,26 @@ check "INC-016: no hardcoded secrets in tracked source" \
     fi
   '
 
+# ---------------------------------------------------------------
+# INC-017 — L2 detector excludes documentation paths from file-axis
+# (a) The SOURCE_PATH_PATTERNS constant must still exist in pattern_match.py
+#     so the docs-path filter is wired up. (b) The regression tests in
+# .harness/test_pattern_match.py must pass.
+# ---------------------------------------------------------------
+check "INC-017: detector excludes docs from file-axis" \
+  bash -c '
+    if ! grep -q "SOURCE_PATH_PATTERNS" .harness/pattern_match.py; then
+      echo "  .harness/pattern_match.py does not declare SOURCE_PATH_PATTERNS"
+      echo "  Without it, INC-002/INC-003 will false-positive on doc writes."
+      exit 1
+    fi
+    if ! cd .harness && python3 -m unittest test_pattern_match >/dev/null 2>&1; then
+      echo "  .harness/test_pattern_match.py failed."
+      echo "  Run: cd .harness && python3 -m unittest test_pattern_match -v"
+      exit 1
+    fi
+  '
+
 echo
 echo "========================================"
 echo -e "  ${GREEN}PASS${NC}: $PASS_COUNT  ${RED}FAIL${NC}: $FAIL_COUNT  ${YELLOW}SKIP${NC}: $SKIP_COUNT"
