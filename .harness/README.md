@@ -17,8 +17,7 @@ This directory is the **memory of the harness** — durable artifacts that persi
 ```
 real defect ──→ INCIDENTS.md ──→ learnings.json ──→ prevention rule ──→ blocks reincarnation
                   (narrative)      (structured)       (skill/lint/test)        ↓
-                                                                         AGENTS.md / .cursor/rules
-                                                                         lint config
+                                                                         AGENTS.md / lint config
                                                                          prebuild script
                                                                          new skill
                                                                          e2e test
@@ -45,7 +44,7 @@ Every time the harness blocks a known defect, that's a success. Every time a new
 
 Run the [harness-self-improvement](~/.claude/skills/harness-self-improvement/SKILL.md) skill:
 - Detect patterns across the incident log
-- Promote frequent patterns to AGENTS.md / .cursor/rules / lint configs
+- Promote frequent patterns to AGENTS.md / lint configs
 - Strengthen weak preventions (skills → lint rules)
 - Update the `last_updated` in `learnings.json`
 

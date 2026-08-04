@@ -7,7 +7,7 @@
 **How to use:**
 - Before any new feature: skim recent incidents for patterns that apply.
 - After any non-trivial bug fix: add an entry here.
-- Periodically: convert recurring incidents into AGENTS.md rules, .cursor/rules, lint rules, or skills.
+- Periodically: convert recurring incidents into AGENTS.md rules, lint rules, or skills.
 
 ---
 

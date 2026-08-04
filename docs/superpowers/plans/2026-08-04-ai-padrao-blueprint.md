@@ -3975,6 +3975,8 @@ git commit -m "docs(sdd): add AGENTS.md, OpenSpec workflow, templates, and Curso
 
 ## Phase 9 — Tooling (Husky + lint-staged + commitlint)
 
+> **As of 2026-08-04** the team moved to Visual Studio Code as the editor of record. The `.cursor/rules/sdd.mdc` task above (Task 20) was originally executed and the file committed, then removed in cleanup commit `chore(root): remove cursor artifacts (switching to VSCode)`. `AGENTS.md` is now the single source of truth for AI-assistant guardrails; VSCode-specific config lives in `.vscode/settings.json` and `.vscode/extensions.json`.
+
 ### Task 21: Husky + commitlint
 
 **Files:**

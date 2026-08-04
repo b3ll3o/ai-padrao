@@ -23,8 +23,10 @@ pnpm-debug.log*
 .DS_Store
 Thumbs.db
 
-# editor
-.vscode/
+# editor (project-config is committed; user-specific caches are not)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .idea/
 *.swp
 

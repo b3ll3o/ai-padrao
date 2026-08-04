@@ -1,6 +1,6 @@
 # ai-padrao — Project Rules for AI Agents
 
-This file is read by Claude Code, Cursor, Gemini CLI, Codex, and any other AI assistant working in this repo.
+This file is read by Claude Code, Gemini CLI, Codex, and any other AI assistant working in this repo. (The team uses Visual Studio Code as the editor of record; workspace settings live in `.vscode/`.)
 
 ## 🚨 SDD is MANDATORY 🚨
 

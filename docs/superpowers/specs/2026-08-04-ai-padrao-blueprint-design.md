@@ -158,9 +158,10 @@ ai-padrao/
 
 | File                          | Content                                  | Read by |
 |-------------------------------|------------------------------------------|---------|
-| `AGENTS.md` (root)            | Short rule + pointer to `.openspec/AGENTS.md` | Claude Code, Cursor, Gemini, Codex |
+| `AGENTS.md` (root)            | Short rule + pointer to `.openspec/AGENTS.md` | Claude Code, Gemini, Codex |
 | `.openspec/AGENTS.md`         | Detailed workflow, templates, checklist  | Claude Code (skills), humans |
-| `.cursor/rules/sdd.mdc`       | Cursor-friendly version of the rule      | Cursor |
+
+> Historical note: An earlier revision of this spec also listed `.cursor/rules/sdd.mdc` for Cursor, but the team has since moved to Visual Studio Code as the editor of record. The `.cursor/` directory was removed on 2026-08-04; the single source of truth is now `AGENTS.md` plus `.vscode/` workspace config.
 
 ### 4.5 Templates shipped in MVP
 

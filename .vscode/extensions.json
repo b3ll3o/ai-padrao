@@ -1,0 +1,23 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+    "Prisma.prisma",
+    "ms-azuretools.vscode-docker",
+    "EditorConfig.EditorConfig",
+    "github.copilot",
+    "github.copilot-chat",
+    "eamodio.gitlens",
+    "vitest.explorer",
+    "orta.vscode-jest",
+    "mikestead.dotenv",
+    "redhat.vscode-yaml",
+    "tamasfe.even-better-toml",
+    "shopify.ruby-lsp"
+  ],
+  "unwantedRecommendations": [
+    "hookyqr.beautify",
+    "vscode-icons-team.vscode-icons"
+  ]
+}

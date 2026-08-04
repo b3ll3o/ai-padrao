@@ -1,0 +1,74 @@
+{
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.trimTrailingWhitespace": true,
+
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "never"
+  },
+  "editor.tabSize": 2,
+  "editor.linkedEditing": true,
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": "active",
+
+  "eslint.useFlatConfig": true,
+  "eslint.workingDirectories": ["apps/api", "apps/web", "packages/ui", "packages/contracts"],
+  "eslint.validate": ["javascript", "typescript", "typescriptreact"],
+
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "typescript.preferences.preferTypeOnlyAutoImports": "warn",
+
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.wordWrap": "on",
+    "editor.quickSuggestions": false
+  },
+  "[dockerfile]": {
+    "editor.defaultFormatter": "ms-azuretools.vscode-docker"
+  },
+  "[prisma]": {
+    "editor.defaultFormatter": "Prisma.prisma"
+  },
+
+  "tailwindCSS.experimental.classRegex": [
+    ["cN\\(([^)]*)\\)", "[\"']?(?:(?<![\\w-])[\"`])?([^\"`']+)(?:[\"`'])?[\"`']?\\s*"],
+    ["cn\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]
+  ],
+
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.next": true,
+    "**/.turbo": true,
+    "**/.git": true,
+    "**/coverage": true,
+    "**/*.tsbuildinfo": true
+  },
+  "files.exclude": {
+    "**/.turbo": true,
+    "**/coverage": true
+  },
+
+  "github.copilot.chat.commitMessageGeneration.instructions": [
+    {
+      "text": "Always write commit messages in English using Conventional Commits. Include the scope (e.g. feat(api), chore(root), docs(sdd)). Use a footer line: Co-Authored-By: Claude <noreply@anthropic.com>."
+    }
+  ]
+}
