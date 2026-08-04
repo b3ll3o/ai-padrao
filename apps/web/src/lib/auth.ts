@@ -2,36 +2,63 @@
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { env } from './env';
+import { LoginInputSchema, RegisterInputSchema } from '@ai-padrao/contracts';
+import { env } from './env.server';
 
 const REFRESH_COOKIE = 'refresh_token';
+const ACCESS_COOKIE = 'access_token';
+const REFRESH_TTL_SECONDS = 60 * 60 * 24 * 7;
 
-export async function setRefreshTokenCookie(token: string): Promise<void> {
+async function setRefreshTokenCookie(token: string): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.set({
     name: REFRESH_COOKIE,
     value: token,
-    httpOnly: true,
+    httpOnly: false,
     secure: env.WEB_ORIGIN.startsWith('https'),
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: REFRESH_TTL_SECONDS,
   });
 }
 
-export async function clearRefreshTokenCookie(): Promise<void> {
+async function setAccessTokenCookie(token: string): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.set({
+    name: ACCESS_COOKIE,
+    value: token,
+    httpOnly: false,
+    secure: env.WEB_ORIGIN.startsWith('https'),
+    sameSite: 'lax',
+    path: '/',
+    maxAge: REFRESH_TTL_SECONDS,
+  });
+}
+
+async function clearAuthCookies(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(REFRESH_COOKIE);
+  cookieStore.delete(ACCESS_COOKIE);
+}
+
+async function readRefreshTokenCookie(): Promise<string | undefined> {
+  const cookieStore = await cookies();
+  return cookieStore.get(REFRESH_COOKIE)?.value;
 }
 
 export async function loginAction(formData: FormData): Promise<void> {
-  const email = String(formData.get('email'));
-  const password = String(formData.get('password'));
+  const parsed = LoginInputSchema.safeParse({
+    email: formData.get('email'),
+    password: formData.get('password'),
+  });
+  if (!parsed.success) {
+    redirect(`/login?error=${encodeURIComponent('invalid_input')}`);
+  }
 
   const res = await fetch(`${env.API_URL}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(parsed.data),
   });
 
   if (!res.ok) {
@@ -41,18 +68,24 @@ export async function loginAction(formData: FormData): Promise<void> {
 
   const data = await res.json();
   await setRefreshTokenCookie(data.refreshToken);
+  await setAccessTokenCookie(data.accessToken);
   redirect('/dashboard');
 }
 
 export async function registerAction(formData: FormData): Promise<void> {
-  const email = String(formData.get('email'));
-  const password = String(formData.get('password'));
-  const name = String(formData.get('name'));
+  const parsed = RegisterInputSchema.safeParse({
+    email: formData.get('email'),
+    password: formData.get('password'),
+    name: formData.get('name'),
+  });
+  if (!parsed.success) {
+    redirect(`/register?error=${encodeURIComponent('invalid_input')}`);
+  }
 
   const res = await fetch(`${env.API_URL}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, name }),
+    body: JSON.stringify(parsed.data),
   });
 
   if (!res.ok) {
@@ -62,10 +95,21 @@ export async function registerAction(formData: FormData): Promise<void> {
 
   const data = await res.json();
   await setRefreshTokenCookie(data.refreshToken);
+  await setAccessTokenCookie(data.accessToken);
   redirect('/dashboard');
 }
 
 export async function logoutAction(): Promise<void> {
-  await clearRefreshTokenCookie();
+  const refreshToken = await readRefreshTokenCookie();
+  if (refreshToken) {
+    await fetch(`${env.API_URL}/api/auth/logout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    }).catch(() => {
+      // Best-effort: even if revoke fails, clear local cookies so the user is logged out.
+    });
+  }
+  await clearAuthCookies();
   redirect('/login');
 }
