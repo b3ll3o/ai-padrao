@@ -1,0 +1,271 @@
+{
+  "$schema": "https://ai-padrao.local/schemas/harness-learnings.v1.json",
+  "version": "1.0.0",
+  "description": "Structured incident knowledge for the ai-padrao harness. Each entry maps a real defect pattern to the prevention rule (skill or lint config). Query by trigger_pattern before starting work that might re-introduce a known issue.",
+  "stats": {
+    "total_incidents": 11,
+    "with_skill_prevention": 11,
+    "last_updated": "2026-08-04",
+    "convergence_target": 0
+  },
+  "entries": [
+    {
+      "id": "INC-001",
+      "category": "platform-dep",
+      "trigger_pattern": {
+        "files": ["apps/api/src/main.ts"],
+        "symbols": ["SwaggerModule.setup"],
+        "frameworks": ["@nestjs/swagger", "@nestjs/platform-fastify"]
+      },
+      "symptom": "ERROR [PackageLoader] The @fastify/static package is missing",
+      "root_cause_summary": "SwaggerModule.setup implicitly calls useStaticAssets() which requires @fastify/static as an undeclared peer",
+      "prevention": {
+        "type": "skill",
+        "ref": "nestjs-fastify-gotchas",
+        "section": "Gotcha 3"
+      },
+      "version_constraint": {
+        "@fastify/static": "^8.0.0",
+        "fastify": "^5.0.0",
+        "@nestjs/platform-fastify": "^11.0.0"
+      },
+      "auto_check": {
+        "type": "package_json_dep",
+        "consumer": "apps/api",
+        "required": "@fastify/static"
+      }
+    },
+    {
+      "id": "INC-002",
+      "category": "api-compat",
+      "trigger_pattern": {
+        "files": ["apps/api/src/**/*.ts"],
+        "symbols": ["res.setHeader", "res\\.json\\(", "res\\.send\\(", "res\\.status\\("],
+        "frameworks": ["@nestjs/platform-fastify"]
+      },
+      "symptom": "res.setHeader is not a function (HTTP 500 on every request)",
+      "root_cause_summary": "Express API used against Fastify reply wrapper",
+      "prevention": {
+        "type": "skill",
+        "ref": "nestjs-fastify-gotchas",
+        "section": "Gotcha 2"
+      },
+      "auto_check": {
+        "type": "grep_audit",
+        "command": "grep -rn 'res\\.setHeader\\|res\\.redirect\\|res\\.cookie' apps/api/src --include='*.ts'",
+        "expected": "no matches"
+      }
+    },
+    {
+      "id": "INC-003",
+      "category": "decorator-metadata",
+      "trigger_pattern": {
+        "files": ["apps/api/src/**/*.ts"],
+        "symbols": ["import type"],
+        "contexts": ["constructor params with DI", "@Body()", "@Query()", "@Param()", "@CurrentUser()"]
+      },
+      "symptom": "Nest can't resolve dependencies of the X service (?). Argument at index [0] is unavailable",
+      "root_cause_summary": "import type erases the runtime value reference that emitDecoratorMetadata relies on for design:paramtypes",
+      "prevention": {
+        "type": "skill",
+        "ref": "nestjs-fastify-gotchas",
+        "section": "Gotcha 1"
+      },
+      "auto_check": {
+        "type": "lint_rule_override",
+        "config": "NestJS DI files (controllers, services, guards, strategies, interceptors, decorators) should never use `import type` for class references used in DI"
+      },
+      "blast_radius": "high",
+      "evidence": "eslint --fix auto-introduced this bug; 10 unit tests regressed"
+    },
+    {
+      "id": "INC-004",
+      "category": "prisma-config",
+      "trigger_pattern": {
+        "files": ["apps/api/prisma/schema.prisma", "apps/api/package.json"],
+        "missing": ["prisma.seed block"]
+      },
+      "symptom": "pnpm db:seed exits 0 with no DB writes",
+      "root_cause_summary": "Prisma's db seed command silently no-ops without a registered seed script",
+      "prevention": {
+        "type": "skill",
+        "ref": "pnpm-monorepo-script-pitfalls",
+        "section": "Pitfall 2"
+      },
+      "auto_check": {
+        "type": "package_json_field",
+        "path": "apps/api/package.json",
+        "required_path": "prisma.seed"
+      }
+    },
+    {
+      "id": "INC-005",
+      "category": "auth-guard",
+      "trigger_pattern": {
+        "files": ["apps/api/src/modules/health/**", "apps/api/src/modules/auth/auth.controller.ts"],
+        "missing": ["@Public()"],
+        "context": "global APP_GUARD with JwtAuthGuard"
+      },
+      "symptom": "GET /api/health returns 401; login endpoints reject all users",
+      "root_cause_summary": "Global JwtAuthGuard blocks all endpoints unless they opt out with @Public()",
+      "prevention": {
+        "type": "skill",
+        "ref": "nestjs-fastify-gotchas",
+        "section": "Gotcha 4"
+      },
+      "auto_check": {
+        "type": "e2e_test",
+        "should_exist": "e2e test that hits /api/health without a token and expects 200"
+      }
+    },
+    {
+      "id": "INC-006",
+      "category": "dockerfile-order",
+      "trigger_pattern": {
+        "files": ["apps/api/Dockerfile.dev", "apps/api/Dockerfile.prod"],
+        "symbols": ["prisma generate"],
+        "context": "before COPY apps/api"
+      },
+      "symptom": "docker compose build fails: Could not find Prisma Schema",
+      "root_cause_summary": "prisma generate runs before the schema is copied into the image",
+      "prevention": {
+        "type": "skill",
+        "ref": "pnpm-monorepo-script-pitfalls",
+        "section": "Pitfall 4"
+      },
+      "auto_check": {
+        "type": "dockerfile_lint",
+        "rule": "prisma generate must be preceded by COPY that includes prisma/schema.prisma"
+      }
+    },
+    {
+      "id": "INC-007",
+      "category": "eslint-config",
+      "trigger_pattern": {
+        "files": ["**/package.json"],
+        "scripts": ["lint"],
+        "contains": "--config @.*\\/.*\\.js$"
+      },
+      "symptom": "ENOENT: no such file or directory, stat '.../@scope/config/file.js'",
+      "root_cause_summary": "ESLint 9 --config is a filesystem path, not a Node module specifier",
+      "prevention": {
+        "type": "skill",
+        "ref": "pnpm-monorepo-script-pitfalls",
+        "section": "Pitfall 3"
+      },
+      "auto_check": {
+        "type": "grep_audit",
+        "command": "grep -rE 'eslint.*--config @' --include=package.json .",
+        "expected": "no matches OR all use $(node -p ...)"
+      }
+    },
+    {
+      "id": "INC-008",
+      "category": "port-collision",
+      "trigger_pattern": {
+        "files": ["docker-compose.yml"],
+        "ports": ["1025", "8025", "3000", "3001", "5432", "4317", "4318"]
+      },
+      "symptom": "Bind for 127.0.0.1:<port> failed: port is already allocated",
+      "root_cause_summary": "Default well-known ports collide with sibling projects on the same host",
+      "prevention": {
+        "type": "skill",
+        "ref": "pnpm-monorepo-script-pitfalls",
+        "section": "Pitfall 5"
+      },
+      "auto_check": {
+        "type": "compose_lint",
+        "rule": "Host-side port bindings should not use well-known defaults (1025, 8025, 3000, 5432, etc.) unless intentional"
+      },
+      "resolution_used": {
+        "smtp": "11125:1025",
+        "ui": "18025:8025"
+      }
+    },
+    {
+      "id": "INC-009",
+      "category": "logger-pattern",
+      "trigger_pattern": {
+        "files": ["apps/api/src/main.ts"],
+        "symbols": ["console.log", "console.warn"],
+        "context": "startup banner"
+      },
+      "symptom": "Lint no-console warning; or startup banner written to stderr breaking log shippers",
+      "root_cause_summary": "console.warn satisfies no-console but writes to stderr; proper fix is Nest Logger with flushLogs",
+      "prevention": {
+        "type": "skill",
+        "ref": "nestjs-fastify-gotchas",
+        "section": "Gotcha 5"
+      },
+      "auto_check": {
+        "type": "grep_audit",
+        "command": "grep -n 'console\\.' apps/api/src/main.ts",
+        "expected": "no matches"
+      },
+      "preferred_pattern": "new Logger('Bootstrap').log(...)"
+    },
+    {
+      "id": "INC-010",
+      "category": "peer-warning",
+      "trigger_pattern": {
+        "frameworks": ["@nestjs/swagger"],
+        "version": "^8.0.0",
+        "actual": "11.x",
+        "warning": "peer-depends on @fastify/static or @nestjs/common that does not match"
+      },
+      "symptom": "pnpm install warns about peer dependency mismatch",
+      "root_cause_summary": "@nestjs/swagger@8 does not officially support NestJS 11; awaiting @nestjs/swagger@9",
+      "prevention": {
+        "type": "documentation",
+        "ref": "AGENTS.md note"
+      },
+      "auto_check": null,
+      "status": "accepted-warning"
+    },
+    {
+      "id": "INC-011",
+      "category": "vite-cjs",
+      "trigger_pattern": {
+        "files": ["apps/web/package.json"],
+        "missing": ["type: module"],
+        "warning_emitted": "The CJS build of Vite's Node API is deprecated"
+      },
+      "symptom": "Vite deprecation warning on every vitest run",
+      "root_cause_summary": "Vite falls back to deprecated CJS Node API when package.json lacks type:module",
+      "prevention": {
+        "type": "env_var",
+        "fix": "VITE_CJS_IGNORE_WARNING=true"
+      },
+      "auto_check": {
+        "type": "grep_audit",
+        "command": "grep 'VITE_CJS_IGNORE_WARNING' apps/web/package.json",
+        "expected": "match in test script"
+      }
+    }
+  ],
+  "prevention_summary": {
+    "by_skill": {
+      "nestjs-fastify-gotchas": ["INC-001", "INC-002", "INC-003", "INC-005", "INC-009"],
+      "pnpm-monorepo-script-pitfalls": ["INC-004", "INC-006", "INC-007", "INC-008"],
+      "monorepo-dod-validation": [],
+      "fix-wave-orchestration": []
+    },
+    "by_auto_check_type": {
+      "grep_audit": ["INC-002", "INC-007", "INC-009", "INC-011"],
+      "package_json_field": ["INC-004"],
+      "package_json_dep": ["INC-001"],
+      "lint_rule_override": ["INC-003"],
+      "dockerfile_lint": ["INC-006"],
+      "compose_lint": ["INC-008"],
+      "e2e_test": ["INC-005"]
+    },
+    "next_skill_to_create": null,
+    "suggested_agent_rule_updates": [
+      {
+        "target": "AGENTS.md",
+        "section": "## Common pitfalls",
+        "content": "Before any change involving [NestJS interceptors/guards/decorators] [Docker] [ESLint config] [Prisma seed] [Swagger] [JWT auth], invoke the matching skill. See .harness/INCIDENTS.md for full history."
+      }
+    ]
+  }
+}
