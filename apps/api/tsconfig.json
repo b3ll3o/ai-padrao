@@ -1,0 +1,9 @@
+{
+  "extends": "@ai-padrao/config-tsconfig/nest.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] }
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
