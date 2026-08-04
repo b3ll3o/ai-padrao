@@ -1,6 +1,9 @@
 import { Body, Controller, Delete, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+// Nest DI + emitDecoratorMetadata need the runtime value here; `import type` erases it.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UsersService } from './users.service';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateUserDto, UserListQueryDto } from './dto/users.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';

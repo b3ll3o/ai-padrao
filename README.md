@@ -21,7 +21,7 @@ Open:
 - App: http://localhost:3000
 - API: http://localhost:3001
 - Swagger: http://localhost:3001/docs
-- MailHog: http://localhost:8025
+- MailHog: http://localhost:18025
 
 Default seed user: `admin@ai-padrao.local` / `admin123`.
 

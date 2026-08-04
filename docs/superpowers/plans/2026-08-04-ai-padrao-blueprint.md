@@ -375,7 +375,7 @@ Open:
 - App: http://localhost:3000
 - API: http://localhost:3001
 - Swagger: http://localhost:3001/docs
-- MailHog: http://localhost:8025
+- MailHog: http://localhost:18025
 
 Default seed user: `admin@ai-padrao.local` / `admin123`.
 
@@ -510,8 +510,8 @@ services:
     image: mailhog/mailhog:v1.0.1
     container_name: ai-padrao-mailhog
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      - "11125:1025"
+      - "18025:8025"
 
 volumes:
   pgdata:
@@ -4109,7 +4109,7 @@ Open http://localhost:3000 in a browser. Verify:
 
 - [ ] **Step 8: MailHog check**
 
-Open http://localhost:8025 in a browser. Verify the MailHog UI loads (no emails yet, but UI should be functional).
+Open http://localhost:18025 in a browser. Verify the MailHog UI loads (no emails yet, but UI should be functional).
 
 - [ ] **Step 9: Run full test suite**
 

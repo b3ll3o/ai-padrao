@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+// Nest DI needs the runtime value here; `import type` erases it from design:paramtypes.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import type { UpdateUserInput, UserListQuery, UserDto } from '@ai-padrao/contracts';
 

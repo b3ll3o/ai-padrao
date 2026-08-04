@@ -71,8 +71,11 @@ services:
     image: mailhog/mailhog:v1.0.1
     container_name: ai-padrao-mailhog
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      # Host ports remapped to avoid collision with sibling pedi_ai_mailpit
+      # (which binds 1025/8025). Container ports stay at 1025/8025 so internal
+      # references (SMTP_PORT=1025 in .env) remain unchanged.
+      - "11125:1025"
+      - "18025:8025"
 
 volumes:
   pgdata:

@@ -7,7 +7,12 @@ COPY apps/api/package.json ./apps/api/
 # packages/ will exist after Tasks 4-8; required for proper cache invalidation
 COPY packages ./packages
 RUN pnpm install --frozen-lockfile --ignore-scripts
+# Copy api sources early so prisma generate (which needs schema.prisma) can find it.
 COPY apps/api ./apps/api
+# Build workspace packages first so dist/ is available before api compilation.
+RUN pnpm --filter @ai-padrao/contracts build
+# Generate Prisma client explicitly because `--ignore-scripts` above suppresses the postinstall hook.
+RUN pnpm --filter @ai-padrao/api exec prisma generate
 RUN pnpm --filter @ai-padrao/api run build && pnpm deploy --filter @ai-padrao/api --prod /prod/api
 
 # Stage 2: runtime

@@ -2,12 +2,15 @@
   "name": "@ai-padrao/contracts",
   "version": "0.1.0",
   "private": true,
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
   "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --config @ai-padrao/config-eslint/base.js"
+    "lint": "eslint src --config $(node -p \"require.resolve('@ai-padrao/config-eslint/base.js')\")"
   },
   "dependencies": {
     "zod": "^3.23.8"

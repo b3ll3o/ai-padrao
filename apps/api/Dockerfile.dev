@@ -6,6 +6,11 @@ COPY apps/api/package.json ./apps/api/
 # packages/ will exist after Tasks 4-8; required for proper cache invalidation
 COPY packages ./packages
 RUN pnpm install --ignore-scripts
+# Copy api sources early so prisma generate (which needs schema.prisma) can find it.
 COPY apps/api ./apps/api
+# Build workspace packages so dist/ is available for Node runtime (contracts package is consumed as compiled JS).
+RUN pnpm --filter @ai-padrao/contracts build
+# Generate Prisma client explicitly because `--ignore-scripts` above suppresses the postinstall hook.
+RUN pnpm --filter @ai-padrao/api exec prisma generate
 EXPOSE 3001
 CMD ["pnpm", "--filter", "@ai-padrao/api", "run", "start:dev"]

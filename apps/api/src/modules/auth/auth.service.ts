@@ -1,8 +1,12 @@
 import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+// Nest DI needs the runtime values here; `import type` erases them from design:paramtypes.
+/* eslint-disable @typescript-eslint/consistent-type-imports */
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+/* eslint-enable @typescript-eslint/consistent-type-imports */
 import * as argon2 from 'argon2';
 import { createHash, randomBytes } from 'node:crypto';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from '../../infra/prisma/prisma.service';
 import type { LoginInput, RefreshInput, RegisterInput } from '@ai-padrao/contracts';
 import { UserRole, type User } from '@prisma/client';

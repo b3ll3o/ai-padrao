@@ -1,7 +1,8 @@
 import 'reflect-metadata';
 import './infra/otel/otel';
-import { NestFactory, Reflector } from '@nestjs/core';
-import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
+import { NestFactory } from '@nestjs/core';
+import type { NestFastifyApplication } from '@nestjs/platform-fastify';
+import { FastifyAdapter } from '@nestjs/platform-fastify';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';

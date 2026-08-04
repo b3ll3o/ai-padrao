@@ -30,7 +30,7 @@ Single repository managed by **pnpm workspaces + Turborepo 2**. One root `docker
 | `postgres` | `postgres:16-alpine`    | 5432      | Relational database                     |
 | `api`      | local build (NestJS)    | 3001      | REST API + JWT auth + OpenTelemetry     |
 | `web`      | local build (Next.js)   | 3000      | Frontend app                            |
-| `mailhog`  | `mailhog/mailhog:v1.0.1` | 8025/1025 | SMTP catcher for dev email flows        |
+| `mailhog`  | `mailhog/mailhog:v1.0.1` | 18025/11125 (host) → 8025/1025 (container) | SMTP catcher for dev email flows        |
 | `otel-collector` | `otel/opentelemetry-collector-contrib` | 4317/4318 | OTLP receiver for traces & metrics |
 
 ### 2.2 Directory layout
@@ -301,7 +301,7 @@ services:
 
   mailhog:
     image: mailhog/mailhog:v1.0.1
-    ports: ["1025:1025", "8025:8025"]
+    ports: ["11125:1025", "18025:8025"]
 
 volumes:
   pgdata: {}

@@ -4,7 +4,10 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "declaration": true,
+    "declarationMap": false
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["**/*.spec.ts"]
 }

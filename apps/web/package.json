@@ -6,9 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint src --config @ai-padrao/config-eslint/next.js",
+    "lint": "eslint src --config $(node -p \"require.resolve('@ai-padrao/config-eslint/next.js')\")",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@ai-padrao/config-tailwind": "workspace:*",

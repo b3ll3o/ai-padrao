@@ -5,7 +5,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "lint": "eslint src --config @ai-padrao/config-eslint/react.js",
+    "lint": "eslint src --config $(node -p \"require.resolve('@ai-padrao/config-eslint/react.js')\")",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

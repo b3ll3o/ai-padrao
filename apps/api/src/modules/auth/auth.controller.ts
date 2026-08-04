@@ -1,12 +1,15 @@
 import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+// Nest DI + emitDecoratorMetadata need the runtime value here; `import type` erases it.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AuthService } from './auth.service';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { LoginDto, RefreshDto, RegisterDto } from './dto/auth.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
-import { UserRole } from '@prisma/client';
+import type { UserRole } from '@prisma/client';
 
 @ApiTags('auth')
 @Controller('auth')

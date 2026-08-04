@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+// Nest DI needs the runtime value here; `import type` erases it from design:paramtypes.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';

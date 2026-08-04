@@ -1,5 +1,7 @@
-import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
-import { Observable, tap } from 'rxjs';
+import type { CallHandler, ExecutionContext, NestInterceptor } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import type { Observable } from 'rxjs';
+import { tap } from 'rxjs';
 import { randomUUID } from 'node:crypto';
 
 @Injectable()
@@ -11,7 +13,8 @@ export class LoggingInterceptor implements NestInterceptor {
     const res = context.switchToHttp().getResponse();
     const requestId = (req.headers['x-request-id'] as string | undefined) ?? randomUUID();
     req.requestId = requestId;
-    res.setHeader('x-request-id', requestId);
+    // Fastify reply exposes `.header(name, value)` instead of Express's `setHeader`.
+    (res as { header: (name: string, value: string) => void }).header('x-request-id', requestId);
     const start = Date.now();
 
     return next.handle().pipe(

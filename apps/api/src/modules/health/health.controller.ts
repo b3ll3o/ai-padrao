@@ -1,8 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Public } from '../../common/decorators/public.decorator';
+// Nest DI needs the runtime value here; `import type` erases it from design:paramtypes.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from '../../infra/prisma/prisma.service';
 
 @ApiTags('health')
+@Public()
 @Controller('health')
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
