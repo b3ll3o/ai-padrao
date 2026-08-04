@@ -1,275 +1,224 @@
 # Architecture
 
-`ai-padrao` is a pnpm 9 + Turborepo monorepo with two applications:
+The big-picture view of `ai-padrao`. For the day-to-day "how do I…"
+questions see [`CONTRIBUTING.md`](CONTRIBUTING.md); for the rules AI
+assistants must follow see [`AGENTS.md`](AGENTS.md). For the _why_ of
+specific decisions see [`docs/decisions/`](docs/decisions/).
 
-- `apps/api` — NestJS 11 (Fastify) + Prisma 6 + Zod backend.
-- `apps/web` — Next.js 15 (App Router) + Tailwind 4 + shadcn/ui frontend.
+## 1. System diagram
 
-Both applications follow Domain-Driven Design (DDD) and **hexagonal
-architecture** (a.k.a. ports and adapters). Business capabilities are
-organized as vertical bounded contexts; framework and infrastructure concerns
-are isolated behind ports. See [`AGENTS.md`](./AGENTS.md) for the global rules
-that govern this layout, the per-app extensions in
-[`apps/api/AGENTS.md`](./apps/api/AGENTS.md) and
-[`apps/web/AGENTS.md`](./apps/web/AGENTS.md), and
-[`docs/decisions/`](./docs/decisions/) for the decisions that produced it.
-
----
-
-## System map
-
-```
-┌────────────────────────────────────────────────────────────────────────────┐
-│                              apps/web (Next.js)                             │
-│  ─────────────────────────────────────────────────────────────────────────  │
-│  Feature contexts in apps/web/src/features/<context>/                       │
-│                                                                            │
-│  Auth                                                                     │
-│  ├─ domain      ports (AuthApiPort, AuthCookieStorePort, AuthNavigationPort)│
-│  ├─ application use cases (login, register, logout, refresh-session) + fakes│
-│  ├─ adapters    presentation (login-form.tsx, register-form.tsx)           │
-│  └─ infra       adapters (fetch-auth-api, next-auth-cookie-store,          │
-│                 next-auth-navigation, browser-auth-cookie-store)           │
-│                                                                            │
-│  Composition roots: middleware.ts, app/actions/* (server actions),         │
-│                     app/(auth)/* page segments                              │
-└────────────────────────────────────────────────────────────────────────────┘
-                                  │
-                                  │  HTTP (fetch, httpOnly cookies)
-                                  ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│                              apps/api (NestJS)                              │
-│  ─────────────────────────────────────────────────────────────────────────  │
-│  Vertical bounded contexts in apps/api/src/contexts/<context>/             │
-│                                                                            │
-│  Users                                                                    │
-│  ├─ domain      User entity, value objects (Email, Name, UserRole),        │
-│  │              UserRepositoryPort, errors                                 │
-│  ├─ application use cases (list, find, update, remove) + InMemory repository│
-│  ├─ infra       PrismaUserRepository, PrismaUserMapper,                    │
-│  │              UsersHttpController, UsersContextModule (composition root) │
-│                                                                            │
-│  Auth                                                                     │
-│  ├─ domain      Ports (UserAuthRepository, PasswordHasher,                 │
-│  │              AccessTokenIssuer, RefreshTokenHasher, RefreshTokenStore,  │
-│  │              RefreshTokenGenerator) + errors                            │
-│  ├─ application use cases (register, login, refresh, logout) + fakes       │
-│  ├─ infra       Argon2PasswordHasher, JwtAccessTokenIssuer,                │
-│  │              Sha256RefreshTokenHasher, RandomRefreshTokenGenerator,     │
-│  │              PrismaUserAuthRepository, PrismaRefreshTokenStore,         │
-│  │              AuthHttpController, parse-ttl helper, JwtStrategy,         │
-│  │              AuthContextModule (composition root)                       │
-│                                                                            │
-│  Composition roots: src/app.module.ts (AppModule)                           │
-│  Cross-cutting: src/infra/* (Prisma, OpenTelemetry, helmet, throttler)     │
-└────────────────────────────────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-                            PostgreSQL (Prisma)
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                          docker-compose                         │
+│                                                                 │
+│  ┌──────────┐    ┌──────────┐    ┌──────────────┐               │
+│  │ postgres │◄───┤   api    │    │     web      │               │
+│  │  :5432   │    │ (NestJS) │    │  (Next.js)   │               │
+│  └──────────┘    │ :3001    │    │   :3000      │               │
+│       ▲          └────┬─────┘    └──────┬───────┘               │
+│       │               │                │                        │
+│       │          ┌────▼─────┐    ┌─────▼──────┐                │
+│       │          │ mailhog  │    │   otel-    │                │
+│       │          │ :11025   │    │  collector │                │
+│       │          │ :18025   │    │   :4317    │                │
+│       │          └──────────┘    └─────┬──────┘                │
+│       │                                │                       │
+│       │         (mailhog receives      │ OTLP export           │
+│       │          dev-only emails)      ▼                       │
+│       │                          ┌──────────┐                  │
+│       └──────────────────────────┤   OTel   │                  │
+│                                  │ backend  │ (any vendor)     │
+│                                  └──────────┘                  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
----
+Local dev runs everything in `docker-compose.yml`. Production drops
+the mailhog and otel-collector containers and points the api/web at
+managed equivalents.
 
-## Layer responsibilities
+## 2. Monorepo shape
 
-Each context is a **vertical slice** with four concentric layers. Dependencies
-point inward — outer layers know inner layers, never the other way around.
-
-| Layer                | Owns                                                                                                                                                               | Allowed dependencies                                                      |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
-| **domain**           | Entities, value objects, domain errors, **ports** (interfaces)                                                                                                     | The language runtime. Nothing else.                                       |
-| **application**      | Use cases, in-memory fakes for ports, application-level result types                                                                                               | `domain`, ports only.                                                     |
-| **infrastructure**   | Framework adapters (Nest controllers, JWT strategy), persistence adapters (Prisma), security adapters (Argon2id), web adapters (Next `fetch`, cookies, navigation) | `domain` ports, `application` use cases (for HTTP wiring), the framework. |
-| **composition root** | Nest `*ContextModule` (api) / Next middleware + server actions (web) that bind every port to an adapter explicitly                                                 | All layers.                                                               |
-
-Inward direction is enforced by ESLint rules — see the per-app
-`eslint.config.mjs`. The api uses
-`@ai-padrao/config-eslint/nest.js`; the web uses the React preset.
-
-### Why a four-layer split
-
-- **Domain stays pure.** No Nest, no Prisma, no React. Domain code is
-  framework-free so it can be unit-tested with zero mocks and reused if the
-  delivery mechanism changes.
-- **Use cases stay adapter-free.** They depend on ports and on in-memory
-  fakes shipped under `application/testing/` for deterministic tests.
-- **Adapters stay thin.** Their job is to translate between the framework
-  world (HTTP requests, Prisma rows, JWT claims, cookie stores) and the port
-  shape. No business logic lives here.
-- **Composition roots are explicit.** Every port binding is visible at the
-  module/middleware layer. Grep for `bind:` in
-  `apps/api/src/contexts/*/auth-context.module.ts` (and its users twin) to
-  see the wiring table.
-
----
-
-## API: `apps/api/src/contexts/`
-
-Each bounded context is a self-contained folder. Layout (paths grounded in the
-implemented state):
-
-```
-apps/api/src/contexts/
-├── auth/
-│   ├── auth-context.module.ts        # composition root (Nest module)
-│   ├── auth-context.tokens.ts        # DI tokens for every port
-│   ├── application/
-│   │   ├── auth-result.ts            # register/login/refresh result types
-│   │   ├── testing/                  # in-memory fakes for ports
-│   │   │   ├── fake-access-token.issuer.ts
-│   │   │   ├── fake-password.hasher.ts
-│   │   │   ├── fake-refresh-token.generator.ts
-│   │   │   ├── fake-refresh-token.hasher.ts
-│   │   │   ├── in-memory-refresh-token.store.ts
-│   │   │   └── in-memory-user-auth.repository.ts
-│   │   └── use-cases/
-│   │       ├── login.use-case.{ts,spec.ts}
-│   │       ├── logout.use-case.{ts,spec.ts}
-│   │       ├── refresh.use-case.{ts,spec.ts}
-│   │       └── register.use-case.{ts,spec.ts}
-│   ├── domain/
-│   │   ├── errors/
-│   │   │   ├── email-already-registered.error.ts
-│   │   │   └── invalid-credentials.error.ts
-│   │   └── ports/
-│   │       ├── access-token-issuer.port.ts
-│   │       ├── password-hasher.port.ts
-│   │       ├── refresh-token-generator.port.ts
-│   │       ├── refresh-token-hasher.port.ts
-│   │       ├── refresh-token-store.port.ts
-│   │       └── user-auth.repository.port.ts
-│   └── infrastructure/
-│       ├── http/
-│       │   ├── auth-http.controller.{ts,spec.ts}
-│       │   └── dto/
-│       ├── persistence/prisma/      # PrismaUserAuthRepository + PrismaRefreshTokenStore
-│       ├── security/
-│       │   ├── argon2-password.hasher.{ts,spec.ts}
-│       │   ├── jwt-access-token.issuer.{ts,spec.ts}
-│       │   ├── jwt.strategy.{ts,spec.ts}
-│       │   ├── random-refresh-token.generator.{ts,spec.ts}
-│       │   └── sha256-refresh-token.hasher.{ts,spec.ts}
-│       └── ttl/parse-ttl.{ts,spec.ts}
-└── users/
-    ├── users-context.module.ts
-    ├── users-context.tokens.ts
-    ├── application/
-    │   ├── testing/                  # in-memory fakes for ports
-    │   └── use-cases/
-    │       ├── find-user.use-case.{ts,spec.ts}
-    │       ├── list-users.use-case.{ts,spec.ts}
-    │       ├── remove-user.use-case.{ts,spec.ts}
-    │       └── update-user.use-case.{ts,spec.ts}
-    ├── domain/
-    │   ├── entities/user.{ts,spec.ts}
-    │   ├── errors/user-not-found.error.ts
-    │   ├── ports/user-repository.port.ts
-    │   └── value-objects/{email,name,user-role}.{ts,spec.ts}
-    └── infrastructure/
-        ├── http/users-http.controller.{ts,spec.ts}
-        └── persistence/prisma/      # PrismaUserRepository + PrismaUserMapper
+```text
+apps/
+  api/           NestJS 11 + Fastify adapter. Only app that uses Prisma.
+  web/           Next.js 15 App Router. Imports types from packages/contracts.
+packages/
+  contracts/     Zod schemas. Source of truth for request/response shapes.
+                 Touch BEFORE schema.prisma.
+  db/            Prisma client wrapper, migrations, seed helpers.
+  ui/            shadcn/ui components + Tailwind 4 primitives.
+  config-*/      Shared TS / ESLint / Prettier configs.
+docs/
+  decisions/     11 ADRs (Nygard format). Each one a real incident.
+  superpowers/   Brainstorming and planning artifacts.
+.harness/        Self-improving agent loop (capture → detect → digest → enforce).
+.openspec/       SDD workflow (proposal → approval → build → archive).
+infra/           Dockerfiles, observability collector config.
 ```
 
-### Composition root: `AppModule`
+The `apps/web` and `apps/api` are siblings. They MUST NOT import each
+other; their shared surface is `packages/contracts` (Zod) and HTTP.
+This keeps the deploy story symmetric — either app can be swapped
+without touching the other.
 
-`apps/api/src/app.module.ts` imports `AuthContextModule` and
-`UsersContextModule`. Each context module owns its ports and binds them
-explicitly (e.g. `bind: PasswordHasher -> Argon2PasswordHasher`). No port
-imports a concrete adapter directly.
+## 3. Request flow (web → api)
 
-### Prisma mappings
-
-The api owns Prisma. Each persistence adapter follows the **mapper pattern**:
-
-- `PrismaUserMapper` (auth + users) — round-trip between Prisma rows and
-  domain `User` entities. Covered by mapper unit tests.
-- `PrismaUserRepository` and `PrismaUserAuthRepository` — depend on
-  `PrismaService` through a typed port; the controller never sees Prisma.
-
-`apps/web` MUST NOT import Prisma — that is enforced by ESLint and by
-`AGENTS.md`.
-
----
-
-## Web: `apps/web/src/features/`
-
-```
-apps/web/src/features/
-└── auth/
-    ├── adapters/presentation/
-    │   ├── login-form.{tsx,spec.tsx}
-    │   └── register-form.{tsx,spec.tsx}
-    ├── application/
-    │   ├── route-access.policy.{ts,spec.ts}
-    │   ├── testing/
-    │   │   ├── fake-auth-api.ts
-    │   │   ├── fake-auth-navigation.ts
-    │   │   └── in-memory-auth-cookie-store.ts
-    │   └── use-cases/
-    │       ├── login.use-case.{ts,spec.ts}
-    │       ├── logout.use-case.{ts,spec.ts}
-    │       ├── refresh-session.use-case.{ts,spec.ts}
-    │       └── register.use-case.{ts,spec.ts}
-    ├── domain/
-    │   ├── errors/auth-flow.error.ts
-    │   └── ports/
-    │       ├── auth-api.port.ts
-    │       ├── auth-cookie-store.port.ts
-    │       └── auth-navigation.port.ts
-    └── infrastructure/adapters/
-        ├── auth-cookie.config.ts
-        ├── browser-auth-cookie-store.adapter.{ts,spec.ts}
-        ├── fetch-auth-api.adapter.{ts,spec.ts}
-        ├── next-auth-cookie-store.adapter.{ts,spec.ts}
-        └── next-auth-navigation.adapter.{ts,spec.ts}
+```text
+Browser
+  │  httpOnly cookie: ai-padrao-refresh=<opaque>
+  │
+  ▼
+Next.js (apps/web)
+  │  Server Component / Route Handler
+  │  imports typed client from packages/contracts
+  │  Authorization: Bearer <access JWT, in-memory only>
+  ▼
+NestJS (apps/api) — Fastify adapter
+  │  Helmet → CORS → RateLimit → JwtAuthGuard (global via APP_GUARD)
+  │  ValidationPipe (Zod via nestjs-zod, schema from packages/contracts)
+  │  Controller → Service → Prisma
+  ▼
+PostgreSQL 16
+  │  Prisma 6 client (apps/api only)
+  ▼
+Response (typed by Zod, same schema on both sides)
 ```
 
-### Web ports
+Public endpoints (`/api/health`, `/api/auth/*`) carry the `@Public()`
+decorator to opt out of the global JWT guard. See
+[ADR-003](docs/decisions/ADR-003-public-decorator-on-health-auth.md).
 
-| Port                  | Adapter(s)                                                                                 | Purpose                                                       |
-| --------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
-| `AuthApiPort`         | `fetch-auth-api.adapter`                                                                   | Talks to the api over HTTP for login/refresh/logout/register. |
-| `AuthCookieStorePort` | `next-auth-cookie-store.adapter` (server) and `browser-auth-cookie-store.adapter` (client) | Reads/writes the refresh-token httpOnly cookie.               |
-| `AuthNavigationPort`  | `next-auth-navigation.adapter`                                                             | Framework-agnostic redirect policy used by use cases.         |
+## 4. Auth flow
 
-Use cases depend on these ports; the forms and server actions are composition
-roots that bind each port to its adapter.
+```text
+login / register
+   │
+   ▼  (Argon2id verify)
+issue access JWT (15 min) ──── returned in response body
+issue refresh token (opaque) ──── set as httpOnly cookie, rotated on use
+   │
+   ▼
+subsequent requests
+   │
+   ├── Authorization: Bearer <access JWT>           ← short-lived
+   │
+   ├── on 401, POST /api/auth/refresh                ← uses httpOnly cookie
+   │     ├── rotate refresh (one-time use, recorded in DB)
+   │     ├── issue new access JWT
+   │     └── set new httpOnly cookie
+   │
+   └── logout: POST /api/auth/logout                  ← clears cookie + DB revoke
+```
 
-### Composition roots (web)
+Tokens NEVER live in `localStorage`. The refresh token is opaque and
+DB-tracked; rotation invalidates the previous token immediately. See
+the api's auth module for the canonical implementation and
+[`AGENTS.md`](AGENTS.md) for the rule.
 
-- `apps/web/src/middleware.ts` — refresh-on-request middleware; binds cookie
-  store + API port + navigation port.
-- `apps/web/src/app/(auth)/*` — page segments; bind presentation adapters
-  (login/register forms) and the server actions.
-- `apps/web/src/app/actions/*` — server actions; call the use cases with
-  explicit port bindings.
+## 5. Module map — apps/api
 
----
+```text
+src/
+  main.ts                     bootstrap (Nest Logger only, see ADR-006)
+  app.module.ts               root composition
+  common/
+    decorators/                @Public(), @CurrentUser(), @Roles()
+    filters/                   exception → HTTP response mapping
+    interceptors/              logging (Pino), request-id
+    guards/                    JwtAuthGuard (global), RolesGuard (opt-in)
+  modules/
+    auth/                      login, register, refresh, logout
+    health/                    GET /api/health (@Public, no deps)
+    users/                     CRUD + roles
+    audit/                     append-only audit log
+    notifications/             email dispatch (uses mailhog in dev)
+  prisma/
+    prisma.module.ts           PrismaService (DI)
+    prisma.service.ts
+prisma/
+  schema.prisma                source of truth, owned here
+  migrations/                  generated, committed
+  seed.ts                      admin user
+```
 
-## Cross-cutting
+Each module exports ONE service. Cross-module imports happen via the
+service, never via the database. New modules land under
+`src/modules/<feature>/` with the four-file skeleton
+(`*.module.ts`, `*.controller.ts`, `*.service.ts`, `dto/`).
 
-- **`apps/api/src/infra/`** — Prisma client wiring, OpenTelemetry SDK,
-  Fastify helmet, throttler, and other framework-level concerns. Used by
-  `AppModule`; never imported from domain or application.
-- **`packages/contracts`** — shared Zod schemas and DTOs. Both apps depend on
-  it; nothing in `packages/contracts` depends on either app.
-- **`packages/config-eslint`, `packages/config-tsconfig`,
-  `packages/config-tailwind`, `packages/ui`, `packages/db`** — shared
-  tooling consumed by both apps.
+## 6. Data model (Postgres via Prisma)
 
-## Testing
+Core tables (see `apps/api/prisma/schema.prisma` for the source of
+truth):
 
-Each layer ships tests next to the code (`*.spec.ts`). The harness auto-check
-`INC-012` (no skipped tests) and the aggregate coverage gate enforce that:
+- `User` — id, email (unique), passwordHash (Argon2id), role, createdAt.
+- `RefreshToken` — id, userId, tokenHash, expiresAt, revokedAt. Append-only;
+  rotation revokes the old row.
+- `AuditLog` — id, userId, action, targetType, targetId, payload (JSONB),
+  createdAt. No updates or deletes — append-only.
 
-- Every `*.spec.ts` / `*.spec.tsx` file contains at least one real `it()`.
-- Each app independently reports **≥ 80%** statements, branches, functions,
-  and lines. See [`ADR-013`](./docs/decisions/ADR-013-independent-80-percent-coverage.md).
+The schema is owned by `apps/api`. `packages/contracts` re-exports the
+Zod shapes that wrap the same fields. When the schema changes, the
+contracts change FIRST, then `schema.prisma` — see the coordination
+rule in [`AGENTS.md`](AGENTS.md).
 
-## Where to go next
+## 7. Observability
 
-- New feature → follow [`.openspec/AGENTS.md`](./.openspec/AGENTS.md) (SDD is mandatory).
-- Touching the api → re-read [`apps/api/AGENTS.md`](./apps/api/AGENTS.md).
-- Touching the web → re-read [`apps/web/AGENTS.md`](./apps/web/AGENTS.md).
-- Architecture rationale → [`docs/decisions/`](./docs/decisions/) (ADR-012, ADR-013).
-- Validation commands and Definition of Done → [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+OpenTelemetry SDK is initialized in `apps/api/src/main.ts` and in
+`apps/web/instrumentation.ts`. Every HTTP request carries a
+correlation id (request-id interceptor); every Prisma call is traced;
+every log line carries the same trace + span ids.
+
+In dev, traces export to the `otel-collector` container via OTLP
+(gRPC :4317). The collector fans out to whatever backend the team
+uses (Jaeger, Tempo, Honeycomb). Sampling rate is configured per
+environment via `OTEL_TRACES_SAMPLER_ARG`.
+
+Pino is the log transport. `console.*` is forbidden in
+`apps/api/src/main.ts` (ADR-006). Every other module uses the Nest
+`Logger`.
+
+## 8. Why this shape
+
+The architecture encodes 11 decisions, each linked to a real defect:
+
+- [ADR-001](docs/decisions/ADR-001-fastify-reply-api.md) — Fastify
+  reply API (Nest + Fastify interop was breaking at runtime).
+- [ADR-002](docs/decisions/ADR-002-no-import-type-for-nest-di.md) —
+  No `import type` for Nest DI (`emitDecoratorMetadata`).
+- [ADR-003](docs/decisions/ADR-003-public-decorator-on-health-auth.md) —
+  `@Public()` decorator on infra endpoints.
+- [ADR-004](docs/decisions/ADR-004-dockerfile-copy-schema-before-generate.md) —
+  Dockerfile copy-order for Prisma.
+- [ADR-005](docs/decisions/ADR-005-non-default-ports.md) —
+  Off-default host ports for compose.
+- [ADR-006](docs/decisions/ADR-006-nest-logger-not-console.md) —
+  Nest `Logger`, not `console.*`.
+- [ADR-007](docs/decisions/ADR-007-no-skipped-tests.md) — Zero
+  skipped tests.
+- [ADR-008](docs/decisions/ADR-008-capture-scripts-bash-and-python3-only.md) —
+  Capture scripts use bash + python3 only.
+- [ADR-009](docs/decisions/ADR-009-events-directory-is-gitignored.md) —
+  `.harness/events/` is gitignored.
+- [ADR-010](docs/decisions/ADR-010-daily-digest-freshness.md) — Daily
+  digest freshness check.
+- [ADR-011](docs/decisions/ADR-011-no-plaintext-secrets-in-source.md) —
+  No plaintext tokens in tracked source.
+
+Read the index at [`docs/decisions/README.md`](docs/decisions/README.md)
+before opening a change to any of these areas.
+
+## 9. Where to extend
+
+- **New API endpoint:** open `.openspec/changes/<feature>/`,
+  add Zod schema in `packages/contracts`, then controller in
+  `apps/api/src/modules/<feature>/`.
+- **New UI page:** add components in `packages/ui` first, then
+  the route in `apps/web/app/<route>/page.tsx`.
+- **New DB column:** update `packages/contracts` Zod, then
+  `apps/api/prisma/schema.prisma`, then run `pnpm db:migrate`.
+- **New ADR:** write `docs/decisions/ADR-NNN-<slug>.md`, add to the
+  index table, link from `.harness/INCIDENTS.md`.
+- **New harness rule:** add INC entry in `.harness/INCIDENTS.md`,
+  then `learnings.json` entry with `trigger_pattern` +
+  `auto_check`, then a `check.sh` block.
