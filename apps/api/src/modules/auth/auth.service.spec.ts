@@ -30,7 +30,14 @@ describe('AuthService', () => {
         { provide: PrismaService, useValue: prisma },
         {
           provide: ConfigService,
-          useValue: { get: (k: string) => ({ JWT_ACCESS_SECRET: 'a'.repeat(32), JWT_REFRESH_SECRET: 'b'.repeat(32), JWT_ACCESS_TTL: '15m', JWT_REFRESH_TTL: '7d' }[k]) },
+          useValue: {
+            get: (k: string) => ({ JWT_ACCESS_SECRET: 'a'.repeat(32), JWT_REFRESH_SECRET: 'b'.repeat(32), JWT_ACCESS_TTL: '15m', JWT_REFRESH_TTL: '7d' }[k]),
+            getOrThrow: (k: string) => {
+              const v = { JWT_ACCESS_SECRET: 'a'.repeat(32), JWT_REFRESH_SECRET: 'b'.repeat(32), JWT_ACCESS_TTL: '15m', JWT_REFRESH_TTL: '7d' }[k];
+              if (v === undefined) throw new Error(`Missing config: ${k}`);
+              return v;
+            },
+          },
         },
         { provide: JwtService, useValue: { signAsync: jest.fn().mockResolvedValue('signed.jwt.token'), verifyAsync: jest.fn() } },
       ],

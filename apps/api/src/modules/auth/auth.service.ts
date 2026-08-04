@@ -75,7 +75,7 @@ export class AuthService {
 
     const accessToken = await this.jwt.signAsync(
       { sub: user.id, email: user.email, role: user.role },
-      { secret: this.config.get<string>('JWT_ACCESS_SECRET'), expiresIn: accessTtl },
+      { secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'), expiresIn: accessTtl as `${number}${'s'|'m'|'h'|'d'}` },
     );
 
     const refreshToken = randomBytes(48).toString('base64url');
@@ -103,8 +103,8 @@ export class AuthService {
     const match = ttl.match(/^(\d+)([smhd])$/);
     if (!match) throw new Error(`Invalid TTL: ${ttl}`);
     const value = Number(match[1]);
-    const unit = match[2];
-    const ms = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 }[unit];
+    const unit = match[2] as 's' | 'm' | 'h' | 'd';
+    const ms: number = { s: 1_000, m: 60_000, h: 3_600_000, d: 86_400_000 }[unit];
     return new Date(Date.now() + value * ms);
   }
 }
