@@ -7,12 +7,11 @@ this file only covers Claude-Code-specific orientation.
 ## 1. Project identity
 
 This repo is **`ai-padrao`**, a monorepo blueprint for SDD-driven
-full-stack apps: Next.js 15 (web) + NestJS 11 / Fastify (api) + Prisma 6
-
-- Postgres, all wired through pnpm 9 workspaces and Turborepo 2. It is a
-  **blueprint** — conventions, harnesses, and ADRs are first-class
-  deliverables, not just incidental source. The reader is expected to copy
-  the shape and adapt the content.
+full-stack apps: Next.js 15 (web) and NestJS 11 / Fastify (api) and
+Prisma 6 and Postgres, all wired through pnpm 9 workspaces and
+Turborepo 2. It is a **blueprint** — conventions, harnesses, and ADRs
+are first-class deliverables, not just incidental source. The reader
+is expected to copy the shape and adapt the content.
 
 Editor of record: **Visual Studio Code** (settings in `.vscode/`).
 
