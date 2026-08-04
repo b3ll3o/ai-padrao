@@ -489,6 +489,31 @@ After these 11 incidents, the following rules should be considered for `AGENTS.m
 
 ---
 
+## INC-017: L2 detector fires on prose that documents its own trigger patterns
+
+**Date:** 2026-08-04
+**Wave:** Documentation audit (project-documentation-audit)
+**Severity:** Medium (workstream-blocking false positive)
+
+**Symptom:** During the 2026-08-04 documentation audit (ADR generation under `docs/decisions/`), every Write of an ADR body that explained the INC-002 or INC-003 rules triggered the L2 detector with a confirmation prompt. The agent's commits stalled. No runtime source code was touched — only markdown prose that quotes the trigger patterns in order to document them.
+
+**Root cause:** `.harness/pattern_match.py`'s file-axis check uses substring matching against the `trigger_pattern.files` values declared in `.harness/learnings.json`. For INC-002 and INC-003, those values are the runtime source-path glob that names where the bug used to live. The detector flattens every event's `tool_input` (full JSON) into one searchable blob. A `Write` event for a markdown file under `docs/decisions/` carries that markdown body in `tool_input.content`; if the body quotes the trigger pattern (which is the entire purpose of an ADR), the detector counts the Write event as a file-axis hit even though no code under `apps/` or `packages/` was touched.
+
+**Detection:** Replayed the last 20 events from `.harness/events/<date>.jsonl` through the matcher with the algorithm in `pattern_match.py` reproduced step-by-step. The combined text contained multiple occurrences of the INC-002 source-path substring (from prior ADR-001..004 Write events still in the JSONL stream) and one occurrence of the INC-002 symbol (from a diagnostic `grep` Bash command). Both axes passed; INC-002 emitted. The matched events were: ADR Write events that committed only to `docs/decisions/`, plus one diagnostic bash. None of those touched runtime source.
+
+**Fix:** Introduced a documentation-path filter (a constant `SOURCE_PATH_PATTERNS` and a diagnostic-bash allowlist, both at the top of `.harness/pattern_match.py`). Events whose `file_path` matches `^docs/`, `.harness/INCIDENTS.md`, or `.harness/learnings.json`, or whose `command` matches a read-only diagnostic regex, are skipped from the file-axis count only. The symbol-axis is unchanged — code violations still surface as before. Added `.harness/test_pattern_match.py` with three regression cases (docs-only window, code-only window, mixed window). Wired into `.harness/check.sh` as the INC-017 auto-check.
+
+**Two-layer defense:**
+
+1. **Path filter at detect time (sensor).** `.harness/pattern_match.py` excludes the documentation paths before counting file-axis hits. This is the **seatbelt** — it stops the false positive at the source.
+2. **Auto-check at pre-commit (airbag).** **INC-017** in `.harness/check.sh` greps for the `SOURCE_PATH_PATTERNS` constant and runs the regression test. If a future cleanup wave removes the filter, both layers fail and the build blocks.
+
+**Prevention rule:** `AGENTS.md §Continuous learning → Capture dependencies` (extended to include detection dependencies) and `docs/superpowers/specs/2026-08-04-project-documentation-audit-design.md §Out of scope`.
+
+**→ Promoted to AGENTS.md §Continuous learning → Capture dependencies (extended).**
+
+---
+
 ## Pattern: Alura's "guias + sensores" applied to the harness
 
 After 16 incidents, the harness has both halves of the loop Alura describes:
