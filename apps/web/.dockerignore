@@ -1,3 +1,7 @@
+# Aspirational only. Docker builds use the repo root as build context
+# (see docker-compose.yml `build.context: .`), so Docker reads the root
+# `.dockerignore` and ignores this file. Kept for the day web/ is built
+# standalone; update the root `.dockerignore` for real exclusions.
 node_modules
 .next
 .git

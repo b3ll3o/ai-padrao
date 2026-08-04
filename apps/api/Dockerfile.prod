@@ -4,9 +4,10 @@ RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
 COPY package.json pnpm-workspace.yaml turbo.json pnpm-lock.yaml ./
 COPY apps/api/package.json ./apps/api/
+# packages/ will exist after Tasks 4-8; required for proper cache invalidation
+COPY packages ./packages
 RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY apps/api ./apps/api
-COPY packages ./packages
 RUN pnpm --filter @ai-padrao/api run build && pnpm deploy --filter @ai-padrao/api --prod /prod/api
 
 # Stage 2: runtime
@@ -15,5 +16,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /prod/api ./
 COPY --from=build /prod/api/prisma ./prisma
+USER node
 EXPOSE 3001
 CMD ["node", "dist/main.js"]

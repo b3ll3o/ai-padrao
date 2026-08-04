@@ -23,7 +23,6 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile.dev
     container_name: ai-padrao-api
-    command: pnpm --filter @ai-padrao/api run start:dev
     env_file: .env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
@@ -38,14 +37,13 @@ services:
       - ./apps/api/src:/app/apps/api/src
       - ./packages:/app/packages
       - api_node_modules:/app/apps/api/node_modules
-      - root_node_modules:/app/node_modules
+      - api_root_node_modules:/app/node_modules
 
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile.dev
     container_name: ai-padrao-web
-    command: pnpm --filter @ai-padrao/web run dev
     env_file: .env
     environment:
       API_URL: http://api:3001
@@ -57,7 +55,7 @@ services:
       - ./apps/web/src:/app/apps/web/src
       - ./packages:/app/packages
       - web_node_modules:/app/apps/web/node_modules
-      - root_node_modules:/app/node_modules
+      - web_root_node_modules:/app/node_modules
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.110.0
@@ -70,7 +68,7 @@ services:
       - "4318:4318"
 
   mailhog:
-    image: mailhog/mailhog:latest
+    image: mailhog/mailhog:v1.0.1
     container_name: ai-padrao-mailhog
     ports:
       - "1025:1025"
@@ -78,6 +76,9 @@ services:
 
 volumes:
   pgdata:
+  # Per-service volumes: a shared /app/node_modules volume would be populated by
+  # whichever container mounted it last, leaving the other with the wrong tree.
   api_node_modules:
   web_node_modules:
-  root_node_modules:
+  api_root_node_modules:
+  web_root_node_modules:
