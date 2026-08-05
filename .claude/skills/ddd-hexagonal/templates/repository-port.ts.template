@@ -1,0 +1,18 @@
+// Template: Repository Port (outbound interface for persistence)
+// Reference (live example): apps/api/src/contexts/users/domain/ports/user-repository.port.ts
+//
+// Convenção ai-padrao:
+// - Interface pura, sem implementação
+// - NUNCA importa o adapter (Prisma). O adapter implementa esta interface
+// - Retorna entities de domínio, NÃO records Prisma
+// - NUNCA importa o DI token — o token vive em <ctx>-context.tokens.ts
+
+import type { <Entity> } from "../entities/<entity>";
+
+export interface <<Entity>RepositoryPort> {
+  findById(id: string): Promise<<Entity> | null>;
+  findBy<Field>(value: string): Promise<<Entity> | null>;
+  save(entity: <Entity>): Promise<<Entity>>;
+  delete(id: string): Promise<void>;
+  // Add other methods as needed (list, update, etc.)
+}
