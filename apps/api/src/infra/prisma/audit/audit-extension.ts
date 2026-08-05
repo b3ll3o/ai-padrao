@@ -1,5 +1,8 @@
+import { Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { AUDITED_MODELS } from "./audit.types";
+
+const auditLog = new Logger("AuditExtension");
 
 /**
  * Sentinel arg key used to opt a single Prisma read OUT of the
@@ -45,6 +48,11 @@ export function applyDeletedFilter(args: unknown): unknown {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { __auditIncludeDeleted: _auditIncludeDeleted, ...rest } =
       existingWhere;
+    // Logging the opt-out makes the read-visible-to-deleted-rows
+    // pattern greppable in production logs. Use Nest Logger per ADR-006.
+    auditLog.debug(
+      `audit read opted out of soft-delete filter: ${JSON.stringify(rest)}`,
+    );
     return { ...a, where: rest };
   }
   if ("deletedAt" in existingWhere) {
@@ -75,6 +83,13 @@ export interface AuditReadParams {
  * constraints), this is the seam.
  */
 export function wrapAuditRead(params: AuditReadParams): Promise<unknown> {
+  // Read params from Prisma can be object-or-null depending on the op;
+  // logging the shape helps diagnose mis-wired audit reads in prod.
+  const argsSummary =
+    params.args && typeof params.args === "object"
+      ? Object.keys(params.args).join(",")
+      : "none";
+  auditLog.debug(`audit read keys=${argsSummary}`);
   return params.query(applyDeletedFilter(params.args));
 }
 
