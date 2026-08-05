@@ -20,14 +20,22 @@ import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../../common/decorators/current-user.decorator";
 import { UserNotDeletedError } from "../../domain/errors/user-not-deleted.error";
 import { UserNotFoundError } from "../../domain/errors/user-not-found.error";
-import type { FindUserUseCase } from "../../application/use-cases/find-user.use-case";
-import type { GetUserHistoryUseCase } from "../../application/use-cases/get-user-history.use-case";
-import type { ListUsersUseCase } from "../../application/use-cases/list-users.use-case";
-import type { RemoveUserUseCase } from "../../application/use-cases/remove-user.use-case";
-import type { RestoreUserUseCase } from "../../application/use-cases/restore-user.use-case";
-import type {
+// Nest DI needs the runtime value here; `import type` would erase it
+// from design:paramtypes and the controller would crash on instantiation.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FindUserUseCase } from "../../application/use-cases/find-user.use-case";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { GetUserHistoryUseCase } from "../../application/use-cases/get-user-history.use-case";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { ListUsersUseCase } from "../../application/use-cases/list-users.use-case";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { RemoveUserUseCase } from "../../application/use-cases/remove-user.use-case";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { RestoreUserUseCase } from "../../application/use-cases/restore-user.use-case";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import {
   UpdateUserUseCase,
-  UpdateUserInput,
+  type UpdateUserInput,
 } from "../../application/use-cases/update-user.use-case";
 import type { UpdateUserDto, UserListQueryDto } from "./dto/users.dto";
 
