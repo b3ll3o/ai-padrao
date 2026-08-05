@@ -3,15 +3,28 @@ import type { PrismaService } from "../../../../../infra/prisma/prisma.service";
 
 describe("PrismaUserAuthRepository", () => {
   const buildRepo = () => {
+    // Outer accessors — never called by `create()` since the
+    // production code routes writes through $transaction.
     const user = {
       create: jest.fn(),
       findUnique: jest.fn(),
     };
-    const prisma = { user } as unknown as PrismaService & { user: typeof user };
-    const repo = new PrismaUserAuthRepository(
-      prisma as unknown as PrismaService,
-    );
-    return { repo, user, prisma };
+    // Inner transaction client — has the SAME shape; production code
+    // does `tx.user.create(...)` / `tx.userHistory.create(...)`.
+    const txUser = {
+      create: jest.fn(),
+    };
+    const txUserHistory = { create: jest.fn() };
+    const tx = { user: txUser, userHistory: txUserHistory };
+
+    const prisma = {
+      user,
+       
+      $transaction: jest.fn(async (cb: any) => cb(tx)) as any,
+    } as unknown as PrismaService;
+
+    const repo = new PrismaUserAuthRepository(prisma);
+    return { repo, user, txUser, txUserHistory, tx, prisma };
   };
 
   it("findByEmail trims+lowercases before querying and maps to record", async () => {
@@ -68,26 +81,41 @@ describe("PrismaUserAuthRepository", () => {
     expect(await repo.findById("missing")).toBeNull();
   });
 
-  it("create forwards input fields and maps the created row", async () => {
-    const { repo, user } = buildRepo();
-    user.create.mockResolvedValue({
+  it("create forwards input fields, runs in $transaction and writes CREATE history", async () => {
+    const { repo, txUser, txUserHistory, prisma } = buildRepo();
+    txUser.create.mockResolvedValue({
       id: "u3",
       email: "c@c.com",
       name: "Carol",
       role: "USER",
       passwordHash: "new-hash",
+      version: 0,
     });
+    txUserHistory.create.mockResolvedValue({});
+
     const result = await repo.create({
       email: "c@c.com",
       name: "Carol",
       passwordHash: "new-hash",
     });
-    expect(user.create).toHaveBeenCalledWith({
+
+     
+    expect((prisma as any).$transaction).toHaveBeenCalledTimes(1);
+    expect(txUser.create).toHaveBeenCalledWith({
       data: {
         email: "c@c.com",
         name: "Carol",
         passwordHash: "new-hash",
       },
+    });
+    expect(txUserHistory.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        originalId: "u3",
+        version: 0,
+        operation: "CREATE",
+        changedAt: expect.any(Date),
+        changedBy: null,
+      }),
     });
     expect(result.id).toBe("u3");
     expect(result.passwordHash).toBe("new-hash");

@@ -8,11 +8,11 @@ import type {
 } from "../../../domain/ports/user-auth.repository.port";
 
 export class PrismaUserAuthRepository implements UserAuthRepositoryPort {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   private readonly prisma: any;
 
   constructor(prisma: PrismaService) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     this.prisma = prisma as any;
   }
 
