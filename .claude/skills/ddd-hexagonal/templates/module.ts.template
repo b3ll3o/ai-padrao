@@ -1,0 +1,30 @@
+// Template: NestJS Module (DI wiring for the bounded context)
+// Reference (live example): apps/api/src/contexts/users/users-context.module.ts
+//
+// Convenção ai-padrao:
+// - Importa PrismaModule do @ai-padrao/db (NÃO cria PrismaClient próprio)
+// - Registra cada port com `{ provide: PORT_TOKEN, useClass: PrismaAdapter }`
+// - Exports use cases que outros módulos podem consumir
+
+import { Module } from "@nestjs/common";
+import { PrismaModule } from "@ai-padrao/db";
+import { <Create><Entity>UseCase } from "./application/use-cases/<create>-<entity>.use-case";
+import { <Find><Entity>UseCase } from "./application/use-cases/<find>-<entity>.use-case";
+import { <Entities>HttpController } from "./infrastructure/http/<entities>-http.controller";
+import { Prisma<Entity>Repository } from "./infrastructure/persistence/prisma/prisma-<entity>.repository";
+import { <ENTITY>_REPOSITORY_PORT } from "./<ctx>-context.tokens";
+
+@Module({
+  imports: [PrismaModule],
+  controllers: [<Entities>HttpController],
+  providers: [
+    {
+      provide: <ENTITY>_REPOSITORY_PORT,
+      useClass: Prisma<Entity>Repository,
+    },
+    <Create><Entity>UseCase,
+    <Find><Entity>UseCase,
+  ],
+  exports: [<Create><Entity>UseCase, <Find><Entity>UseCase],
+})
+export class <Ctx>ContextModule {}
