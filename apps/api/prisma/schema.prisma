@@ -13,18 +13,45 @@ enum UserRole {
   USER
 }
 
+enum AuditOp {
+  CREATE
+  UPDATE
+  DELETE
+  RESTORE
+}
+
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   name         String
-  passwordHash String   @map("password_hash")
-  role         UserRole @default(USER)
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  passwordHash String    @map("password_hash")
+  role         UserRole  @default(USER)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+  version      Int       @default(0) @map("version")
 
   refreshTokens RefreshToken[]
+  history       UserHistory[]
 
+  @@index([deletedAt])
   @@map("users")
+}
+
+model UserHistory {
+  id         String   @id @default(cuid())
+  originalId String   @map("original_id")
+  version    Int      @map("version")
+  operation  AuditOp  @map("operation")
+  changedAt  DateTime @default(now()) @map("changed_at")
+  changedBy  String?  @map("changed_by")
+  snapshot   Json     @map("snapshot")
+
+  user User @relation(fields: [originalId], references: [id], onDelete: SetNull)
+
+  @@index([originalId, version])
+  @@index([changedAt])
+  @@map("users_history")
 }
 
 model RefreshToken {

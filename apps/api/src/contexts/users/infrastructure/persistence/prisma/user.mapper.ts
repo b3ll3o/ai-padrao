@@ -4,8 +4,10 @@ import { User } from "../../../domain/entities/user";
 /**
  * Minimal row shape the mapper needs. Keeping it local — instead of
  * importing the full Prisma `User` type — means callers can pass a
- * partial select (e.g. without `passwordHash`) without fighting the
- * generated types.
+ * partial select without fighting the generated types.
+ *
+ * `deletedAt` / `version` were added per ADR-014 (domain-audit-foundation);
+ * both are required for the soft-delete + version contract.
  */
 export interface PrismaUserRow {
   id: string;
@@ -14,6 +16,8 @@ export interface PrismaUserRow {
   role: PrismaUserRole;
   createdAt: Date;
   updatedAt: Date;
+  deletedAt: Date | null;
+  version: number;
 }
 
 /**
@@ -30,6 +34,8 @@ export class UserMapper {
       role: row.role,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
+      deletedAt: row.deletedAt,
+      version: row.version,
     });
   }
 }

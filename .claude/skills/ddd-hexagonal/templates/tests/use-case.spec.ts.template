@@ -1,0 +1,35 @@
+// Template: Use Case unit tests (Vitest, with in-memory repo)
+// Reference (live example): apps/api/src/contexts/users/application/use-cases/find-user.use-case.spec.ts
+//
+// Convenção ai-padrao:
+// - Usa InMemory<Entity>Repository (não mock — fake)
+// - Testa happy path + cada erro mapeado
+// - beforeEach: cria entities de teste
+
+import { beforeEach, describe, it, expect } from "vitest";
+import { <Entity> } from "<entity>";
+import { InMemory<Entity>Repository } from "<in-memory-repo>";
+import { <Verb><Entity>UseCase } from "<use-case>";
+
+describe("<Verb><Entity>UseCase", () => {
+  let repository: InMemory<Entity>Repository;
+  let sut: <Verb><Entity>UseCase;
+
+  beforeEach(() => {
+    repository = new InMemory<Entity>Repository();
+    sut = new <Verb><Entity>UseCase(repository);
+  });
+
+  it("returns entity when found", async () => {
+    const entity = <Entity>.build({ /* valid */ });
+    await repository.save(entity);
+
+    const result = await sut.execute(entity.id);
+
+    expect(result.id).toBe(entity.id);
+  });
+
+  it("throws <Entity>NotFoundError when not found", async () => {
+    await expect(sut.execute("missing-id")).rejects.toThrow("<Entity>NotFoundError");
+  });
+});

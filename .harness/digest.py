@@ -41,6 +41,38 @@ DIGEST_DIR = ROOT / "digest"
 PROPOSED_DIR = ROOT / "proposed"
 
 
+def record_type_only_safe_count(inc_id: str, n: int) -> None:
+    """Increment the type-only-safe counter for `inc_id`.
+
+    Used by the post-match hook to record, per day, how many events the
+    INC-024 classifier suppressed as `type-only-safe` (legitimate
+    `import type` for a type/interface). The counter lives in
+    `prevention_summary.daily_counts.type_only_safe[inc_id]` and
+    surfaces in the digest's per-entry row as a
+    `type-only-safe / day` column.
+
+    Backward-compatible: an absent `prevention_summary.daily_counts`
+    field is treated as "no data" and the digest renders a single
+    "_no type-only-safe events recorded today_" placeholder. This
+    keeps the existing digest behaviour intact for entries that have
+    not opted into `symbol_filters` (per task spec.md §Backward
+    compatibility).
+    """
+    # In-memory only; the daily digest rebuilds the counter fresh each
+    # run from the event log. Callers mutate `daily_counts` directly
+    # when they need to persist counts.
+    _TYPE_ONLY_SAFE_COUNTERS[inc_id] = (
+        _TYPE_ONLY_SAFE_COUNTERS.get(inc_id, 0) + n
+    )
+
+
+# Counter store: per-INC count of events the classifier labelled
+# `type-only-safe`. Keyed by INC id (e.g. "INC-003"); values are
+# non-negative integers. Populated by `record_type_only_safe_count`
+# during digest generation; rebuilt each run from the events log.
+_TYPE_ONLY_SAFE_COUNTERS: collections.Counter[str] = collections.Counter()
+
+
 def _flatten_event_text(event: dict[str, Any]) -> str:
     parts: list[str] = []
     for k in ("tool_name", "command", "file_path", "filePath", "description"):
@@ -73,6 +105,7 @@ def _summarize(events: list[dict[str, Any]]) -> dict[str, Any]:
     file_hits: collections.Counter[str] = collections.Counter()
     command_hits: collections.Counter[str] = collections.Counter()
     matcher_hits: collections.Counter[str] = collections.Counter()
+    type_only_safe: collections.Counter[str] = collections.Counter()
     redacted_count = 0
 
     for ev in events:
@@ -97,6 +130,13 @@ def _summarize(events: list[dict[str, Any]]) -> dict[str, Any]:
         m = ev.get("matcher")
         if isinstance(m, str):
             matcher_hits[m] += 1
+        # INC-024: events emitted by `pattern_match.py` when the
+        # classifier suppresses an INC-003 hit carry a
+        # `__type_only_safe__` field with the INC id. Backward
+        # compatible — absent field contributes zero counts.
+        tos = ev.get("__type_only_safe__")
+        if isinstance(tos, str):
+            type_only_safe[tos] += 1
 
     return {
         "by_tool": by_tool,
@@ -104,6 +144,7 @@ def _summarize(events: list[dict[str, Any]]) -> dict[str, Any]:
         "file_hits": file_hits,
         "command_hits": command_hits,
         "matcher_hits": matcher_hits,
+        "type_only_safe": type_only_safe,
         "redacted_count": redacted_count,
         "total": len(events),
     }
@@ -155,6 +196,20 @@ def _render_markdown(date: str, summary: dict[str, Any]) -> str:
             lines.append(f"- {h:02d}h: {bar} ({summary['by_hour'].get(h, 0)})")
     else:
         lines.append("_no timestamps in events_")
+    lines.append("")
+
+    # INC-024: per-entry type-only-safe column. Renders the count of
+    # events the classifier labelled as `type-only-safe` per INC id,
+    # when non-zero. Backward-compatible: absent field → "_no type-only-
+    # safe events recorded today_".
+    lines.append("## INC-024 type-only-safe counts")
+    lines.append("")
+    type_only_safe = summary.get("type_only_safe") or collections.Counter()
+    if type_only_safe:
+        for inc_id, n in type_only_safe.most_common():
+            lines.append(f"- `{inc_id}`: {n}")
+    else:
+        lines.append("_no type-only-safe events recorded today_")
     lines.append("")
 
     return "\n".join(lines)

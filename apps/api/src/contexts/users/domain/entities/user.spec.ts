@@ -10,6 +10,8 @@ const base = () => ({
   role: "USER",
   createdAt: new Date("2026-01-01T00:00:00Z"),
   updatedAt: new Date("2026-01-01T00:00:00Z"),
+  deletedAt: null as Date | null,
+  version: 0,
 });
 
 describe("User", () => {
@@ -60,6 +62,8 @@ describe("User", () => {
       role: "USER",
       createdAt: base().createdAt,
       updatedAt: base().updatedAt,
+      deletedAt: null,
+      version: 0,
     });
   });
 });

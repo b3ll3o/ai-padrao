@@ -1,0 +1,30 @@
+// Template: HTTP Controller (NestJS, Fastify)
+// Reference (live example): apps/api/src/contexts/users/infrastructure/http/users-http.controller.ts
+//
+// Convenção ai-padrao:
+// - Recebe use cases via construtor (NÃO services)
+// - DTOs são tipos derivados de Zod schemas em @ai-padrao/contracts
+// - Endpoints públicos usam `@Public()` (skip JWT)
+// - Fastify: usar `.header()` em vez de `.setHeader()` (INC-002)
+
+import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { z } from "zod";
+import { <Create><Entity>Dto } from "@ai-padrao/contracts";
+import { <Verb><Entity>UseCase } from "../../../application/use-cases/<verb>-<entity>.use-case";
+
+@Controller("<entities>")
+export class <Entities>HttpController {
+  constructor(private readonly <verb><Entity>UseCase: <Verb><Entity>UseCase) {}
+
+  @Get(":id")
+  async findOne(@Param("id") id: string) {
+    const entity = await this.<verb><Entity>UseCase.execute(id);
+    return entity.toJSON();
+  }
+
+  @Post()
+  async create(@Body() dto: z.infer<typeof <Create><Entity>Dto>) {
+    // delegate to a Create<Entity>UseCase
+    // ...
+  }
+}

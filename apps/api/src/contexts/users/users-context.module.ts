@@ -1,9 +1,12 @@
 // Nest DI + emitDecoratorMetadata need the runtime value here; `import type` erases it.
- 
+
 import { Module } from "@nestjs/common";
+import { PrismaService } from "../../infra/prisma/prisma.service";
 import { FindUserUseCase } from "./application/use-cases/find-user.use-case";
+import { GetUserHistoryUseCase } from "./application/use-cases/get-user-history.use-case";
 import { ListUsersUseCase } from "./application/use-cases/list-users.use-case";
 import { RemoveUserUseCase } from "./application/use-cases/remove-user.use-case";
+import { RestoreUserUseCase } from "./application/use-cases/restore-user.use-case";
 import { UpdateUserUseCase } from "./application/use-cases/update-user.use-case";
 import { UserMapper } from "./infrastructure/persistence/prisma/user.mapper";
 import { PrismaUserRepository } from "./infrastructure/persistence/prisma/prisma-user.repository";
@@ -14,11 +17,19 @@ import { USER_REPOSITORY_PORT } from "./users-context.tokens";
  * Composition root for the users bounded context. Wires the persistence
  * adapter into the port token and instantiates the use cases + HTTP
  * adapter from there. Application code only depends on the port.
+ *
+ * Audit commands (`softDelete`, `restore`, `update`) require an
+ * `actorId`. The HTTP layer passes it from the JWT principal; CLI /
+ * background workers that bypass the controller must pass it explicitly.
  */
 @Module({
   controllers: [UsersHttpController],
   providers: [
-    PrismaUserRepository,
+    {
+      provide: PrismaUserRepository,
+      inject: [PrismaService],
+      useFactory: (prisma: PrismaService) => new PrismaUserRepository(prisma),
+    },
     UserMapper,
     {
       provide: USER_REPOSITORY_PORT,
@@ -42,6 +53,16 @@ import { USER_REPOSITORY_PORT } from "./users-context.tokens";
     {
       provide: RemoveUserUseCase,
       useFactory: (repo) => new RemoveUserUseCase(repo),
+      inject: [USER_REPOSITORY_PORT],
+    },
+    {
+      provide: RestoreUserUseCase,
+      useFactory: (repo) => new RestoreUserUseCase(repo),
+      inject: [USER_REPOSITORY_PORT],
+    },
+    {
+      provide: GetUserHistoryUseCase,
+      useFactory: (repo) => new GetUserHistoryUseCase(repo),
       inject: [USER_REPOSITORY_PORT],
     },
   ],

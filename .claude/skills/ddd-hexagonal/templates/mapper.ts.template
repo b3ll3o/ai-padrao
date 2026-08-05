@@ -1,0 +1,40 @@
+// Template: Prisma Mapper (Prisma Record <-> Domain Entity)
+// Reference (live example): apps/api/src/contexts/users/infrastructure/persistence/prisma/user.mapper.ts
+//
+// Convenção ai-padrao:
+// - Static methods only, no instance state
+// - Bidirectional: toDomain(prisma) and toPrisma(entity)
+// - Mapper NÃO importa o port — só o entity
+// - Roundtrip test obrigatório: toDomain(toPrisma(x)) deep-equals x
+
+import { <Entity> } from "../../../domain/entities/<entity>";
+
+type <Entity>Record = {
+  id: string;
+  // ...all primitive fields from schema.prisma
+  createdAt: Date;
+  updatedAt: Date;
+  version: number;
+};
+
+export class <Entity>Mapper {
+  static toDomain(record: <Entity>Record): <Entity> {
+    return <Entity>.build({
+      id: record.id,
+      // ...map fields, converting strings to ValueObjects
+      createdAt: record.createdAt,
+      updatedAt: record.updatedAt,
+      version: record.version,
+    });
+  }
+
+  static toPrisma(entity: <Entity>): <Entity>Record {
+    return {
+      id: entity.id,
+      // ...map fields, converting ValueObjects back to primitives
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+      version: entity.version,
+    };
+  }
+}

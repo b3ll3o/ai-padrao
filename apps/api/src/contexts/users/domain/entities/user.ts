@@ -10,6 +10,8 @@ export interface UserPrimitiveProps {
   role: string;
   createdAt: Date;
   updatedAt: Date;
+  deletedAt: Date | null;
+  version: number;
 }
 
 interface UserProps {
@@ -19,16 +21,25 @@ interface UserProps {
   role: UserRole;
   createdAt: Date;
   updatedAt: Date;
+  deletedAt: Date | null;
+  version: number;
 }
 
 /**
  * User entity — framework-free. Behavior is limited to what the domain
- * can guarantee: renaming, email changes.
+ * can guarantee: renaming, email changes, soft-delete (markDeleted), and
+ * restore. All mutations return new immutable instances.
  */
 export class User {
   private constructor(private readonly props: UserProps) {}
 
   static build(p: UserPrimitiveProps): User {
+    if (p.version < 0) {
+      throw new Error(`User version must be >= 0 (got ${p.version})`);
+    }
+    if (p.deletedAt && p.deletedAt.getTime() < p.createdAt.getTime()) {
+      throw new Error("User deletedAt cannot be earlier than createdAt");
+    }
     return new User({
       id: p.id,
       email: Email.create(p.email),
@@ -36,6 +47,8 @@ export class User {
       role: UserRole.from(p.role),
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
+      deletedAt: p.deletedAt,
+      version: p.version,
     });
   }
 
@@ -56,6 +69,12 @@ export class User {
   }
   get updatedAt(): Date {
     return this.props.updatedAt;
+  }
+  get deletedAt(): Date | null {
+    return this.props.deletedAt;
+  }
+  get version(): number {
+    return this.props.version;
   }
 
   rename(next: Name): User {
@@ -80,6 +99,33 @@ export class User {
     });
   }
 
+  /** Returns a new User marked as soft-deleted at `at`. No-op if already deleted. */
+  markDeleted(at: Date): User {
+    if (this.props.deletedAt) {
+      return this;
+    }
+    return new User({
+      ...this.props,
+      deletedAt: at,
+      updatedAt: at,
+      version: this.props.version + 1,
+    });
+  }
+
+  /** Returns a new User with the soft-delete cleared. No-op if not deleted. */
+  restore(): User {
+    if (!this.props.deletedAt) {
+      return this;
+    }
+    const now = new Date();
+    return new User({
+      ...this.props,
+      deletedAt: null,
+      updatedAt: now,
+      version: this.props.version + 1,
+    });
+  }
+
   toJSON(): UserDto {
     return {
       id: this.props.id,
@@ -88,6 +134,8 @@ export class User {
       role: this.props.role.value,
       createdAt: this.props.createdAt,
       updatedAt: this.props.updatedAt,
+      deletedAt: this.props.deletedAt,
+      version: this.props.version,
     };
   }
 }

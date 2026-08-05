@@ -1,0 +1,22 @@
+// Template: DI Tokens (Symbol-based, declared at context level)
+// Reference (live example): apps/api/src/contexts/users/users-context.tokens.ts
+//
+// Convenção ai-padrao:
+// - Tokens vivem no contexto, NÃO no domain/ (domain fica puro)
+// - Um Symbol por port
+// - Convenção: `<ENTIDADE>_REPOSITORY_PORT` em UPPER_SNAKE_CASE
+// - Description string no Symbol é só para debugging (não afeta DI)
+
+/**
+ * DI token for the <Entity>RepositoryPort. Using a symbol keeps the
+ * domain interface resolvable through Nest DI without forcing a runtime
+ * dependency on the domain module.
+ */
+export const <ENTITY>_REPOSITORY_PORT = Symbol("<Entity>RepositoryPort");
+
+/**
+ * DI token for a domain event bus. The same Symbol-based pattern works
+ * for any outbound port — logger, clock, event publisher — declared at
+ * the context level so `domain/` stays framework-free.
+ */
+export const <CTX>_EVENT_BUS_PORT = Symbol("<Ctx>EventBusPort");

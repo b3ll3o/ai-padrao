@@ -1,12 +1,11 @@
-// Nest DI + emitDecoratorMetadata need the runtime values of the providers
-// below. `import type` would erase them from design:paramtypes and break DI
-// (see ADR-002 / INC-003). Each import here is consumed as a runtime value
-// inside a `useFactory` or `useExisting` provider.
+// Provider class names below are consumed at runtime by Nest DI;
+// see ADR-002 for the typing constraint.
 import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { JwtModule } from "@nestjs/jwt";
+import { JwtModule, JwtService } from "@nestjs/jwt";
 import { Module, type Provider } from "@nestjs/common";
 import { PassportModule } from "@nestjs/passport";
+import { PrismaService } from "../../infra/prisma/prisma.service";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { LoginUseCase } from "./application/use-cases/login.use-case";
 import { LogoutUseCase } from "./application/use-cases/logout.use-case";
@@ -37,8 +36,16 @@ const portProviders: Provider[] = [
   Argon2PasswordHasher,
   Sha256RefreshTokenHasher,
   RandomRefreshTokenGenerator,
-  PrismaUserAuthRepository,
-  PrismaRefreshTokenStore,
+  {
+    provide: PrismaUserAuthRepository,
+    inject: [PrismaService],
+    useFactory: (prisma: PrismaService) => new PrismaUserAuthRepository(prisma),
+  },
+  {
+    provide: PrismaRefreshTokenStore,
+    inject: [PrismaService],
+    useFactory: (prisma: PrismaService) => new PrismaRefreshTokenStore(prisma),
+  },
   { provide: PASSWORD_HASHER_PORT, useExisting: Argon2PasswordHasher },
   { provide: REFRESH_TOKEN_HASHER_PORT, useExisting: Sha256RefreshTokenHasher },
   {
@@ -49,7 +56,7 @@ const portProviders: Provider[] = [
   { provide: REFRESH_TOKEN_STORE_PORT, useExisting: PrismaRefreshTokenStore },
   {
     provide: ACCESS_TOKEN_ISSUER_PORT,
-    inject: [JwtModule, ConfigService],
+    inject: [JwtService, ConfigService],
     useFactory: (
       jwt: ConstructorParameters<typeof JwtAccessTokenIssuer>[0],
       config: ConfigService,

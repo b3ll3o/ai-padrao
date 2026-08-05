@@ -1,13 +1,16 @@
-import type { UserListQuery } from "@ai-padrao/contracts";
+import type { UserHistoryEntry, UserListQuery } from "@ai-padrao/contracts";
 // Nest DI needs the runtime value here; `import type` erases it from design:paramtypes.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../../../../../infra/prisma/prisma.service";
+import { INCLUDE_DELETED_FLAG } from "../../../../../infra/prisma/audit/audit-extension";
 import type { User } from "../../../domain/entities/user";
+import { UserNotDeletedError } from "../../../domain/errors/user-not-deleted.error";
+import { UserNotFoundError } from "../../../domain/errors/user-not-found.error";
 import type {
   UserListResult,
   UserRepositoryPort,
 } from "../../../domain/ports/user-repository.port";
-import { UserMapper } from "./user.mapper";
+import { UserMapper, type PrismaUserRow } from "./user.mapper";
 
 const USER_SELECT = {
   id: true,
@@ -16,14 +19,41 @@ const USER_SELECT = {
   role: true,
   createdAt: true,
   updatedAt: true,
+  deletedAt: true,
+  version: true,
 } as const;
 
+type AuditOperation = "UPDATE" | "DELETE" | "RESTORE";
+
+interface AuditEntryInput {
+  originalId: string;
+  version: number;
+  operation: AuditOperation;
+  changedAt: Date;
+  changedBy: string | null;
+  snapshot: PrismaUserRow;
+}
+
 /**
- * Prisma-backed implementation of UserRepositoryPort. Lives in
- * infrastructure/persistence/prisma so domain/application stay
+ * Prisma-backed implementation of {@link UserRepositoryPort}.
+ *
+ * Lives in `infrastructure/persistence/prisma` so domain/application stay
  * framework-free.
+ *
+ * Audit semantics (per ADR-014):
+ *  - Soft-deleted rows are transparent to `findById`, `findByEmail`,
+ *    and `list` reads — the `auditExtension` injects `deletedAt: null`.
+ *  - `findByIdIncludingDeleted` opts out of that filter via the
+ *    `INCLUDE_DELETED_FLAG` sentinel.
+ *  - Every write that mutates the row (`update`, `softDelete`, `restore`)
+ *    runs inside `prisma.$transaction`: read prior state, persist the
+ *    mutation with `version: { increment: 1 }`, then write a row to
+ *    `userHistory` with the snapshot + the operation that was applied.
  */
 export class PrismaUserRepository implements UserRepositoryPort {
+   
+  private readonly INCLUDE_DELETED: any = { [INCLUDE_DELETED_FLAG]: true };
+
    
   constructor(private readonly prisma: PrismaService) {}
 
@@ -48,7 +78,7 @@ export class PrismaUserRepository implements UserRepositoryPort {
       this.prisma.user.count({ where }),
     ]);
     return {
-      items: rows.map(UserMapper.toDomain),
+      items: rows.map((row) => UserMapper.toDomain(row as PrismaUserRow)),
       total,
       page,
       pageSize,
@@ -60,7 +90,15 @@ export class PrismaUserRepository implements UserRepositoryPort {
       where: { id },
       select: USER_SELECT,
     });
-    return row ? UserMapper.toDomain(row) : null;
+    return row ? UserMapper.toDomain(row as PrismaUserRow) : null;
+  }
+
+  async findByIdIncludingDeleted(id: string): Promise<User | null> {
+    const row = await this.prisma.user.findUnique({
+      where: { id, ...this.INCLUDE_DELETED } as never,
+      select: USER_SELECT,
+    });
+    return row ? UserMapper.toDomain(row as PrismaUserRow) : null;
   }
 
   async findByEmail(email: string): Promise<User | null> {
@@ -68,25 +106,131 @@ export class PrismaUserRepository implements UserRepositoryPort {
       where: { email: email.trim().toLowerCase() },
       select: USER_SELECT,
     });
-    return row ? UserMapper.toDomain(row) : null;
+    return row ? UserMapper.toDomain(row as PrismaUserRow) : null;
   }
 
   async update(
     id: string,
     patch: { name?: string; email?: string },
+    actorId?: string,
   ): Promise<User> {
-    const row = await this.prisma.user.update({
-      where: { id },
-      data: {
-        ...(patch.name !== undefined ? { name: patch.name } : {}),
-        ...(patch.email !== undefined ? { email: patch.email } : {}),
-      },
-      select: USER_SELECT,
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const prior = (await tx.user.findUnique({
+        where: { id },
+        select: USER_SELECT,
+      })) as PrismaUserRow | null;
+      if (!prior) throw new UserNotFoundError(id);
+
+      const next = (await tx.user.update({
+        where: { id },
+        data: {
+          ...(patch.name !== undefined ? { name: patch.name } : {}),
+          ...(patch.email !== undefined ? { email: patch.email } : {}),
+          version: { increment: 1 },
+        },
+        select: USER_SELECT,
+      })) as PrismaUserRow;
+
+      await this.writeHistory(tx, {
+        originalId: prior.id,
+        version: next.version,
+        operation: "UPDATE",
+        changedAt: new Date(),
+        changedBy: actorId ?? null,
+        snapshot: prior,
+      });
+      return next;
     });
-    return UserMapper.toDomain(row);
+    return UserMapper.toDomain(updated as PrismaUserRow);
   }
 
-  async delete(id: string): Promise<void> {
-    await this.prisma.user.delete({ where: { id } });
+  async softDelete(id: string, actorId?: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const prior = (await tx.user.findUnique({
+        where: { id },
+        select: USER_SELECT,
+      })) as PrismaUserRow | null;
+      if (!prior) throw new UserNotFoundError(id);
+
+      const next = (await tx.user.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          version: { increment: 1 },
+        },
+        select: USER_SELECT,
+      })) as PrismaUserRow;
+
+      await this.writeHistory(tx, {
+        originalId: prior.id,
+        version: next.version,
+        operation: "DELETE",
+        changedAt: new Date(),
+        changedBy: actorId ?? null,
+        snapshot: prior,
+      });
+    });
+  }
+
+  async restore(id: string, actorId?: string): Promise<User> {
+    const restored = await this.prisma.$transaction(async (tx) => {
+      const prior = (await tx.user.findUnique({
+        where: { id, ...this.INCLUDE_DELETED } as never,
+        select: USER_SELECT,
+      })) as PrismaUserRow | null;
+      if (!prior) throw new UserNotFoundError(id);
+      if (prior.deletedAt === null) throw new UserNotDeletedError(id);
+
+      const next = (await tx.user.update({
+        where: { id },
+        data: {
+          deletedAt: null,
+          version: { increment: 1 },
+        },
+        select: USER_SELECT,
+      })) as PrismaUserRow;
+
+      await this.writeHistory(tx, {
+        originalId: prior.id,
+        version: next.version,
+        operation: "RESTORE",
+        changedAt: new Date(),
+        changedBy: actorId ?? null,
+        snapshot: prior,
+      });
+      return next;
+    });
+    return UserMapper.toDomain(restored as PrismaUserRow);
+  }
+
+  async getHistory(id: string): Promise<UserHistoryEntry[]> {
+    const rows = await this.prisma.userHistory.findMany({
+      where: { originalId: id },
+      orderBy: { version: "asc" },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      originalId: row.originalId,
+      version: row.version,
+      operation: row.operation as UserHistoryEntry["operation"],
+      changedAt: row.changedAt,
+      changedBy: row.changedBy,
+      snapshot: row.snapshot as UserHistoryEntry["snapshot"],
+    }));
+  }
+
+  private async writeHistory(
+    tx: Parameters<PrismaService["$transaction"]>[0] extends (
+      cb: infer C,
+    ) => unknown
+      ? C
+      : never,
+    entry: AuditEntryInput,
+  ): Promise<void> {
+    // The transaction client exposes the typed `userHistory` model just
+    // like the top-level client does.
+    await (tx as unknown as PrismaService).userHistory.create({
+      data: entry as never,
+    });
   }
 }

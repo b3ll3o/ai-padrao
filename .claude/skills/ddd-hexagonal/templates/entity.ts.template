@@ -1,0 +1,68 @@
+// Template: Domain Entity (framework-free)
+// Reference (live example): apps/api/src/contexts/users/domain/entities/user.ts
+//
+// Convenção ai-padrao:
+// - Constructor privado + factory method `build()` para validação
+// - Props imutáveis (private readonly)
+// - Métodos de domínio retornam NOVA instância (não mutam)
+// - toJSON() para serialização (DTO em @ai-padrao/contracts)
+
+import type { <Entity>Dto } from "@ai-padrao/contracts";
+import { <ValueObject> } from "../value-objects/<value-object>";
+
+export interface <Entity>PrimitiveProps {
+  id: string;
+  // ...primitive fields (strings, dates, numbers)
+  createdAt: Date;
+  updatedAt: Date;
+  version: number;
+}
+
+interface <Entity>Props {
+  id: string;
+  <field>: <ValueObject>;
+  // ...rich domain types
+  createdAt: Date;
+  updatedAt: Date;
+  version: number;
+}
+
+export class <Entity> {
+  private constructor(private readonly props: <Entity>Props) {}
+
+  static build(p: <Entity>PrimitiveProps): <Entity> {
+    // Validate invariants HERE (throw on violation)
+    return new <Entity>({
+      id: p.id,
+      <field>: <ValueObject>.create(p.<field>),
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      version: p.version,
+    });
+  }
+
+  // Getters (read-only access)
+  get id(): string { return this.props.id; }
+  get <field>(): <ValueObject> { return this.props.<field>; }
+  get createdAt(): Date { return this.props.createdAt; }
+  get updatedAt(): Date { return this.props.updatedAt; }
+  get version(): number { return this.props.version; }
+
+  // Domain methods (return new instance if mutated)
+  rename(next: <ValueObject>): <Entity> {
+    if (this.props.<field>.equals(next)) {
+      return this;
+    }
+    return new <Entity>({ ...this.props, <field>: next, updatedAt: new Date() });
+  }
+
+  toJSON(): <Entity>Dto {
+    return {
+      id: this.props.id,
+      <field>: this.props.<field>.value,
+      createdAt: this.props.createdAt,
+      updatedAt: this.props.updatedAt,
+      version: this.props.version,
+    };
+  }
+}

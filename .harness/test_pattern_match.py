@@ -106,6 +106,107 @@ def _run(window):
 # ---------------------------------------------------------------------------
 # Test cases
 # ---------------------------------------------------------------------------
+class PatternMatchImportTypeClassifier(unittest.TestCase):
+    """INC-024: suffix positive-list + brace-AST classifies `import type`
+    bindings as `type-only-safe` vs `class-di-risk` vs `indeterminate`."""
+
+    def test_classify_import_type_suffix_only_returns_safe(self):
+        """Pure suffix-marked bindings classify as `type-only-safe`."""
+        line = "import type { AuditContext } from \"./audit-context\";"
+        self.assertEqual(
+            pattern_match.classify_import_type_binding(line),
+            "type-only-safe",
+        )
+
+    def test_classify_import_type_uppercase_no_suffix_returns_risk(self):
+        """Uppercase binding without a registered suffix classifies as
+        `class-di-risk` (legitimately a NestJS DI'd class)."""
+        line = "import type { PrismaService } from \"@ai-padrao/db\";"
+        self.assertEqual(
+            pattern_match.classify_import_type_binding(line),
+            "class-di-risk",
+        )
+
+    def test_import_type_interface_binding_not_inc003(self):
+        """A single `import type { AuditContext }` line classifies as
+        `type-only-safe` — the historical INC-024 false-positive case."""
+        body = (
+            "import type { AuditContext } from \"./audit-context\";\n"
+            "export const ctx: AuditContext = { store: new Map() };\n"
+        )
+        # Walk the body line by line; pass each `import type` line to
+        # the classifier directly (the same way `main()` would, after
+        # the symbol axis matched the substring).
+        first_import_line = next(
+            ln for ln in body.splitlines() if "import type" in ln
+        )
+        cls = pattern_match.classify_import_type_binding(first_import_line)
+        self.assertEqual(cls, "type-only-safe")
+
+    def test_import_type_class_binding_still_inc003(self):
+        """A single `import type { PrismaService }` line classifies
+        as `class-di-risk` — a real DI risk still prompts."""
+        body = (
+            "import type { PrismaService } from \"@ai-padrao/db\";\n"
+        )
+        first_import_line = next(
+            ln for ln in body.splitlines() if "import type" in ln
+        )
+        cls = pattern_match.classify_import_type_binding(first_import_line)
+        self.assertEqual(cls, "class-di-risk")
+
+    def test_mixed_window_one_interface_one_class_only_class_triggers(self):
+        """Mixed safe + risk: brace-AST extractor flags the unmarked
+        uppercase binding, classifying the whole chunk as
+        `class-di-risk`. The suffix-list alone would have labelled it
+        safe; the brace-AST fallback is the safety net."""
+        line = (
+            "import type { AuditContext, PrismaService } "
+            "from \"../../prisma\";"
+        )
+        cls = pattern_match.classify_import_type_binding(line)
+        self.assertEqual(cls, "class-di-risk")
+
+    def test_dts_only_reexport_not_inc003(self):
+        """`.d.ts` content re-exporting `UserDto` (a DTO type — class-DTO
+        is in the safe-suffix list) classifies as `type-only-safe`."""
+        line = "export type { UserDto } from \"@ai-padrao/contracts\";"
+        # The classifier targets `import type { … }` shape; the marker
+        # has to be present for the helper to classify the line.
+        dts_line = line.replace("export type", "import type")
+        cls = pattern_match.classify_import_type_binding(dts_line)
+        self.assertEqual(cls, "type-only-safe")
+
+    def test_import_type_multiline_brace_extraction(self):
+        """Multi-line wrapped `import type { Foo, Bar, Baz } from …`
+        is classified regardless of line breaks — the brace-balanced
+        walk handles nested braces and trailing commas."""
+        line = (
+            "import type {\n"
+            "  Foo,\n"
+            "  Bar,\n"
+            "  Baz,\n"
+            "} from \"./types\";"
+        )
+        cls = pattern_match.classify_import_type_binding(line)
+        # `Foo`, `Bar`, `Baz` are all uppercase and none match a
+        # registered suffix → class-di-risk (the brace-AST still walks
+        # the full body and finds them).
+        self.assertEqual(cls, "class-di-risk")
+
+    def test_barrel_over_100_bindings_indeterminate(self):
+        """A single `import type { … }` with >100 bindings falls back
+        to `indeterminate` (barrel re-export case, e.g. a contracts
+        barrel)."""
+        names = [f"Type{i:03d}" for i in range(101)]
+        # All start upper and end with `Type` (registered suffix), so a
+        # naïve counter would label them safe. The binding-count cap
+        # forces indeterminate BEFORE the suffix-list check.
+        line = "import type { " + ", ".join(names) + " } from \"@ai-padrao/contracts\";"
+        cls = pattern_match.classify_import_type_binding(line)
+        self.assertEqual(cls, "indeterminate")
+
+
 class PatternMatchDocsExclude(unittest.TestCase):
     """INC-017: docs-path Write events are excluded from the file-axis count."""
 

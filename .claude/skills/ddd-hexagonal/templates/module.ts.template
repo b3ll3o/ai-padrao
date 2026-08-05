@@ -1,0 +1,40 @@
+// Template: NestJS Module (DI wiring for the bounded context)
+// Reference (live example): apps/api/src/contexts/users/users-context.module.ts
+//
+// Convenção ai-padrao:
+// - Importa PrismaModule do caminho local `apps/api/src/infra/prisma/prisma.module`
+//   (NÃO de @ai-padrao/db — esse pacote só re-exporta @prisma/client).
+// - Cada port tem dois providers:
+//   1. `useFactory` que injeta PrismaService e instancia o adapter concreto
+//      (sidestep INC-003 / ADR-002 metadata issues com `useClass`).
+//   2. `useExisting` que aponta o token DI para o adapter instanciado.
+// - Exports use cases que outros módulos podem consumir.
+
+import { Module } from "@nestjs/common";
+import { PrismaModule } from "../../infra/prisma/prisma.module";
+import { PrismaService } from "../../infra/prisma/prisma.service";
+import { <Create><Entity>UseCase } from "./application/use-cases/<create>-<entity>.use-case";
+import { <Find><Entity>UseCase } from "./application/use-cases/<find>-<entity>.use-case";
+import { <Entities>HttpController } from "./infrastructure/http/<entities>-http.controller";
+import { Prisma<Entity>Repository } from "./infrastructure/persistence/prisma/prisma-<entity>.repository";
+import { <ENTITY>_REPOSITORY_PORT } from "./<ctx>-context.tokens";
+
+@Module({
+  imports: [PrismaModule],
+  controllers: [<Entities>HttpController],
+  providers: [
+    {
+      provide: Prisma<Entity>Repository,
+      inject: [PrismaService],
+      useFactory: (prisma: PrismaService) => new Prisma<Entity>Repository(prisma),
+    },
+    {
+      provide: <ENTITY>_REPOSITORY_PORT,
+      useExisting: Prisma<Entity>Repository,
+    },
+    <Create><Entity>UseCase,
+    <Find><Entity>UseCase,
+  ],
+  exports: [<Create><Entity>UseCase, <Find><Entity>UseCase],
+})
+export class <Ctx>ContextModule {}
