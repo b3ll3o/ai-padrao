@@ -39,12 +39,14 @@ Rodar todos os itens antes de pedir review da feature. Cada `✓` significa veri
 - [ ] Adapter (`prisma-<entity>.repository.ts`) implementa a port declarada em `domain/ports/`
 - [ ] Mapper tem `*.spec.ts` (roundtrip puro)
 - [ ] Adapter tem `*.spec.ts` (com DB de teste)
+- [ ] Domain events só são emitidos pelo aggregate, não pelo adapter Prisma
 
 ## 4. HTTP layer
 
 - [ ] Controller usa `@Body() dto: X` com tipo derivado de schema Zod de `packages/contracts/src/`
 - [ ] DTO NÃO duplica schema Zod — reusa via `z.infer<typeof X>`
 - [ ] `@Public()` aplicado em endpoints que não precisam de auth
+- [ ] Controller não contém lógica de negócio (delega para use case)
 - [ ] Controller tem `*.spec.ts` (e2e via Supertest)
 
 ## 5. Module wiring
@@ -62,6 +64,12 @@ Rodar todos os itens antes de pedir review da feature. Cada `✓` significa veri
   # Expected: empty output
   ```
 - [ ] E2e em `apps/api/test/<ctx>.e2e-spec.ts` exercita ao menos 1 happy path + 1 erro por rota
+- [ ] `*.spec.ts` existe para cada entity, value object, use case, mapper e adapter
+
+  ```bash
+  find apps/api/src/contexts/<ctx> -name '*.spec.ts' | wc -l
+  # Expected: ≥ 1 por entity + ≥ 1 por value object + 1 por use case + 1 por mapper + 1 por adapter
+  ```
 
 ---
 

@@ -13,3 +13,10 @@
  * dependency on the domain module.
  */
 export const <ENTITY>_REPOSITORY_PORT = Symbol("<Entity>RepositoryPort");
+
+/**
+ * DI token for a domain event bus. The same Symbol-based pattern works
+ * for any outbound port — logger, clock, event publisher — declared at
+ * the context level so `domain/` stays framework-free.
+ */
+export const <CTX>_EVENT_BUS_PORT = Symbol("<Ctx>EventBusPort");

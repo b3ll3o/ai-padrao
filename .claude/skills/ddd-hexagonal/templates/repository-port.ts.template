@@ -12,6 +12,8 @@ import type { <Entity> } from "../entities/<entity>";
 export interface <<Entity>RepositoryPort> {
   findById(id: string): Promise<<Entity> | null>;
   findBy<Field>(value: string): Promise<<Entity> | null>;
+  findAll(): Promise<<Entity>[]>;
+  existsById(id: string): Promise<boolean>;
   save(entity: <Entity>): Promise<<Entity>>;
   delete(id: string): Promise<void>;
   // Add other methods as needed (list, update, etc.)
