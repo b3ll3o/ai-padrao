@@ -1,5 +1,5 @@
-import type { JwtService } from "@nestjs/jwt";
-import type {
+import { JwtService } from "@nestjs/jwt";
+import {
   AccessTokenIssuerPort,
   AccessTokenPayload,
 } from "../../domain/ports/access-token-issuer.port";

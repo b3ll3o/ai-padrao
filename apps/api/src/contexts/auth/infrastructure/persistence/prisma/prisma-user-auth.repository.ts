@@ -8,8 +8,13 @@ import type {
 } from "../../../domain/ports/user-auth.repository.port";
 
 export class PrismaUserAuthRepository implements UserAuthRepositoryPort {
-   
-  constructor(private readonly prisma: PrismaService) {}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private readonly prisma: any;
+
+  constructor(prisma: PrismaService) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.prisma = prisma as any;
+  }
 
   async findByEmail(email: string): Promise<UserAuthRecord | null> {
     const row = await this.prisma.user.findUnique({
@@ -24,14 +29,49 @@ export class PrismaUserAuthRepository implements UserAuthRepositoryPort {
   }
 
   async create(input: CreateUserAuthInput): Promise<UserAuthRecord> {
-    const row = await this.prisma.user.create({
-      data: {
-        email: input.email,
-        name: input.name,
-        passwordHash: input.passwordHash,
-      },
+    // CREATE is logged to userHistory inside the same transaction so the
+    // audit trail is consistent with UPDATE / DELETE / RESTORE (ADR-014).
+    const result = await this.prisma.$transaction(async (tx: unknown) => {
+      const t = tx as {
+        user: {
+          create: (args: { data: CreateUserAuthInput }) => Promise<{
+            id: string;
+            version: number;
+          }>;
+        };
+        userHistory: {
+          create: (args: {
+            data: {
+              originalId: string;
+              version: number;
+              operation: "CREATE";
+              changedAt: Date;
+              changedBy: string | null;
+              snapshot: unknown;
+            };
+          }) => Promise<unknown>;
+        };
+      };
+      const row = await t.user.create({
+        data: {
+          email: input.email,
+          name: input.name,
+          passwordHash: input.passwordHash,
+        },
+      });
+      await t.userHistory.create({
+        data: {
+          originalId: row.id,
+          version: row.version,
+          operation: "CREATE",
+          changedAt: new Date(),
+          changedBy: null,
+          snapshot: row,
+        },
+      });
+      return row;
     });
-    return this.toRecord(row);
+    return this.toRecord(result);
   }
 
   private toRecord(row: {
