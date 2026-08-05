@@ -593,3 +593,61 @@ After 16 incidents, the harness has both halves of the loop Alura describes:
 - [`.harness/codemods/inc-003-nest-di-imports.py`](codemods/inc-003-nest-di-imports.py) — INC-003 anti-pattern auto-fix
 - [`.harness/codemods/inc-006-dockerfile-order.py`](codemods/inc-006-dockerfile-order.py) — INC-006 anti-pattern auto-fix
 - [`.harness/codemods/inc-009-nest-logger.py`](codemods/inc-009-nest-logger.py) — INC-009 anti-pattern auto-fix
+
+---
+
+## INC-024: L2 detector fires on legitimate `import type` for types/interfaces in test files
+
+**Date:** 2026-08-05
+**Wave:** Branch `feat/domain-audit-foundation` (ADR-014) — investigative session
+**Severity:** Workstream-blocking (false positive on legitimate code)
+
+**Symptom:** During a brainstorming session on the `feat/domain-audit-foundation` branch, the L2 detector surfaced INC-003 (`import type` erases NestJS decorator metadata) while the agent was only doing read-only investigation (reading `INCIDENTS.md`, listing events). No NestJS code was being written. The session was repeatedly blocked with confirmation prompts.
+
+**Root cause:** The INC-003 trigger pattern in `.harness/learnings.json` is:
+
+```json
+{
+  "files": ["apps/api/src/**/*.ts"],
+  "symbols": ["import type"]
+}
+```
+
+The pattern_match.py applies INC-023 (scoped symbol-axis): the symbol axis is restricted to events that pass the file-axis gate. So the matcher fires when **both** conditions are met:
+
+1. ≥2 events in the window touch `apps/api/src/**/*.ts` (file-axis hits), AND
+2. ≥1 of those events contains the literal substring `import type` (symbol-axis hit).
+
+The matcher does **not** distinguish between two semantically different uses of `import type`:
+
+| Usage | Legitimate? | INC-003 applicable? |
+|---|---|---|
+| `import type { AuditContext }` for an interface in `audit-context.spec.ts` | YES | NO — `AuditContext` is a type returned by `AsyncLocalStorage`, not a NestJS DI'd class |
+| `import type { PrismaService }` in `users.service.ts` constructor param | NO | YES — `PrismaService` is a NestJS DI'd class; `emitDecoratorMetadata` needs the runtime reference |
+
+In this case, the working tree contained 6 file-axis hits (all under `apps/api/src/infra/prisma/audit/`), one of which was a Write to `audit-context.spec.ts` that imports the `AuditContext` interface via `import type`. That single legitimate use satisfied the symbol axis and the matcher emitted INC-003.
+
+**Detection:** Replayed the last 20 events from `.harness/events/2026-08-05.jsonl` through `pattern_match.main()` (with `_is_documentation_event` filter applied). 6 file-axis hits, 1 with `import type` in the file body. Confirmed root cause by reading the matched Write event's `tool_input.content` — it was a legitimate `import type` for an interface in a `.spec.ts` file.
+
+**Why the current detector cannot self-correct:**
+
+- The `files` glob `apps/api/src/**/*.ts` matches both production code AND test code. INC-003 only applies to NestJS DI files (controllers, services, guards, strategies, interceptors, decorators). Tests are not DI files.
+- The symbol `import type` is a substring match. There's no semantic understanding of whether the imported binding is a class (used in DI) or a type/interface (erased by TS at compile time).
+- INC-023's scoped-text restriction already correctly limits the symbol axis to file-axis hits, but it does not filter by file semantics.
+
+**Possible fixes (require future design work — see ADR-014 / domain-audit-foundation change):**
+
+1. **Tighten `files` glob** — exclude `*.spec.ts` from INC-003's trigger pattern. Reduces false positives on test files but doesn't address `.ts` production files that use `import type` for types.
+2. **Symbol-axis scope by file category** — require the symbol-axis `import type` to appear inside a constructor signature (heuristic: preceded by a parameter declaration with a DI-relevant decorator in the same file, or part of a NestJS-class constructor signature). Higher precision, higher implementation cost.
+3. **Add a positive-list override** — teach the matcher to skip when the imported binding name is suffixed `Type`, `Interface`, `Dto`, or matches the project conventions for type-only symbols.
+4. **Adopt TypeScript's compiler API** — parse the file and check whether the `import type` binding is referenced in a position that requires runtime metadata (i.e., a constructor parameter). Authoritative but requires running `tsc` or the TypeScript compiler API in the detection path — significant cost.
+
+**Tradeoff accepted for now:** The current detector fires on legitimate `import type` usage. The user (operator) must confirm each prompt manually. The cost is small (low-frequency, low-impact prompts) and the alternative (false negatives from a too-loose matcher) would let real INC-003 regressions slip through. INC-023's scoping already prevents the most common false-positive classes.
+
+**Prevention rule:** Until one of the four fixes above lands, treat every INC-003 prompt as a manual review — read the matched Write/Edit event's content to verify whether the `import type` binding is a class (DI risk) or a type/interface (legitimate).
+
+**Would have been caught by:** An auto-check that grep'd every `import type` in `apps/api/src/**/*.ts` and verified the imported binding is not used as a constructor parameter. Out of scope for the inline detector; requires a CI-side lint rule (TSC-aware) — see ADR-014 for the domain-audit-foundation change.
+
+**Related:** [INC-017](#inc-017-l2-detector-fires-on-prose-that-documents-its-own-trigger-patterns), [INC-018](#inc-018-l2-detector-false-positives-on-read-events-todowrite-worktree-paths-and-python-heredocs), [INC-023] (scoped text restriction).
+
+**→ Awaiting decision:** Should INC-024 become a separate OpenSpec change (`.openspec/changes/inc-024-detector-type-vs-di/`) under `feat/domain-audit-foundation`, or roll into the existing ADR-014 work? User chose "Abrir INC para o gap do detector" on 2026-08-05; the change is currently **documented but not yet scheduled**.
