@@ -23,8 +23,7 @@ import { RegisterUseCase } from "../../application/use-cases/register.use-case";
 import { EmailAlreadyRegisteredError } from "../../domain/errors/email-already-registered.error";
 import { InvalidCredentialsError } from "../../domain/errors/invalid-credentials.error";
 import type { LoginDto, RefreshDto, RegisterDto } from "./dto/auth.dto";
-
-export const AUTH_CONTEXT_CONFIG = "AUTH_CONTEXT_CONFIG";
+import { AUTH_CONTEXT_CONFIG } from "../../auth-context.tokens";
 
 export interface AuthContextConfig {
   accessTtl: string;

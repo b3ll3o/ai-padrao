@@ -18,13 +18,11 @@ import { RandomRefreshTokenGenerator } from "./infrastructure/security/random-re
 import { Sha256RefreshTokenHasher } from "./infrastructure/security/sha256-refresh-token.hasher";
 import { PrismaRefreshTokenStore } from "./infrastructure/persistence/prisma/prisma-refresh-token.store";
 import { PrismaUserAuthRepository } from "./infrastructure/persistence/prisma/prisma-user-auth.repository";
-import {
-  AUTH_CONTEXT_CONFIG,
-  AuthHttpController,
-} from "./infrastructure/http/auth-http.controller";
+import { AuthHttpController } from "./infrastructure/http/auth-http.controller";
 import { parseTtlToMs } from "./infrastructure/ttl/parse-ttl";
 import {
   ACCESS_TOKEN_ISSUER_PORT,
+  AUTH_CONTEXT_CONFIG,
   PASSWORD_HASHER_PORT,
   REFRESH_TOKEN_GENERATOR_PORT,
   REFRESH_TOKEN_HASHER_PORT,
