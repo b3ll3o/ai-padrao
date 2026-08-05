@@ -1,4 +1,9 @@
-import { NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+  UnauthorizedException,
+} from "@nestjs/common";
 import {
   Body,
   Controller,
@@ -10,18 +15,31 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import type { UserDto } from "@ai-padrao/contracts";
+import type { UserDto, UserHistoryEntry } from "@ai-padrao/contracts";
 import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../../common/decorators/current-user.decorator";
+import { UserNotDeletedError } from "../../domain/errors/user-not-deleted.error";
 import { UserNotFoundError } from "../../domain/errors/user-not-found.error";
 import type { FindUserUseCase } from "../../application/use-cases/find-user.use-case";
+import type { GetUserHistoryUseCase } from "../../application/use-cases/get-user-history.use-case";
 import type { ListUsersUseCase } from "../../application/use-cases/list-users.use-case";
 import type { RemoveUserUseCase } from "../../application/use-cases/remove-user.use-case";
+import type { RestoreUserUseCase } from "../../application/use-cases/restore-user.use-case";
 import type {
   UpdateUserUseCase,
   UpdateUserInput,
 } from "../../application/use-cases/update-user.use-case";
 import type { UpdateUserDto, UserListQueryDto } from "./dto/users.dto";
+
+/**
+ * Minimal shape of `req.user` set by JwtAuthGuard (see `jwt.strategy.ts`).
+ * Kept local instead of imported to avoid a fragile cross-cutting
+ * dependency on the auth context.
+ */
+export interface AuthenticatedActor {
+  id: string;
+  role: "USER" | "ADMIN";
+}
 
 @ApiTags("users")
 @ApiBearerAuth()
@@ -33,6 +51,8 @@ export class UsersHttpController {
     private readonly findUser: FindUserUseCase,
     private readonly updateUser: UpdateUserUseCase,
     private readonly removeUser: RemoveUserUseCase,
+    private readonly restoreUser: RestoreUserUseCase,
+    private readonly getUserHistory: GetUserHistoryUseCase,
   ) {}
 
   @Get()
@@ -57,13 +77,14 @@ export class UsersHttpController {
   async update(
     @Param("id") id: string,
     @Body() dto: UpdateUserDto,
+    @CurrentUser() actor?: AuthenticatedActor,
   ): Promise<UserDto> {
     try {
       const patch: UpdateUserInput = {
         ...(dto.name !== undefined ? { name: dto.name } : {}),
         ...(dto.email !== undefined ? { email: dto.email } : {}),
       };
-      const user = await this.updateUser.execute(id, patch);
+      const user = await this.updateUser.execute(id, patch, actor?.id);
       return user.toJSON();
     } catch (err) {
       if (err instanceof UserNotFoundError) {
@@ -76,15 +97,53 @@ export class UsersHttpController {
   @Delete(":id")
   async remove(
     @Param("id") id: string,
-    @CurrentUser() _user: unknown,
+    @CurrentUser() actor?: AuthenticatedActor,
   ): Promise<void> {
     try {
-      await this.removeUser.execute(id);
+      await this.removeUser.execute(id, actor?.id);
     } catch (err) {
       if (err instanceof UserNotFoundError) {
         throw new NotFoundException(err.message);
       }
       throw err;
+    }
+  }
+
+  /** Admin-only: bring a soft-deleted user back to the active state. */
+  @Patch(":id/restore")
+  async restore(
+    @Param("id") id: string,
+    @CurrentUser() actor?: AuthenticatedActor,
+  ): Promise<UserDto> {
+    this.requireAdmin(actor);
+    try {
+      const user = await this.restoreUser.execute(id, actor!.id);
+      return user.toJSON();
+    } catch (err) {
+      if (err instanceof UserNotFoundError) {
+        throw new NotFoundException(err.message);
+      }
+      if (err instanceof UserNotDeletedError) {
+        throw new BadRequestException(err.message);
+      }
+      throw err;
+    }
+  }
+
+  /** Admin-only: full audit history of a user, ordered by `version` asc. */
+  @Get(":id/history")
+  async history(
+    @Param("id") id: string,
+    @CurrentUser() actor?: AuthenticatedActor,
+  ): Promise<UserHistoryEntry[]> {
+    this.requireAdmin(actor);
+    return this.getUserHistory.execute(id);
+  }
+
+  private requireAdmin(actor: AuthenticatedActor | undefined): void {
+    if (!actor) throw new UnauthorizedException("missing actor");
+    if (actor.role !== "ADMIN") {
+      throw new ForbiddenException("admin role required");
     }
   }
 }
