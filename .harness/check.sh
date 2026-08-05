@@ -290,6 +290,52 @@ check "INC-017: detector excludes docs from file-axis" \
     fi
   '
 
+# ---------------------------------------------------------------
+# INC-018 — L2 detector excludes Read/TodoWrite/worktree/heredoc/tool_input
+# Six required features must be present in pattern_match.py:
+#   1. 'Read' tool_name skip from file-axis
+#   2. TodoWrite skip (constant _TODO_TOOL_NAME)
+#   3. .claude/worktrees/ regex inside SOURCE_PATH_PATTERNS
+#   4. python3 << heredoc support in _DIAGNOSTIC_BASH_RE
+#   5. tool_input.command lookup (not just top-level event['command'])
+#   6. SOURCE_PATH_PATTERNS regex tolerates absolute paths (leading slash
+#      + any path segments before docs/.harness) AND the file_path
+#      lookup reads tool_input.file_path as a fallback.
+# Without all six, the detector false-positives on every session action.
+# ---------------------------------------------------------------
+check "INC-018: detector excludes Read/TodoWrite/worktree/heredoc" \
+  bash -c '
+    pm=.harness/pattern_match.py
+    missing=""
+    if ! grep -qE "ev\.get\(\"tool_name\"\)\s*==\s*\"Read\"" "$pm"; then
+      missing="$missing Read-skip"
+    fi
+    if ! grep -qE "_TODO_TOOL_NAME" "$pm"; then
+      missing="$missing TodoWrite-skip"
+    fi
+    if ! grep -qE "claude/worktrees" "$pm"; then
+      missing="$missing worktree-regex"
+    fi
+    if ! grep -qE "python3\\\\s\\+\\(\\?:\\-c\\\\b\\|<<\\)" "$pm"; then
+      missing="$missing heredoc-regex"
+    fi
+    if ! grep -qE "tool_input[^]]*command" "$pm"; then
+      missing="$missing tool_input-command"
+    fi
+    if ! grep -qE "\(\?:\^|/\)" "$pm"; then
+      missing="$missing absolute-path-regex"
+    fi
+    if ! grep -qE "/tmp/" "$pm"; then
+      missing="$missing tmp-path-regex"
+    fi
+    if [ -n "$missing" ]; then
+      echo "  .harness/pattern_match.py is missing INC-018 features:$missing"
+      echo "  Without them, the L2 detector will false-positive on Read,"
+      echo "  TodoWrite, worktree, absolute-path, and python-heredoc events."
+      exit 1
+    fi
+  '
+
 echo
 echo "========================================"
 echo -e "  ${GREEN}PASS${NC}: $PASS_COUNT  ${RED}FAIL${NC}: $FAIL_COUNT  ${YELLOW}SKIP${NC}: $SKIP_COUNT"

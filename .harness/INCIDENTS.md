@@ -514,6 +514,59 @@ After these 11 incidents, the following rules should be considered for `AGENTS.m
 
 ---
 
+## INC-018: L2 detector false-positives on Read events, TodoWrite, worktree paths, and python heredocs
+
+**Date:** 2026-08-05
+**Wave:** Post-merge validation prep (run-tests + post-merge hook)
+**Severity:** Workstream-blocking (every session edit triggered the prompt)
+
+**Symptom:** After the project-documentation-audit wave committed ADRs under `docs/decisions/`, every subsequent action — including pure Read operations and TodoWrite updates — caused the L2 detector to emit `INC-004` and demand confirmation. The workstream was effectively blocked. No runtime source mutating `apps/api/package.json` was being touched.
+
+**Root cause:** The INC-017 fix added a docs-path filter and a diagnostic-bash regex, but several new false-positive sources were still inflating the file-axis count. The full list, with detection path:
+
+1. **Worktree sessions.** `.claude/worktrees/<name>/` carries its own cwd and branch but the same event stream. When a worktree Write or Edit touches `apps/api/package.json`, the file_path still substring-matches `apps/api/package.json` in `learnings.json` — the main repo's detector emits, even though the worktree branch is isolated.
+2. **Read events.** INC-004's trigger pattern is a mutation-only pattern (`prisma.seed` block missing), but a `Read` event on `apps/api/package.json` was counting as a file-axis hit. Reading is inspection, not mutation.
+3. **TodoWrite events.** The L1 hook captures every TodoWrite call. The `content` field carries prose like "Investigate INC-004" — that prose substring-matches the INC-004 file-axis declaration. TodoWrite is session planning, not source mutation.
+4. **Python heredocs.** The INC-017 diagnostic-bash regex matched `python3 -c ...` but not `python3 << 'PY' ... PY`. The previous-session bash invocations that ran `python3 - <<EOF` heredocs to test the matcher itself were flattening the trigger symbols into the window and triggering INC-004.
+5. **Wrong command lookup.** The INC-017 diagnostic-bash path read `event["command"]`, but post-INC-017 capture records the actual command under `event.tool_input.command` (matching the standard Claude Code PostToolUse shape). The top-level `command` field was empty for Bash events, so the regex never matched.
+6. **Wrong file_path lookup.** Same shape mismatch as (5): Edit/Write events store the actual `file_path` under `tool_input.file_path`, not at the top level. The INC-017 docs-path filter used top-level `event["file_path"]`, so Edit/Write events on `docs/decisions/*.md` slipped through.
+7. **Absolute paths.** The capture hook records paths as absolute (`/home/leo/.../docs/decisions/ADR-018.md`) on this machine, not relative (`docs/decisions/ADR-018.md`). The INC-017 regex anchored on `^docs/` and `^\.harness/`, both of which fail to match absolute paths.
+8. **`/tmp/` test scratch.** Test drivers that exercise the hook or the detector live in `/tmp/` and intentionally contain trigger paths as fixtures. Those Write events are not runtime-source mutations.
+
+**Detection:** Ran `pattern_match.main()` against the real events JSONL after each candidate fix. The first run produced INC-004 hits even with the docs-path filter already in place. Walked the matched events back to source: 2 worktree Write events, 4 Read events, 2 TodoWrite events, 1 diagnostic heredoc, then on the next iteration 11 Edit events on harness-internal files with absolute paths, then on a further iteration 2 Write events on `/tmp/test-driver.sh` containing fixture paths. Confirmed root cause by reading the events verbatim and printing `file_path` vs `tool_input.file_path` for each.
+
+**Fix:** Eight layered filters in `.harness/pattern_match.py`:
+
+1. Skip `tool_name == "Read"` events from the file-axis count (symbol-axis still sees them).
+2. Skip events whose `file_path` matches `\.claude/worktrees/` (new SOURCE_PATH_PATTERNS entry).
+3. Skip `tool_name == "TodoWrite"` events entirely from the file-axis gate.
+4. Extend `_DIAGNOSTIC_BASH_RE` to `python3\s+(?:-c\b|<<)`.
+5. Read Bash command from `event.tool_input.command` (fall back to top-level `event["command"]` for older captures).
+6. Read `file_path` from `event.tool_input.file_path` as a fallback when the top-level field is empty.
+7. Anchor `SOURCE_PATH_PATTERNS` with `(?:^|/)(?:docs/|\.harness/)` so absolute paths also match.
+8. Skip events whose `file_path` matches `(?:^|/)/tmp/` (ephemeral test scratch).
+
+**Two-layer defense:**
+
+1. **Filters at detect time (sensor).** `.harness/pattern_match.py` excludes Read, TodoWrite, worktree, absolute-path, `/tmp/`, and heredoc events before counting file-axis hits. This is the **seatbelt** — stops the false positive at the source.
+2. **Auto-check at pre-commit (airbag).** **INC-018** in `.harness/check.sh` asserts all seven filters are present in `pattern_match.py` (`Read` skip, `TodoWrite` skip, `\.claude/worktrees/` regex, `python3\s+(?:-c\b|<<)` regex, `tool_input.command` lookup, absolute-path regex, `/tmp/` regex). The INC-017 test still runs the regression suite. If a future cleanup wave removes a filter, both layers fail and the build blocks.
+
+**Prevention rule:** `AGENTS.md §Continuous learning → Capture dependencies` (extended to list the detector's exclusion list). New exclude-classes require updating the auto-check in the same patch.
+
+**Tradeoff accepted:** Worktree sessions now bypass INC-004 entirely. That is intentional — worktree branches are isolated for the duration of the worktree; once the branch is merged, the contributing commits are re-evaluated through the main repo's detector and INC-017 (already passing) will surface the real trigger patterns. Files under `/tmp/` also bypass the gate for the same reason — they are ephemeral scratch by definition.
+
+**Verification:**
+
+- `pattern_match.main()` against the real `events/2026-08-05.jsonl` returns `rc=0` with no INC id.
+- Pre-fix synthetic test (3 Edit events to `apps/api/package.json`) still emits INC-004 — the fix does not weaken code-side detection.
+- All 11 regression tests in `.harness/test_pattern_match.py` pass (3 INC-017 + 8 INC-018).
+- `.harness/check.sh` reports 16 PASS / 0 FAIL / 3 SKIP.
+- The 9-scenario post-merge hook test driver (`/tmp/test-postmerge.sh`) passes: lockfile-only, harness-only, src-only, prisma-only, lockfile+src, docs-only, harness+src, all-four, unrelated.
+
+**→ Promoted to AGENTS.md §Continuous learning → Capture dependencies (expanded exclusion list).**
+
+---
+
 ## Pattern: Alura's "guias + sensores" applied to the harness
 
 After 16 incidents, the harness has both halves of the loop Alura describes:

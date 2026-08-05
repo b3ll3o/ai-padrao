@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "description": "Structured incident knowledge for the ai-padrao harness. Each entry maps a real defect pattern to the prevention rule (skill or lint config). Query by trigger_pattern before starting work that might re-introduce a known issue.",
   "stats": {
-    "total_incidents": 17,
+    "total_incidents": 18,
     "with_skill_prevention": 11,
-    "with_policy_prevention": 16,
+    "with_policy_prevention": 17,
     "with_codemod_prevention": 4,
-    "last_updated": "2026-08-04",
+    "last_updated": "2026-08-05",
     "convergence_target": 0
   },
   "entries": [
@@ -431,6 +431,33 @@
         "expected": "match"
       },
       "alura_principle": "the L2 detector must never mistake prose about a rule for code violating the rule. The path filter at pattern_match.py is the seatbelt; the regression test at .harness/test_pattern_match.py is the regression net."
+    },
+    {
+      "id": "INC-018",
+      "category": "detector-design",
+      "trigger_pattern": {
+        "files": [".harness/pattern_match.py"],
+        "required_features": [
+          "tool_name == 'Read' skip",
+          "tool_name == 'TodoWrite' skip",
+          "SOURCE_PATH_PATTERNS entry matching \\.claude/worktrees/",
+          "_DIAGNOSTIC_BASH_RE matching python3 <<",
+          "tool_input.command lookup (not just top-level event['command'])"
+        ]
+      },
+      "symptom": "L2 detector false-positives on Read events, TodoWrite events, .claude/worktrees/<name>/ paths, and python3 << 'PY' heredocs. Every session action triggered INC-004 confirmation, even pure inspection events that never mutated runtime source.",
+      "root_cause_summary": "INC-017 added docs-path and diagnostic-bash filters but left four additional false-positive sources: (a) Read events count as file-axis hits even though they don't mutate; (b) TodoWrite events carry prose that substring-matches trigger_pattern.files; (c) worktree sessions share the main repo's event stream but operate on isolated branches; (d) the diagnostic-bash regex didn't match python3 << 'PY' heredocs; (e) the command lookup read event['command'] instead of event.tool_input.command (the actual Claude Code shape).",
+      "prevention": {
+        "type": "policy",
+        "ref": "AGENTS.md §Continuous learning",
+        "section": "Capture dependencies (expanded exclusion list)"
+      },
+      "auto_check": {
+        "type": "grep_audit",
+        "command": "grep -nE \"'Read'|_TODO_TOOL_NAME|claude/worktrees|python3\\\\\\\\s\\\\+(\\\\\\\\:-c\\\\\\\\b|<<)|tool_input\" .harness/pattern_match.py",
+        "expected": "all five required features present"
+      },
+      "alura_principle": "the L2 detector must distinguish intent (Read vs Edit/Write) and context (worktree vs main repo, heredoc vs command). The exclusion list at pattern_match.py is the seatbelt; the auto-check is the airbag."
     }
   ],
   "prevention_summary": {
@@ -457,7 +484,7 @@
       "events-gitignored": ["INC-014"],
       "digest-freshness": ["INC-015"],
       "no-hardcoded-secrets": ["INC-016"],
-      "detector-excludes-docs": ["INC-017"]
+      "detector-excludes-docs": ["INC-017", "INC-018"]
     },
     "by_codemod": {
       "inc-002-fastify-response": ["INC-002"],
@@ -472,7 +499,8 @@
         "INC-009",
         "INC-011",
         "INC-012",
-        "INC-017"
+        "INC-017",
+        "INC-018"
       ],
       "package_json_field": ["INC-004"],
       "package_json_dep": ["INC-001"],

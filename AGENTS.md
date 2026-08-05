@@ -190,6 +190,23 @@ The auto-check **INC-013** in `.harness/check.sh` enforces this:
 
 The original Prettier PostToolUse hook depended on `jq` and was silently a no-op for months (see [`.harness/INCIDENTS.md`](.harness/INCIDENTS.md) INC-013). We rewrote it to use `python3 -c 'import json,sys; ...'`.
 
+### Detector exclusion list
+
+The L2 inline detector at `.harness/pattern_match.py` MUST exclude the following event classes from the file-axis count (the symbol-axis is unchanged — code violations still surface):
+
+| Excluded class                                                                 | Why                                                                                            |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `file_path` matches `^docs/` or `^\.harness/` (absolute or relative) (INC-017) | Harness internals and documentation deliberately quote trigger patterns.                       |
+| `tool_name == "Read"` (INC-018)                                                | Read is inspection, not mutation. INC-004 is a mutation-only pattern.                          |
+| `tool_name == "TodoWrite"` (INC-018)                                           | Session planning, never mutates source.                                                        |
+| `file_path` contains `.claude/worktrees/` (INC-018)                            | Worktree sessions share the main event stream but operate on isolated branches.                |
+| `file_path` matches `/tmp/` (INC-018)                                          | Ephemeral test scratch (test drivers for the detector or post-merge hook).                     |
+| `Bash` events matching read-only diagnostic regex (INC-017 + INC-018)           | `grep`/`cat`/`head`/`tail`/`wc`/`ls`/`find`/`md5sum`, `python3 -c`, `python3 <<EOF` heredocs. |
+
+The file_path lookup reads both the top-level `event["file_path"]` and the fallback `event.tool_input.file_path` (Edit/Write events store the path under `tool_input`). The Bash command lookup reads `event.tool_input.command` and falls back to the top-level `event["command"]`.
+
+Adding a new excluded class requires updating **INC-018** in `.harness/check.sh` AND adding a regression test in `.harness/test_pattern_match.py` in the same patch.
+
 ### Events are transient
 
 `.harness/events/<date>.jsonl` is session state, NOT source-of-truth. It MUST be gitignored. The aggregated output (`.harness/digest/<date>.md`) and the proposed patches (`.harness/proposed/<date>.patch`) ARE source-of-truth and stay committed.
