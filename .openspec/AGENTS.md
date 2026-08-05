@@ -87,6 +87,8 @@ The proposal is **NOT** approved until a human explicitly says so. AI agents MUS
 
 ### 4. Build
 
+While implementing tasks, the `documentation` skill (`~/.claude/skills/documentation/`) auto-fires and classifies every change into a Diátaxis quadrant. Use the suggested artifacts as part of the build — JSDoc for reference work, ADR cross-links in `@remarks` for non-obvious decisions, BC README updates for new bounded contexts, runbooks for infra changes. The skill is non-blocking by default but the build fails (INC-028) if a touched file drops below 80% JSDoc coverage, a BC lacks a README, or an ADR cross-ref breaks.
+
 Execute the tasks in order. Each task = one commit (Conventional Commits format):
 
 ```

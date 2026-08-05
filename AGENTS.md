@@ -114,6 +114,10 @@ A skipped test is a lie. It says "this is covered" while delivering zero signal.
 
 The auto-check [`.harness/check.sh`](.harness/check.sh) entry **INC-012** scans every `*.spec.ts`, `*.test.ts`, `*.spec.tsx`, `*.test.tsx`, and `package.json` for the patterns above and fails the build if any match. CI runs the same check before tests run.
 
+## Documentation coverage
+
+**Every change carries its own documentation** — Diátaxis-classified, build-time enforced. The [`documentation`](../.claude/skills/documentation/) skill (installed at `~/.claude/skills/documentation/`) auto-fires on Edit / Write to `apps/`, `packages/`, `docs/`, `.openspec/`, and `infra/`. It classifies every change into one of four quadrants — **tutorial** (BC README), **how-to** (runbook / OpenSpec spec), **reference** (JSDoc + Zod + OpenAPI), **explanation** (ADR) — and emits a non-blocking warning when the corresponding artifact is missing or stale. Run a full audit at any time with `/documentar --audit`; generate the gaps with `/documentar --fix`. The auto-check [`.harness/check.sh`](.harness/check.sh) entry **INC-028** fails the build when a touched file drops below 80% JSDoc coverage on its public surface, when a bounded context or feature folder lacks `README.md`, or when an ADR cross-reference cannot be resolved. Single-source-of-truth rule: each fact lives in one canonical artifact; everywhere else only links. Architectural companion: [ADR-018](docs/decisions/ADR-018-documentation-coverage-skill.md).
+
 ## Continuous learning
 
 The harness is a **closed feedback loop** — it learns from every event that happens in this repo, not only from escaped defects. The model is: **agente = modelo + harness**, where the harness has two halves:

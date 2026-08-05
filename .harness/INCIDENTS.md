@@ -850,3 +850,39 @@ docker inspect ai-padrao-api --format='{{range .Mounts}}{{.Source}} -> {{.Destin
 **Prevention rule (lesson):** When adding a new bind mount to a dev container, ask "what else lives in that directory and is the container's view ever consulted by a tool that compares against an external source of truth (DB, another container, a remote service)?" If yes, that directory almost certainly needs the same hot-reload treatment the rest of the surface has.
 
 **Would have been caught by:** A drift-smoke-test that runs after `docker compose up` and asserts `prisma migrate status` reports "Database schema is up to date" (the read-only equivalent of `migrate dev`). Cheap to add to `.githooks/post-merge` between the `db:migrate` step and the `harness:check` step — recommend doing so the next time the harness pipeline is touched.
+
+## INC-028: Documentation drift reappears within a sprint because the harness has no doc-coverage signal
+
+**Discovery (2026-08-05):** During the brainstorming for the `documentation` skill, we ran `bin/audit-report.py --audit` against the current state of `main` (post the 2026-08-04 one-shot audit). Even though that audit _fixed_ the visible drift, several classes of doc gap remain:
+
+- **`AuthHttpController`** in `apps/api/src/contexts/auth/infrastructure/http/auth-http.controller.ts` exports 2 symbols, both with **0% JSDoc coverage**. The file has a `@Public()` decorator and a `@ApiTags()` decorator but no JSDoc on the class or its methods.
+- **Bounded-context README presence** is incomplete: every `apps/api/src/contexts/*/` and `apps/web/src/features/*/` exists as a folder, but the README is the exception rather than the rule — most do not have one.
+- **ADR cross-references are fragile.** A scan via `bin/adr_ref_check.py` already found that `ADR-018` is referenced in `.harness/INCIDENTS.md` and `.harness/test_pattern_match.py` _before the ADR existed_ — a self-referential loop that would silently rot once someone actually tried to follow the reference.
+
+**Root cause:** The harness has INC-001..INC-027 (INC-027 is the cyclomatic-complexity check) auto-checks for code and config, but **zero** auto-checks for the documentation surface. The "fix the doc drift" rule from `AGENTS.md` §"Documentation fixes don't require SDD" is a guideline, not an enforcement. The 2026-08-04 audit was a one-shot patch; without a continuing mechanism, every PR that lands code without a doc change re-introduces the drift.
+
+**Fix:** Added the **`documentation` skill** at `~/.claude/skills/documentation/` (a globally-installable Claude skill) and the **`INC-028-doc-coverage`** auto-check in `.harness/check.sh` (the next free number — INC-027 is already used by the cyclomatic-complexity rule). The skill classifies every change under `apps/`, `packages/`, `docs/`, `.openspec/`, and `infra/` into a Diátaxis quadrant and emits non-blocking warnings when the corresponding artifact (JSDoc, ADR, BC README, runbook, OpenSpec spec) is missing or stale. The auto-check fails the build on three conditions:
+
+1. **BC README presence** — every `apps/api/src/contexts/<bc>/` and `apps/web/src/features/<feature>/` must contain `README.md`.
+2. **JSDoc coverage** — for each `.ts/.tsx` file in `git diff --name-only --cached`, the public-surface coverage (`bin/jsdoc_coverage.py`) must be ≥ 80%. An export counts as "annotated" only when its preceding JSDoc block contains `@example` OR `@remarks`.
+3. **ADR cross-ref integrity** — every `ADR-NNN` reference in the repo must resolve to an existing `docs/decisions/ADR-NNN-*.md` (`bin/adr_ref_check.py`).
+
+**Companion fix:** Architectural rule recorded in [ADR-018](../docs/decisions/ADR-018-documentation-coverage-skill.md). The skill's auto-trigger is non-blocking by default and only escalates after 3 consecutive skips on the same file — balancing friction with coverage.
+
+**Verification (post-fix, 2026-08-05):** The first run of `bin/audit-report.py --audit` against the current `main` reports the gaps listed above. Running `pnpm harness:check` after the wiring lands:
+
+| Check | Status |
+| --- | --- |
+| INC-028 — every BC has a README | **FAIL** (expected; the gap list IS the report) |
+| INC-028 — JSDoc coverage on touched files | **SKIP** (no staged changes on a fresh build) |
+| INC-028 — ADR cross-refs resolve | **FAIL** (`ADR-018` referenced before ADR-018 lands; fixed in this same commit) |
+
+The first failure (BC README presence) is the report — fixing the gaps is the team's next action, and the audit report at `docs/audit/2026-08-05-doc-coverage.md` is the prioritized work list.
+
+**Tradeoff:** Documentation is now a build-time concern. A change that touches code without touching the corresponding doc will fail the build (in CI) or surface an inline warning (locally). This is intentional, but it means every PR must include both the code and its doc update — a small workflow cost in exchange for closing the doc-drift loop.
+
+**Architectural companion:** [ADR-018](../docs/decisions/ADR-018-documentation-coverage-skill.md).
+
+**Prevention rule (lesson):** Any project rule that lives only in `AGENTS.md` (a guide) is weaker than the same rule living as an auto-check in `.harness/check.sh` (an enforcement). When adding a new category of project hygiene — docs, lint, formatting, naming — ask "can this be a `check()` call in `check.sh`?" If yes, prefer the auto-check over the prose rule; the prose becomes a cross-link.
+
+**Would have been caught by:** An automated check that fails the build when any bounded context folder lacks a `README.md`, or when the public surface of a touched file has < 80% JSDoc coverage. This is exactly what `INC-028` now does.

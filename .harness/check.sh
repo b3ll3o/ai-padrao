@@ -390,6 +390,38 @@ check "INC-018: detector excludes Read/TodoWrite/worktree/heredoc" \
     fi
   '
 
+# ---------------------------------------------------------------
+# INC-028 — Documentation coverage (Diátaxis-classified, see ADR-018)
+# Three sub-checks: BC README presence, JSDoc coverage on staged
+# files, ADR cross-ref integrity.
+# Skill: ~/.claude/skills/documentation/
+# ---------------------------------------------------------------
+DOC_SKILL="$HOME/.claude/skills/documentation/bin"
+if [ ! -x "$DOC_SKILL/audit-report.py" ]; then
+  note "INC-028: documentation skill not installed (~/.claude/skills/documentation/bin/audit-report.py missing)"
+else
+  check "INC-028a: every bounded context has README.md" \
+    bash -c "
+      for d in apps/api/src/contexts/*/ apps/web/src/features/*/; do
+        [ -d \"\$d\" ] || continue
+        d_clean=\"\${d%/}\"
+        [ -f \"\$d_clean/README.md\" ] || { echo \"missing: \$d_clean/README.md\"; exit 1; }
+      done
+    "
+
+  check "INC-028b: ADR cross-references resolve" \
+    bash -c "python3 \"$DOC_SKILL/adr_ref_check.py\" \"$ROOT\" >/dev/null"
+
+  # JSDoc coverage is only meaningful on staged files.
+  STAGED_TS=$(git diff --name-only --cached -- 'apps/**/*.ts' 'apps/**/*.tsx' 'packages/*/src/**/*.ts' 'packages/*/src/**/*.tsx' 2>/dev/null | grep -vE '\.spec\.ts$|\.test\.tsx?$|index\.ts$' | head -50)
+  if [ -z "$STAGED_TS" ]; then
+    note "INC-028c: JSDoc coverage on staged files (no staged .ts/.tsx outside specs)"
+  else
+    check "INC-028c: JSDoc coverage ≥ 80% on staged .ts/.tsx files" \
+      bash -c "python3 \"$DOC_SKILL/jsdoc_coverage.py\" --threshold 80 $STAGED_TS >/dev/null"
+  fi
+fi
+
 echo
 echo "========================================"
 echo -e "  ${GREEN}PASS${NC}: $PASS_COUNT  ${RED}FAIL${NC}: $FAIL_COUNT  ${YELLOW}SKIP${NC}: $SKIP_COUNT"
