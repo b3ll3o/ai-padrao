@@ -9,7 +9,7 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "VITE_CJS_IGNORE_WARNING=true vitest run",
-    "test:coverage:baseline": "VITE_CJS_IGNORE_WARNING=true vitest run --coverage"
+    "test:coverage": "VITE_CJS_IGNORE_WARNING=true vitest run --coverage"
   },
   "dependencies": {
     "@ai-padrao/config-tailwind": "workspace:*",
