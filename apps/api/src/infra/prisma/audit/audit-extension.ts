@@ -85,6 +85,8 @@ export interface AuditReadParams {
 export function wrapAuditRead(params: AuditReadParams): Promise<unknown> {
   // Read params from Prisma can be object-or-null depending on the op;
   // logging the shape helps diagnose mis-wired audit reads in prod.
+  // Use Nest `Logger` per ADR-006 and stay at debug level so the hot
+  // path doesn't emit noise in production.
   const argsSummary =
     params.args && typeof params.args === "object"
       ? Object.keys(params.args).join(",")
