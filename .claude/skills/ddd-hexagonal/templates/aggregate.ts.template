@@ -1,0 +1,46 @@
+// Template: Aggregate Root (entity with child entities / value objects)
+// Reference (live example): synthético puro — apps/api/src/contexts/users/users.ts já é aggregate root
+//
+// Quando usar: quando a entity TEM child entities que devem ser modificadas apenas via root.
+// Se sua entity não tem filhos, use entity.ts.template e delete este arquivo.
+//
+// Convenção ai-padrao:
+// - Mesmas regras de entity.ts.template
+// - Métodos que modificam filhos passam PELO root (child não é mutado diretamente)
+
+import { <ChildEntity> } from "./<child-entity>";
+
+interface <Aggregate>Props {
+  id: string;
+  children: <ChildEntity>[];
+  // ...
+}
+
+export class <Aggregate> {
+  private constructor(private readonly props: <Aggregate>Props) {}
+
+  static build(p: { id: string; children: <ChildEntity>[] }): <Aggregate> {
+    // validate invariants
+    return new <Aggregate>(p);
+  }
+
+  get id(): string { return this.props.id; }
+  get children(): readonly <ChildEntity>[] { return this.props.children; }
+
+  addChild(child: <ChildEntity>): <Aggregate> {
+    if (this.props.children.some((c) => c.id === child.id)) {
+      return this; // already present, no-op
+    }
+    return new <Aggregate>({
+      ...this.props,
+      children: [...this.props.children, child],
+    });
+  }
+
+  removeChild(childId: string): <Aggregate> {
+    return new <Aggregate>({
+      ...this.props,
+      children: this.props.children.filter((c) => c.id !== childId),
+    });
+  }
+}
