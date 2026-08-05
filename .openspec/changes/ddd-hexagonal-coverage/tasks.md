@@ -29,113 +29,113 @@
 
 ## 4. Enforce architecture boundaries with existing ESLint tooling
 
-- [ ] 4.1 Add API domain/application restrictions
-- [ ] 4.2 Add web domain/application restrictions
-- [ ] 4.3 Verify each rule fails on a forbidden import and is restored
-- [ ] 4.4 Verify clean lint for both apps
-- [ ] 4.5 Commit as `chore(config): enforce hexagonal dependency direction`
+- [x] 4.1 Add API domain/application restrictions
+- [x] 4.2 Add web domain/application restrictions
+- [x] 4.3 Verify each rule fails on a forbidden import and is restored
+- [x] 4.4 Verify clean lint for both apps
+- [x] 4.5 Commit as `chore(config): enforce hexagonal dependency direction`
 
 ## 5. Build the API users domain with pure tests
 
-- [ ] 5.1 Write failing value-object tests from current contracts
-- [ ] 5.2 Run and confirm RED
-- [ ] 5.3 Implement framework-free value objects
-- [ ] 5.4 Define `User` entity and `UserRepositoryPort`
-- [ ] 5.5 Run domain tests and lint
-- [ ] 5.6 Commit as `feat(api): add users domain model and repository port`
+- [x] 5.1 Write failing value-object tests from current contracts
+- [x] 5.2 Run and confirm RED
+- [x] 5.3 Implement framework-free value objects
+- [x] 5.4 Define `User` entity and `UserRepositoryPort`
+- [x] 5.5 Run domain tests and lint
+- [x] 5.6 Commit as `feat(api): add users domain model and repository port`
 
 ## 6. Build users application use cases with in-memory ports
 
-- [ ] 6.1 Create `InMemoryUserRepository` covering list, find, update, and remove
-- [ ] 6.2 Write failing use-case tests
-- [ ] 6.3 Implement minimal use cases
-- [ ] 6.4 Run application tests
-- [ ] 6.5 Commit as `feat(api): add users application use cases`
+- [x] 6.1 Create `InMemoryUserRepository` covering list, find, update, and remove
+- [x] 6.2 Write failing use-case tests
+- [x] 6.3 Implement minimal use cases
+- [x] 6.4 Run application tests
+- [x] 6.5 Commit as `feat(api): add users application use cases`
 
 ## 7. Add the Prisma users adapter and mapper
 
-- [ ] 7.1 Write mapper round-trip tests
-- [ ] 7.2 Implement `PrismaUserMapper`
-- [ ] 7.3 Write repository tests against mocked `PrismaService`
-- [ ] 7.4 Implement `PrismaUserRepository`
-- [ ] 7.5 Run adapter tests and lint
-- [ ] 7.6 Commit as `feat(api): add Prisma users repository adapter`
+- [x] 7.1 Write mapper round-trip tests
+- [x] 7.2 Implement `PrismaUserMapper`
+- [x] 7.3 Write repository tests against mocked `PrismaService`
+- [x] 7.4 Implement `PrismaUserRepository`
+- [x] 7.5 Run adapter tests and lint
+- [x] 7.6 Commit as `feat(api): add Prisma users repository adapter`
 
 ## 8. Swap the users HTTP adapter and composition root
 
-- [ ] 8.1 Write controller tests with mocked use cases
-- [ ] 8.2 Implement a thin inbound controller
-- [ ] 8.3 Wire `UsersContextModule` with explicit providers
-- [ ] 8.4 Swap `AppModule` to the new module
-- [ ] 8.5 Run unit and users e2e tests
-- [ ] 8.6 Remove legacy `modules/users` after verification
-- [ ] 8.7 Commit as `refactor(api): migrate users to a hexagonal context`
+- [x] 8.1 Write controller tests with mocked use cases
+- [x] 8.2 Implement a thin inbound controller
+- [x] 8.3 Wire `UsersContextModule` with explicit providers
+- [x] 8.4 Swap `AppModule` to the new module
+- [x] 8.5 Run unit and users e2e tests
+- [x] 8.6 Remove legacy `modules/users` after verification
+- [x] 8.7 Commit as `refactor(api): migrate users to a hexagonal context`
 
 ## 9. Build auth ports and application use cases
 
-- [ ] 9.1 Define framework-free auth ports
-- [ ] 9.2 Test TTL parsing using current defaults
-- [ ] 9.3 Write RED tests for register and login
-- [ ] 9.4 Write RED tests for refresh and logout
-- [ ] 9.5 Implement minimal use cases
-- [ ] 9.6 Run auth inner-layer tests and lint
-- [ ] 9.7 Commit as `feat(api): add auth ports and application use cases`
+- [x] 9.1 Define framework-free auth ports
+- [x] 9.2 Test TTL parsing using current defaults
+- [x] 9.3 Write RED tests for register and login
+- [x] 9.4 Write RED tests for refresh and logout
+- [x] 9.5 Implement minimal use cases
+- [x] 9.6 Run auth inner-layer tests and lint
+- [x] 9.7 Commit as `feat(api): add auth ports and application use cases`
 
 ## 10. Implement auth infrastructure adapters
 
-- [ ] 10.1 Write Argon2 round-trip tests
-- [ ] 10.2 Implement `Argon2PasswordHasherAdapter`
-- [ ] 10.3 Write JWT claims tests
-- [ ] 10.4 Implement `JwtAccessTokenIssuerAdapter`
-- [ ] 10.5 Test and implement token generation/hash
-- [ ] 10.6 Test and implement Prisma adapters
-- [ ] 10.7 Run adapter tests and lint
-- [ ] 10.8 Commit as `feat(api): add auth infrastructure adapters`
+- [x] 10.1 Write Argon2 round-trip tests
+- [x] 10.2 Implement `Argon2PasswordHasherAdapter`
+- [x] 10.3 Write JWT claims tests
+- [x] 10.4 Implement `JwtAccessTokenIssuerAdapter`
+- [x] 10.5 Test and implement token generation/hash
+- [x] 10.6 Test and implement Prisma adapters
+- [x] 10.7 Run adapter tests and lint
+- [x] 10.8 Commit as `feat(api): add auth infrastructure adapters`
 
 ## 11. Swap the auth HTTP adapter and composition root
 
-- [ ] 11.1 Write controller tests around existing contracts
-- [ ] 11.2 Implement the thin controller
-- [ ] 11.3 Move and test the JWT strategy
-- [ ] 11.4 Wire every port explicitly in `AuthModule`
-- [ ] 11.5 Swap `AppModule` and run auth e2e
-- [ ] 11.6 Remove legacy `modules/auth` and run full validation
-- [ ] 11.7 Commit as `refactor(api): migrate auth to a hexagonal context`
+- [x] 11.1 Write controller tests around existing contracts
+- [x] 11.2 Implement the thin controller
+- [x] 11.3 Move and test the JWT strategy
+- [x] 11.4 Wire every port explicitly in `AuthModule`
+- [x] 11.5 Swap `AppModule` and run auth e2e
+- [x] 11.6 Remove legacy `modules/auth` and run full validation
+- [x] 11.7 Commit as `refactor(api): migrate auth to a hexagonal context`
 
 ## 12. Migrate web auth to ports and adapters
 
-- [ ] 12.1 Define framework-free web ports
-- [ ] 12.2 Write RED use-case tests with fakes
-- [ ] 12.3 Implement minimal application use cases
-- [ ] 12.4 Test and implement infrastructure adapters
-- [ ] 12.5 Move forms as presentation adapters
-- [ ] 12.6 Refactor server actions and API client into composition roots
-- [ ] 12.7 Refactor middleware without changing the matcher
-- [ ] 12.8 Run web tests, lint, typecheck, and build
-- [ ] 12.9 Remove legacy form files and verify no stale imports
-- [ ] 12.10 Commit as `refactor(web): migrate auth to ports and adapters`
+- [x] 12.1 Define framework-free web ports
+- [x] 12.2 Write RED use-case tests with fakes
+- [x] 12.3 Implement minimal application use cases
+- [x] 12.4 Test and implement infrastructure adapters
+- [x] 12.5 Move forms as presentation adapters
+- [x] 12.6 Refactor server actions and API client into composition roots
+- [x] 12.7 Refactor middleware without changing the matcher
+- [x] 12.8 Run web tests, lint, typecheck, and build
+- [x] 12.9 Remove legacy form files and verify no stale imports
+- [x] 12.10 Commit as `refactor(web): migrate auth to ports and adapters`
 
 ## 13. Enforce independent 80% coverage gates
 
-- [ ] 13.1 Configure the API gate with thresholds and explicit `collectCoverageFrom`
-- [ ] 13.2 Replace the API baseline script
-- [ ] 13.3 Configure the web gate with provider and thresholds
-- [ ] 13.4 Replace the web baseline script
-- [ ] 13.5 Add the aggregate root command
-- [ ] 13.6 Run each gate independently and add tests if needed
-- [ ] 13.7 Prove failure semantics by temporarily raising one threshold
-- [ ] 13.8 Run the aggregate gate
-- [ ] 13.9 Commit as `test(root): enforce 80 percent coverage per app and metric`
+- [x] 13.1 Configure the API gate with thresholds and explicit `collectCoverageFrom`
+- [x] 13.2 Replace the API baseline script
+- [x] 13.3 Configure the web gate with provider and thresholds
+- [x] 13.4 Replace the web baseline script
+- [x] 13.5 Add the aggregate root command
+- [x] 13.6 Run each gate independently and add tests if needed
+- [x] 13.7 Prove failure semantics by temporarily raising one threshold
+- [x] 13.8 Run the aggregate gate
+- [x] 13.9 Commit as `test(root): enforce 80 percent coverage per app and metric`
 
 ## 14. Integrate the gate and document the final architecture
 
-- [ ] 14.1 Add the aggregate gate to CI
-- [ ] 14.2 Update contributor validation commands
-- [ ] 14.3 Update `ARCHITECTURE.md` to the implemented state
-- [ ] 14.4 Record ADR-012 (vertical bounded contexts) and ADR-013 (independent 80% coverage)
-- [ ] 14.5 Update the ADR index and OpenSpec checklist
-- [ ] 14.6 Run the complete Definition of Done
-- [ ] 14.7 Commit as `docs(sdd): document hexagonal contexts and coverage enforcement`
+- [x] 14.1 Add the aggregate gate to CI
+- [x] 14.2 Update contributor validation commands
+- [x] 14.3 Update `ARCHITECTURE.md` to the implemented state
+- [x] 14.4 Record ADR-012 (vertical bounded contexts) and ADR-013 (independent 80% coverage)
+- [x] 14.5 Update the ADR index and OpenSpec checklist
+- [x] 14.6 Run the complete Definition of Done
+- [x] 14.7 Commit as `docs(sdd): document hexagonal contexts and coverage enforcement`
 
 ## 15. Post-merge OpenSpec archival
 
