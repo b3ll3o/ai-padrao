@@ -775,3 +775,78 @@ Total: **1 INC-003 match out of 4 file-axis hits** — exactly the expected coun
 **Prevention rule (skill):** None required — this is a detector-design lesson captured in `.harness/INCIDENTS.md` for the next maintainer. Future detector authors should remember: `trigger_pattern.files` is a _path_ glob, not a _content_ pattern. Symbol axis is where content matching lives.
 
 **Would have been caught by:** A test that pipes a synthetic Write of a template file (whose header quotes a runtime path) through the detector and asserts no INC-003 output. Such a test now lives at `/tmp/inc025-fix-test.jsonl` for regression coverage — recommend promoting to `.harness/test_pattern_match.py` (the existing regression net for INC-018+).
+
+---
+
+## INC-026: API container's migrations directory went stale after a fresh migration landed on the host — `prisma migrate dev` reported phantom drift on the merged `main`
+
+**Date:** 2026-08-05
+**Wave:** Post-merge validation of `feat/domain-audit-foundation` (merge commit `c50aed1`)
+**Severity:** Workstream-blocking (post-merge hook exited non-zero; developer had to either reset the dev DB or rebuild the container to recover)
+
+**Symptom:** After merging the `domain-audit-foundation` OpenSpec change (which added the `20260805000000_domain_audit` migration to `apps/api/prisma/migrations/`), the `.githooks/post-merge` hook ran `pnpm db:migrate` and it exited with:
+
+```text
+- Drift detected: Your database schema is not in sync with your migration history.
+...
+[+] Added enums  - AuditOp
+[+] Added tables  - users_history
+[*] Changed the `users` table
+  [+] Added column `deleted_at`
+  [+] Added column `version`
+  [+] Added index on columns (deleted_at)
+...
+- The following migration(s) are applied to the database but missing from the
+  local migrations directory: 20260805000000_domain_audit
+We need to reset the "public" schema at "postgres:5432"
+You may use prisma migrate reset to drop the development database.
+All data will be lost.
+```
+
+The drift message was a **false alarm**. Direct inspection of the running DB showed:
+
+- `_prisma_migrations` table contained both `20260804151936_init` and `20260805000000_domain_audit`, both `finished`, both with `applied_steps_count = 1`.
+- `users` table had `deleted_at` (nullable timestamp), `version` (int, default 0), and the `users_deleted_at_idx` index.
+- `users_history` table existed with the correct columns, indexes, and FK to `users(id)` with `ON DELETE SET NULL`.
+- `AuditOp` enum existed with values `CREATE`, `UPDATE`, `DELETE`, `RESTORE`.
+
+The DB was healthy; only the **container-side view** of `migrations/` was stale.
+
+**Root cause:** The api service in `docker-compose.yml` bind-mounts `./apps/api/src` and `./packages` but **not** `./apps/api/prisma`. So inside the container, `/app/apps/api/prisma/migrations/` is whatever was baked into the Docker image at the most recent `docker compose up --build`. The api image in use at the time of the merge was 23 hours old — built when only `20260804151936_init/migration.sql` existed on disk. When `pnpm db:migrate` ran `docker compose exec api prisma migrate dev` inside the container, Prisma compared:
+
+- Container-side migrations dir: only `init`.
+- Live DB state: schema for both migrations (the audit migration had been applied during feature-branch development).
+
+Result: Prisma reported "the migration is applied to the DB but missing from my local migrations directory" and demanded a reset. The `prisma migrate reset` recommendation was wrong — the DB was already correct; only the image-side view was stale.
+
+**Why INC-006's "schema-before-generate" rule didn't catch it:** INC-006 (ADR-004) is about the Dockerfile ordering — it ensures `schema.prisma` is on the image at build time so `prisma generate` produces a working client. It does NOT ensure the migrations directory stays in sync between host and container at runtime.
+
+**Fix:** Added `./apps/api/prisma:/app/apps/api/prisma` to the api service's `volumes:` block in `docker-compose.yml`, then ran `docker compose up -d --build api` to rebuild the container with the new mount active. After the rebuild:
+
+```text
+docker inspect ai-padrao-api --format='{{range .Mounts}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}'
+...
+/home/leo/Documentos/projetos/padrao/apps/api/src  -> /app/apps/api/src
+/home/leo/Documentos/projetos/padrao/apps/api/prisma -> /app/apps/api/prisma  ← NEW
+/home/leo/Documentos/projetos/padrao/packages -> /app/packages
+```
+
+`pnpm db:migrate` then reported **"Already in sync, no schema change or pending migration was found"** — the false-alarm drift is gone, and future migrations land directly into the container via the bind mount without needing an image rebuild.
+
+**Companion fix:** this is exactly the same "hot-reload pattern" already used for `apps/api/src` — the Dockerfile bakes a default copy, the bind mount overlays the host's live version, and edits show up immediately. The prisma dir was the only one missing from the pattern; the fix aligns it with the rest of the api container's hot-reload surface.
+
+**Verification (post-fix, 2026-08-05):** The full post-merge validation sequence now passes cleanly on `main`:
+
+| Step | Pre-fix (fresh `domain-audit-foundation` merge) | Post-fix (after bind mount + rebuild) |
+| --- | --- | --- |
+| `pnpm db:migrate` | FAIL — phantom drift, demands `migrate reset` | PASS — "Already in sync, no schema change or pending migration was found" |
+| `pnpm harness:check` | PASS — 16/16 auto-checks | PASS — 16/16 auto-checks (no regression) |
+| `pnpm test` | PASS — 192 api + 91 web + 16 contracts | PASS — 192 api + 91 web + 16 contracts |
+
+**Tradeoff:** Bind-mounting the prisma directory means the api container always sees the host's live `schema.prisma` and `migrations/`. The prisma client is still generated at image build time (and regenerated by `prisma migrate dev` whenever the schema changes), so generated code stays correct. The `prisma generate` step at container start still works because it reads from the same bind-mounted `schema.prisma`. The only behavioural change: schema + migration edits propagate to the container without an image rebuild — same hot-reload contract as `apps/api/src`.
+
+**Architectural companion:** [ADR-015](../docs/decisions/ADR-015-bind-mount-prisma-dir-in-api-container.md) — record the rule so future maintainers don't accidentally remove the bind mount and re-trigger the drift class.
+
+**Prevention rule (lesson):** When adding a new bind mount to a dev container, ask "what else lives in that directory and is the container's view ever consulted by a tool that compares against an external source of truth (DB, another container, a remote service)?" If yes, that directory almost certainly needs the same hot-reload treatment the rest of the surface has.
+
+**Would have been caught by:** A drift-smoke-test that runs after `docker compose up` and asserts `prisma migrate status` reports "Database schema is up to date" (the read-only equivalent of `migrate dev`). Cheap to add to `.githooks/post-merge` between the `db:migrate` step and the `harness:check` step — recommend doing so the next time the harness pipeline is touched.
