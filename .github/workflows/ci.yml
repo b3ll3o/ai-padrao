@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Lint, typecheck, test, coverage, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      CI: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          # Must match the `packageManager` field in package.json
+          # (currently pnpm@9.12.0). Setting this to a bare major
+          # like `9` triggers ERR_PNPM_BAD_PM_VERSION.
+          version: 9.12.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        # The Prisma client is generated from apps/api/prisma/schema.prisma and
+        # must exist before typecheck/lint/test steps run — `apps/api` imports
+        # enum types like `UserRole` from `@prisma/client`, and the stub package
+        # alone does not export them. No postinstall hook exists, so we run
+        # this explicitly here.
+        run: pnpm --filter @ai-padrao/api prisma:generate
+
+      - name: Harness auto-checks
+        run: pnpm harness:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Coverage gate (aggregate, per app and metric)
+        # Runs once per app via the aggregate root script. Each app's Jest/Vitest
+        # config fails the run if statements, branches, functions, or lines drop
+        # below 80%. Do not run `pnpm test:coverage` again from `prebuild` here:
+        # this step is the single source of truth for the coverage gate in CI.
+        run: pnpm test:coverage
+
+      - name: Build
+        run: pnpm build

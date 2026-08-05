@@ -1,58 +1,45 @@
-'use client';
+"use client";
 
-import ky, { type KyInstance } from 'ky';
-import { env } from './env.client';
+import ky, { type KyInstance } from "ky";
+import { RefreshSessionUseCase } from "@/features/auth/application/use-cases/refresh-session.use-case";
+import { BrowserAuthCookieStoreAdapter } from "@/features/auth/infrastructure/adapters/browser-auth-cookie-store.adapter";
+import { FetchAuthApiAdapter } from "@/features/auth/infrastructure/adapters/fetch-auth-api.adapter";
+import { env } from "./env.client";
 
-const REFRESH_COOKIE = 'refresh_token';
-const ACCESS_COOKIE = 'access_token';
-const REFRESH_TTL_SECONDS = 60 * 60 * 24 * 7;
+/**
+ * Composition root for the browser HTTP client. Token reads and refresh
+ * rotation go through the auth ports; this module only wires them into ky.
+ */
+const cookieStore = new BrowserAuthCookieStoreAdapter();
+const refreshSession = new RefreshSessionUseCase(
+  new FetchAuthApiAdapter(env.NEXT_PUBLIC_API_URL),
+  cookieStore,
+);
 
-function readCookie(name: string): string | undefined {
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match?.[1] ? decodeURIComponent(match[1]) : undefined;
-}
-
-function writeCookie(name: string, value: string, maxAgeSeconds: number): void {
-  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
-  document.cookie = `${name}=${encodeURIComponent(value)}; Path=/; Max-Age=${maxAgeSeconds}; SameSite=Lax${secure}`;
-}
-
+/** In-flight refresh, so concurrent 401s trigger exactly one rotation. */
 let refreshing: Promise<string | null> | null = null;
-
-async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = readCookie(REFRESH_COOKIE);
-  if (!refreshToken) return null;
-
-  const res = await fetch(`${env.NEXT_PUBLIC_API_URL}/api/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken }),
-    credentials: 'include',
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  if (data.accessToken) writeCookie(ACCESS_COOKIE, data.accessToken, REFRESH_TTL_SECONDS);
-  if (data.refreshToken) writeCookie(REFRESH_COOKIE, data.refreshToken, REFRESH_TTL_SECONDS);
-  return data.accessToken ?? null;
-}
 
 export const apiClient: KyInstance = ky.create({
   prefixUrl: env.NEXT_PUBLIC_API_URL,
-  credentials: 'include',
+  credentials: "include",
   hooks: {
     beforeRequest: [
-      (request) => {
-        const token = readCookie(ACCESS_COOKIE);
-        if (token) request.headers.set('Authorization', `Bearer ${token}`);
+      async (request) => {
+        const token = await cookieStore.getAccessToken();
+        if (token) request.headers.set("Authorization", `Bearer ${token}`);
       },
     ],
     afterResponse: [
       async (request, _options, response) => {
         if (response.status !== 401) return response;
-        if (!refreshing) refreshing = refreshAccessToken().finally(() => (refreshing = null));
+        if (!refreshing) {
+          refreshing = refreshSession
+            .execute()
+            .finally(() => (refreshing = null));
+        }
         const token = await refreshing;
         if (!token) return response;
-        request.headers.set('Authorization', `Bearer ${token}`);
+        request.headers.set("Authorization", `Bearer ${token}`);
         return ky(request);
       },
     ],

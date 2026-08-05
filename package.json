@@ -20,6 +20,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:coverage": "pnpm --filter @ai-padrao/api test:coverage && pnpm --filter @ai-padrao/web test:coverage",
     "harness:check": "bash .harness/check.sh",
     "harness:detect": "bash .harness/detect.sh",
     "harness:digest": "python3 .harness/digest.py",
