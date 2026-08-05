@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# .githooks/post-merge — runs the validation steps implied by the files
+# that changed in the merge (including `git pull`, which is fetch + merge).
+#
+# See .openspec/changes/post-merge-pull-workflow/specs/harness/spec.md
+# for the full behavior spec. Brief summary:
+#
+#   - pnpm-lock.yaml          -> pnpm install --frozen-lockfile
+#   - apps/api/prisma/**      -> pnpm db:migrate
+#   - .harness/**             -> pnpm harness:check
+#   - apps/{api,web}/src/**   -> pnpm test
+#   - packages/*/src/**       -> pnpm test
+#
+# The hook is opt-in (run `pnpm postmerge:install` once) and is safe to
+# disable per-clone via `git config --local --unset core.hooksPath`.
+#
+# Exit codes:
+#   0 = success (or no-op when no relevant file changed)
+#   non-zero = at least one step failed; the developer must follow up
+#
+# This script depends ONLY on bash + git + pnpm (see INC-013
+# generalized to all hooks). No jq, no python, no new top-level deps.
+
+set -uo pipefail
+
+# Resolve repo root.
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -z "$ROOT" ]]; then
+  # Not inside a git repo (shouldn't happen for a post-merge hook, but
+  # fail loud if it does).
+  echo "[post-merge] not inside a git repository" >&2
+  exit 1
+fi
+cd "$ROOT"
+
+# Toolchain check — print a clear opt-out if anything is missing, but
+# don't break the developer's git workflow.
+for tool in git pnpm; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "[post-merge] '$tool' is not on PATH." >&2
+    echo "[post-merge] Fix: install $tool, or disable via: git config --local --unset core.hooksPath" >&2
+    exit 0
+  fi
+done
+
+# Compute the set of changed files. git pull = fetch + merge, so this
+# also covers pulls. Use HEAD@{1} (reflog) to handle merge commits and
+# fast-forwards uniformly.
+CHANGED="$(
+  git diff-tree --no-commit-id --name-only -r HEAD@{1} HEAD 2>/dev/null \
+    || true
+)"
+
+# Fast-forward to a known commit OR no diff at all -> silent no-op.
+if [[ -z "$CHANGED" ]]; then
+  exit 0
+fi
+
+# Match helpers. grep returns 0 on match, 1 on no match. `|| true` so
+# set -u doesn't trip on the empty-string fallback.
+has_match() {
+  local pattern="$1"
+  printf '%s\n' "$CHANGED" | grep -E "$pattern" >/dev/null 2>&1
+}
+
+# Track which steps we ran (for the summary line) and the running time.
+RAN=0
+FAILED=0
+FAILED_STEP=""
+START_TS="$(date +%s)"
+
+run_step() {
+  local label="$1"; shift
+  RAN=$((RAN + 1))
+  echo "[post-merge] step ${RAN}: ${label}" >&2
+  if ! "$@"; then
+    FAILED=1
+    FAILED_STEP="${label}"
+    echo "[post-merge] FAIL at step ${RAN}: ${label}" >&2
+    return 1
+  fi
+  return 0
+}
+
+# 1. Lockfile change -> install.
+if printf '%s\n' "$CHANGED" | grep -qx "pnpm-lock.yaml"; then
+  run_step "pnpm install --frozen-lockfile" \
+    pnpm install --frozen-lockfile || true
+fi
+
+# 2. Prisma schema change -> migrate.
+if has_match '^apps/api/prisma/'; then
+  # db:migrate may fail if the local DB is not reachable. The spec says
+  # print the failure and exit non-zero so the developer notices. We
+  # surface the failure but continue so the developer sees the full
+  # picture before re-running.
+  run_step "pnpm db:migrate" pnpm db:migrate || true
+fi
+
+# 3. Harness internals change -> harness:check.
+if has_match '^\.harness/'; then
+  run_step "pnpm harness:check" pnpm harness:check || true
+fi
+
+# 4. Runtime source change -> unit tests (fast path; integration/e2e
+# are NOT run by this hook per the spec).
+if has_match '^(apps/api/src|apps/web/src|packages/[^/]+/src)/'; then
+  # `pnpm test` is wired through turbo to all packages' vitest runs.
+  # We invoke the underlying command directly to keep this hook's
+  # output legible.
+  run_step "pnpm test" pnpm test || true
+fi
+
+# Summary.
+END_TS="$(date +%s)"
+ELAPSED=$((END_TS - START_TS))
+
+if [[ "$FAILED" -ne 0 ]]; then
+  echo "[post-merge] FAIL at step ${FAILED_STEP} (${RAN} steps in ${ELAPSED}s)" >&2
+  echo "[post-merge] Follow up: fix the failing step and amend or commit a follow-up." >&2
+  exit 1
+fi
+
+if [[ "$RAN" -eq 0 ]]; then
+  # Files changed but none matched any pattern -> silent no-op summary.
+  exit 0
+fi
+
+echo "[post-merge] OK in ${ELAPSED}s (${RAN} steps)"
+exit 0
