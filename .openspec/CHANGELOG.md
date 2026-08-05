@@ -133,3 +133,20 @@ truth. Entries here record when each spec moved from `changes/` to `specs/`.
   `pnpm harness:check` 17 PASS / 0 FAIL. Baseline: zero existing
   functions exceeded the threshold, so the gate was safe to enable
   without remediation.
+
+- **pre-push-test-gate** — Extends `.githooks/pre-push` with four new
+  ordered steps after the existing complexity check: (1) `pnpm up`
+  (idempotent `docker compose up -d`); (2) Postgres readiness wait,
+  auto-selecting the strongest available probe (pg_isready → psql
+  → bash `/dev/tcp`); (3) `pnpm test` (turbo, unit + integration
+  across all workspaces); (4) `pnpm --filter @ai-padrao/api test:e2e`
+  against the just-brought-up Postgres. Toolchain check extended to
+  require `docker`. Bypass unchanged: `git push --no-verify`. Spec
+  archived at `.openspec/specs/harness/pre-push-test-gate.md`.
+  Shipped in commit `a958b8c`. Verified gates: `pnpm test` 204/204,
+  `pnpm lint` 5/5 (forced), `pnpm typecheck` 6/6 (forced),
+  `pnpm harness:check` 17 PASS / 0 FAIL. Real `git push origin main`
+  exercised the hook end-to-end (5 steps, 12 s, push succeeded).
+  Red-green verified per DoD: failing unit test → step 4 FAIL;
+  failing e2e test → step 5 FAIL; paused Postgres → TCP probe
+  passes (intentionally weak), step 5 catches the real failure.
