@@ -67,7 +67,12 @@
       "id": "INC-003",
       "category": "decorator-metadata",
       "trigger_pattern": {
-        "files": ["apps/api/src/**/*.ts"],
+        "files": [
+          "apps/api/src/contexts/*/infrastructure/**/*.ts",
+          "apps/api/src/common/**/*.ts",
+          "apps/api/src/infra/**/*.ts",
+          "apps/api/src/modules/**/*.ts"
+        ],
         "symbols": ["import type"],
         "contexts": [
           "constructor params with DI",
@@ -542,6 +547,49 @@
         "expected": "required_features-axis implemented"
       },
       "alura_principle": "regression-detectors must gate on the regression, not on the file. INC-018 is about whether the features are still present — checking the file alone is a false-positive waiting to happen."
+    },
+    {
+      "id": "INC-023",
+      "category": "detector-design",
+      "trigger_pattern": {
+        "files": [".harness/pattern_match.py"],
+        "required_features": ["scoped_text", "scoped_parts"]
+      },
+      "symptom": "L2 detector false-positives when the file-axis gate is satisfied but the symbol-axis evidence lives in completely unrelated events. The clearest case: any Edit to `.harness/learnings.json` (which legitimately contains `import type`, `xit`, and `ghp_` as trigger-pattern literals) bumps the file-axis count for INC-003/INC-012/INC-016, and the symbol-axis then matches the literal trigger text in the Edit body — every configuration edit triggers the patterns it configures.",
+      "root_cause_summary": "pattern_match.py built `combined_text` from every event in the window (Read, Write, Edit, Bash — all 20 events). The symbol-axis check (`s in combined_text`) then matched trigger literals that happened to appear anywhere in the window, including legitimate configuration files. The semantic fix: when `trigger_pattern.files` is declared, restrict the symbol-axis text to the SAME events that count toward the file-axis gate. Trigger literals living in unrelated events stop mattering.",
+      "prevention": {
+        "type": "policy",
+        "ref": "AGENTS.md §Continuous learning → Detector exclusion list",
+        "section": "Symbol-axis scoped to file-axis hits (INC-023)"
+      },
+      "auto_check": {
+        "type": "grep_audit",
+        "command": "grep -n 'scoped_text\\|scoped_parts' .harness/pattern_match.py",
+        "expected": "scoped symbol-axis text built from file-axis hits only"
+      },
+      "alura_principle": "the file-axis and symbol-axis must address the same events. Otherwise documents and configuration files that legitimately quote trigger patterns become indistinguishable from violations. The Alura principle of correctness over cleverness — the simpler combined-text approach is wrong even when it works most of the time."
+    },
+    {
+      "id": "INC-024",
+      "category": "detector-design",
+      "trigger_pattern": {
+        "files": ["apps/api/src/**/*.ts"],
+        "symbols": ["import type"],
+        "context": "test files (*.spec.ts) OR type-only/interface bindings (non-DI)"
+      },
+      "symptom": "L2 detector fires INC-003 on every legitimate `import type` for an interface or type alias in a NestJS-adjacent file. The clearest case: `import type { AuditContext }` in `audit-context.spec.ts` (an interface returned by AsyncLocalStorage, not a DI'd class) — same `import type` syntax, completely different semantic risk. The current detector counts both as DI violations.",
+      "root_cause_summary": "INC-003's trigger pattern is a substring match on `import type` over any file under `apps/api/src/**/*.ts`. The pattern cannot distinguish between (a) `import type { PrismaService }` in a controller constructor (DI risk — `design:paramtypes` is undefined) and (b) `import type { AuditContext }` in a spec file (pure type — erased by TS at compile time, no runtime impact). Both match the same literal substring. INC-023's scoped symbol-axis correctly limits the matcher to file-axis hits but does not filter by file semantics (test vs production) or binding semantics (class vs type).",
+      "prevention": {
+        "type": "policy",
+        "ref": "AGENTS.md §Continuous learning → Detector exclusion list",
+        "section": "Type-only `import type` excluded from INC-003 (INC-024) — pending design decision"
+      },
+      "auto_check": {
+        "type": "manual_review",
+        "command": "n/a",
+        "expected": "INC-024 is a documented gap; auto-check deferred until one of the four candidate fixes (spec.ts glob tightening, scope by file category, positive-list override, or TypeScript compiler API) lands."
+      },
+      "alura_principle": "the right place to fix a detector that fires on legitimate code is the detector itself, not the operator. Until the four candidate fixes are evaluated, operators must confirm each prompt manually — which is acceptable cost for a low-frequency, low-impact prompt, but the long-term answer is making the detector understand binding semantics."
     }
   ],
   "prevention_summary": {

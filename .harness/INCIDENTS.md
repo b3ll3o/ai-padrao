@@ -651,3 +651,20 @@ In this case, the working tree contained 6 file-axis hits (all under `apps/api/s
 **Related:** [INC-017](#inc-017-l2-detector-fires-on-prose-that-documents-its-own-trigger-patterns), [INC-018](#inc-018-l2-detector-false-positives-on-read-events-todowrite-worktree-paths-and-python-heredocs), [INC-023] (scoped text restriction).
 
 **→ Awaiting decision:** Should INC-024 become a separate OpenSpec change (`.openspec/changes/inc-024-detector-type-vs-di/`) under `feat/domain-audit-foundation`, or roll into the existing ADR-014 work? User chose "Abrir INC para o gap do detector" on 2026-08-05; the change is currently **documented but not yet scheduled**.
+
+**→ Resolution (2026-08-05):** Fix #1 from the list above was implemented in commit `feat/domain-audit-foundation`. The INC-003 `trigger_pattern.files` in `.harness/learnings.json` was tightened from the overly-broad `apps/api/src/**/*.ts` to four scoped globs that match only files where NestJS DI actually occurs:
+
+```json
+"files": [
+  "apps/api/src/contexts/*/infrastructure/**/*.ts",
+  "apps/api/src/common/**/*.ts",
+  "apps/api/src/infra/**/*.ts",
+  "apps/api/src/modules/**/*.ts"
+]
+```
+
+**Verified:** the historical 20-event window that triggered the false positive (events 944-963 of `.harness/events/2026-08-05.jsonl`, with Edit/Write hits on `apps/api/src/contexts/users/application/use-cases/list-users.use-case.ts`) now produces **no match** when piped through `python3 .harness/pattern_match.py`. A synthetic window of Edit events on `infrastructure/http/` files containing `import type` for a fake class still emits `INC-003` — confirming the gate remains sensitive to real DI risk. The 8 files in `apps/api/src/` that actually contain `@Injectable`/`@Controller`/`@Inject`/`@Catch` decorators are all covered by the four new globs; no DI surface is unprotected.
+
+**Tradeoff:** legitimate `import type` for types/interfaces in `domain/`, `application/`, and `use-cases/` no longer triggers the prompt. The detector's blast radius is now exactly the layers where `@Injectable()` decorators and constructor-based DI are used, instead of the entire `apps/api/src/` tree.
+
+**Remaining fixes (deferred):** #2 (constructor-signature scope), #3 (positive-list override), #4 (TypeScript compiler API) — not implemented; the glob-tightening in #1 covers the observed false positive without compromising the gate.
