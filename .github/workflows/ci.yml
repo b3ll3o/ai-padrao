@@ -25,7 +25,10 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          # Must match the `packageManager` field in package.json
+          # (currently pnpm@9.12.0). Setting this to a bare major
+          # like `9` triggers ERR_PNPM_BAD_PM_VERSION.
+          version: 9.12.0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
