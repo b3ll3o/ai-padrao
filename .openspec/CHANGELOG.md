@@ -113,3 +113,23 @@ truth. Entries here record when each spec moved from `changes/` to `specs/`.
   `.openspec/specs/api/ddd-hexagonal-audit-fixes.md`. Shipped in 5
   commits (`5124e35` spec F1.a, `3a7515e` spec F1.b, `dab14f9`
   refactor F2, `87751fb` refactor F3, `3f09e00` lint cleanup).
+
+- **complexity-gate** — Adds a permanent cyclomatic-complexity gate at
+  threshold 10 (SonarSource default). Three layers of defense: (a)
+  ESLint's built-in `complexity` rule in `packages/config-eslint/base.js`
+  is inherited by every workspace config, so `pnpm lint` (turbo) fails
+  per-workspace on any function over the threshold; (b) new INC-027 in
+  `.harness/check.sh` runs the same check at the repo level (fails
+  `pnpm harness:check`); (c) new `.githooks/pre-push` script blocks
+  `git push` locally with the same rule. Tool choice: ESLint built-in
+  (zero new dep). Numbering note: the proposal originally cited
+  INC-019, but INC-019..INC-022 are reserved slots in the L2 detector
+  sub-check labeling — the next free incident slot is INC-027.
+  Spec archived at
+  `.openspec/specs/harness/complexity-gate.md`. Shipped in 4 commits:
+  `1a9252d` config rule, `01ebd1a` INC-027, `5f265a0` pre-push hook,
+  archive commit below. Verified gates: `pnpm test` 204/204, `pnpm lint`
+  5/5 (forced, no turbo cache), `pnpm typecheck` 6/6 (forced),
+  `pnpm harness:check` 17 PASS / 0 FAIL. Baseline: zero existing
+  functions exceeded the threshold, so the gate was safe to enable
+  without remediation.
