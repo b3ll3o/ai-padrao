@@ -416,7 +416,14 @@ else
   # `tr '\n' ' '` flattens the newline-separated list into space-separated
   # args — otherwise `bash -c "python3 ... $STAGED_TS"` interprets each
   # path as a separate command line (INC-028c fails with "Permission denied").
-  STAGED_TS=$(git diff --name-only --cached --diff-filter=AM -- 'apps/**/*.ts' 'apps/**/*.tsx' 'packages/*/src/**/*.ts' 'packages/*/src/**/*.tsx' 2>/dev/null | grep -vE '\.spec\.ts$|\.test\.tsx?$|index\.ts$' | head -50 | tr '\n' ' ' | sed 's/ $//')
+  # `|| true` neutralises bash 5.2's set -e + pipefail abort: when the staged
+  # list is empty, `grep -vE` returns 1, pipefail makes the pipeline fail,
+  # and the substitution's exit code becomes the assignment's exit code.
+  # Without `|| true`, `set -e` would abort the script before reaching the
+  # `if [ -z "$STAGED_TS" ]` early-return below. Confirmed empirically on
+  # bash 5.2.21; the assignment-level abort only triggers when the leftmost
+  # command in the substitution is an external binary (git), not a builtin.
+  STAGED_TS=$(git diff --name-only --cached --diff-filter=AM -- 'apps/**/*.ts' 'apps/**/*.tsx' 'packages/*/src/**/*.ts' 'packages/*/src/**/*.tsx' 2>/dev/null | grep -vE '\.spec\.ts$|\.test\.tsx?$|index\.ts$' | head -50 | tr '\n' ' ' | sed 's/ $//' || true)
   if [ -z "$STAGED_TS" ]; then
     note "INC-028c: JSDoc coverage on staged files (no staged .ts/.tsx outside specs)"
   else
