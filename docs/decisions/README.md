@@ -15,7 +15,7 @@ Each ADR has four sections: **Context**, **Decision**, **Consequences**,
 **Enforcement**. Conventions: `Status: Accepted`, `Date: 2026-08-04` for all
 ADRs in this initial set.
 
-## Index (11 ADRs)
+## Index (13 ADRs)
 
 | ADR                                                          | Title                                                   | Incident | Tag                             |
 | ------------------------------------------------------------ | ------------------------------------------------------- | -------- | ------------------------------- |
@@ -30,6 +30,9 @@ ADRs in this initial set.
 | [ADR-009](ADR-009-events-directory-is-gitignored.md)         | `.harness/events/` is gitignored (session state)        | INC-014  | AGENTS.md §Events transient     |
 | [ADR-010](ADR-010-daily-digest-freshness.md)                 | Daily digest must be fresh (< 25h old)                  | INC-015  | AGENTS.md §Digest freshness     |
 | [ADR-011](ADR-011-no-plaintext-secrets-in-source.md)         | No plaintext tokens in source                           | INC-016  | AGENTS.md §No plaintext secrets |
+| [ADR-013](ADR-013-independent-80-percent-coverage.md)        | Independent 80% coverage per app + metric               | —        | testing                         |
+| [ADR-014](ADR-014-domain-audit-foundation.md)                | Domain audit: typed history, soft-delete, versioning    | —        | api-design                      |
+| [ADR-015](ADR-015-bind-mount-prisma-dir-in-api-container.md) | Bind-mount `apps/api/prisma/` into the api container    | INC-026  | docker-dev-loop                 |
 
 ## The three highest-traffic ADRs
 
