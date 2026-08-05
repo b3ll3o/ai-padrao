@@ -1,0 +1,24 @@
+// Template: Application Use Case (orchestrates domain + port)
+// Reference (live example): apps/api/src/contexts/users/application/use-cases/find-user.use-case.ts
+//
+// Convenção ai-padrao:
+// - Recebe a PORT via construtor (não a classe concreta)
+// - SEM `@Injectable()` — use case é puro, framework-free
+// - Retorna DTO ou entity; nunca retorna o PrismaRecord
+// - Cada método público é um caso de uso
+
+import { <Entity> } from "../../domain/entities/<entity>";
+import { <Entity>NotFoundError } from "../../domain/errors/<entity>-not-found.error";
+import type { <<Entity>RepositoryPort> } from "../../domain/ports/<entity>-repository.port";
+
+export class <Verb><Entity>UseCase {
+  constructor(private readonly repository: <<Entity>RepositoryPort>) {}
+
+  async execute(id: string): Promise<<Entity>> {
+    const entity = await this.repository.findById(id);
+    if (!entity) {
+      throw new <Entity>NotFoundError(id);
+    }
+    return entity;
+  }
+}
