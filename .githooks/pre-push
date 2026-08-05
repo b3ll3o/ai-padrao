@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+# .githooks/pre-push — blocks `git push` if any function under apps/ or
+# packages/ exceeds cyclomatic complexity 10 (paired with INC-027 in
+# .harness/check.sh; together they form the complexity gate from the
+# .openspec/changes/complexity-gate/ proposal).
+#
+# Why both this and INC-027 exist (defense in depth):
+#   - This hook: local fast-feedback. Blocks the push at the developer
+#     machine before the commit reaches CI.
+#   - INC-027: CI gate. Catches pushes that bypass this hook (e.g. a
+#     developer who unsets core.hooksPath or pushes from CI itself).
+#
+# See .openspec/changes/complexity-gate/specs/harness/spec.md for the
+# full behavior spec.
+#
+# Bypass:
+#   git push --no-verify             # bypass this hook for one push
+#   git config --local --unset core.hooksPath   # disable all hooks
+#
+# This script depends ONLY on bash + git + pnpm (per INC-013, generalized
+# to all hooks). No jq, no python, no new top-level deps.
+
+set -uo pipefail
+
+# ---- pre-push stdin contract ------------------------------------------
+# git invokes this hook with one line per ref on stdin, in the form:
+#   <local_ref> <local_sha> <remote_ref> <remote_sha>
+# We must read stdin even when we don't use the ref info, otherwise
+# git can block waiting for us.
+PUSH_REFS=()
+while read -r local_ref local_sha remote_ref remote_sha; do
+  PUSH_REFS+=("$local_ref $local_sha $remote_ref $remote_sha")
+done
+if [[ ${#PUSH_REFS[@]} -eq 0 ]]; then
+  # No refs being pushed (e.g. push --all with nothing to send).
+  exit 0
+fi
+
+# ---- resolve repo root -------------------------------------------------
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [[ -z "$ROOT" ]]; then
+  echo "[pre-push] not inside a git repository" >&2
+  exit 1
+fi
+cd "$ROOT"
+
+# ---- toolchain check ---------------------------------------------------
+for tool in git pnpm; do
+  if ! command -v "$tool" >/dev/null 2>&1; then
+    echo "[pre-push] '$tool' is not on PATH." >&2
+    echo "[pre-push] Fix: install $tool, or bypass via: git push --no-verify" >&2
+    # Don't break the developer's git workflow over a missing tool;
+    # INC-027 still catches the violation in CI.
+    exit 0
+  fi
+done
+
+# ---- run the complexity check -----------------------------------------
+# Scoped to apps/ and packages/. We invoke ESLint with the same config
+# INC-027 uses, so the rule and threshold are identical. We then filter
+# ESLint's output for complexity errors only (other lint warnings are
+# not this hook's concern).
+START_TS="$(date +%s)"
+echo "[pre-push] running cyclomatic complexity check (apps/, packages/)..." >&2
+
+set +e
+out=$(pnpm exec eslint --no-warn-ignored \
+  --no-config-lookup \
+  --config packages/config-eslint/base.js \
+  apps packages \
+  --ext .ts,.tsx 2>&1)
+eslint_rc=$?
+set -e
+
+complexity_errors=$(printf '%s\n' "$out" | grep -E "complexity" || true)
+
+END_TS="$(date +%s)"
+ELAPSED=$((END_TS - START_TS))
+
+if [[ -n "$complexity_errors" ]]; then
+  echo "[pre-push] FAIL in ${ELAPSED}s — cyclomatic complexity > 10 detected:" >&2
+  printf '%s\n' "$complexity_errors" | sed 's/^/  /' >&2
+  echo >&2
+  echo "[pre-push] Fix the violations, then retry. Escape hatch for a" >&2
+  echo "[pre-push] justified hotspot:" >&2
+  echo "[pre-push]   // eslint-disable-next-line complexity -- <reason>" >&2
+  echo "[pre-push] Bypass (not recommended): git push --no-verify" >&2
+  exit 1
+fi
+
+if [[ "$eslint_rc" -ne 0 ]] && [[ "$eslint_rc" -ne 1 ]]; then
+  # ESLint exit codes 0 (clean) and 1 (had findings) are expected.
+  # Anything else (127 = not installed, 2 = config error) means we
+  # couldn't actually run the rule — surface that loudly so the dev
+  # doesn't get a false all-clear.
+  echo "[pre-push] FAIL in ${ELAPSED}s — ESLint exited $eslint_rc (could not run complexity check):" >&2
+  printf '%s\n' "$out" | tail -20 | sed 's/^/  /' >&2
+  exit 1
+fi
+
+echo "[pre-push] OK in ${ELAPSED}s (cyclomatic complexity ≤ 10 across apps/, packages/)"
+exit 0
