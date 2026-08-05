@@ -28,7 +28,120 @@ import json
 import re
 import sys
 import pathlib
-from typing import Any
+from typing import Any, Literal
+
+
+# INC-024: positive-list of type-only binding-name suffixes. An
+# `import type { X, Y, Z }` whose every binding ends in one of these
+# suffixes is classified as `type-only-safe`; INC-003 is NOT emitted.
+# This mirrors `.harness/learnings.json →
+# prevention_summary.by_auto_check_type.symbol_axis_classifier` and the
+# per-entry `trigger_pattern.symbol_filters.safe_suffixes` array so
+# the matcher keeps working even when `learnings.json` is being edited
+# (the gap that INC-023 was designed to close for `import type`).
+TYPE_ONLY_SUFFIXES: tuple[str, ...] = (
+    "Type",
+    "Interface",
+    "Dto",
+    "Context",
+    "Spec",
+    "Map",
+    "Key",
+    "Schema",
+)
+
+# INC-024: cap on bindings per single `import type` statement. >100
+# names in one brace body is almost certainly a barrel re-export
+# (`import type { … } from "@ai-padrao/contracts"`); the matcher can't
+# classify those cheaply and falls back to the prior behaviour
+# (operator confirm).
+TYPE_ONLY_BINDING_LIMIT = 100
+
+
+BindingClass = Literal["class-di-risk", "type-only-safe", "indeterminate"]
+
+
+def classify_import_type_binding(line: str) -> BindingClass:
+    """Classify a single line containing `import type` for INC-003 risk.
+
+    Three outputs:
+      - `"type-only-safe"` — every binding in the brace body is either
+        suffix-marked (see `TYPE_ONLY_SUFFIXES`) or lowercase; INC-003
+        MUST NOT be emitted for this line.
+      - `"class-di-risk"` — at least one binding has a leading uppercase
+        character and no registered suffix; INC-003 MUST be emitted.
+      - `"indeterminate"` — the brace body has >`TYPE_ONLY_BINDING_LIMIT`
+        bindings, OR no brace body is found within the first 200 chars;
+        the matcher falls back to today's behaviour.
+
+    Pure function (no I/O, no regex compile beyond what `re` already
+    provides). Multi-line `import type` statements are supported via a
+    brace-balanced forward walk; this single-argument shape makes the
+    helper trivial to unit-test in isolation (Task 4).
+    """
+    if not isinstance(line, str) or "import type" not in line:
+        return "indeterminate"
+
+    # 200-char lookahead: a well-formed `import type { … }` always opens
+    # the brace within ~80 chars; 200 gives ample slack for long paths
+    # while keeping the parse bounded.
+    head = line[:200]
+    open_brace_idx = head.find("{")
+    if open_brace_idx == -1:
+        return "indeterminate"
+
+    # Walk forward from the opening brace to find the matching close,
+    # tolerating nested braces (rare but possible in default-value
+    # annotations) and string-literal braces. For inline `import type`
+    # statements, the brace body is the conventional binding list.
+    depth = 0
+    close_brace_idx = -1
+    for i in range(open_brace_idx, len(line)):
+        ch = line[i]
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                close_brace_idx = i
+                break
+    if close_brace_idx == -1:
+        return "indeterminate"
+
+    body = line[open_brace_idx + 1:close_brace_idx]
+    # Split on top-level commas; trim each piece and drop empties.
+    # A real binding token is `[A-Za-z_$][A-Za-z0-9_$]*` plus optional
+    # whitespace, possibly followed by ` as <alias>` (TS rename syntax).
+    raw_bindings = [b.strip() for b in body.split(",")]
+    bindings: list[str] = []
+    for raw in raw_bindings:
+        if not raw:
+            continue
+        # `Foo as Bar` → keep the source name `Foo` (the bind-on-this-
+        # side matters, not the local alias).
+        head_token = raw.split()[0]
+        if re.match(r"^[A-Za-z_$][A-Za-z0-9_$]*$", head_token):
+            bindings.append(head_token)
+
+    if not bindings:
+        return "indeterminate"
+    if len(bindings) > TYPE_ONLY_BINDING_LIMIT:
+        return "indeterminate"
+
+    # Classify each binding:
+    #   - lowercase → safe (convention: types/interfaces start upper).
+    #   - matches a registered suffix → safe (heuristic).
+    #   - uppercase and no suffix → class-DI risk.
+    saw_risk = False
+    for name in bindings:
+        if name[0].islower():
+            continue
+        if any(name.endswith(suffix) for suffix in TYPE_ONLY_SUFFIXES):
+            continue
+        saw_risk = True
+        break
+
+    return "class-di-risk" if saw_risk else "type-only-safe"
 
 
 # INC-017 + INC-018 + INC-019: documentation-path and ephemeral-path
@@ -75,7 +188,12 @@ MIN_HITS = 2
 
 
 def _event_text(event: dict[str, Any]) -> str:
-    """Flatten an event into a single string for substring matching."""
+    """Flatten an event into a single string for substring matching.
+
+    Used by the symbol-axis check, which legitimately wants to scan
+    Write/Edit content for trigger patterns (e.g. `import type` in the
+    actual source body).
+    """
     parts: list[str] = []
     for k in (
         "tool_name",
@@ -92,6 +210,50 @@ def _event_text(event: dict[str, Any]) -> str:
     if isinstance(tool_input, dict):
         parts.append(json.dumps(tool_input, ensure_ascii=False))
     return " ".join(parts)
+
+
+def _file_path_for_axis(event: dict[str, Any]) -> str:
+    """Return the file-path-relevant text for file-axis glob matching.
+
+    INC-025: file-axis globs target runtime source paths. The glob MUST
+    match the FILE PATH only — not against Write/Edit tool_input.content,
+    which may legitimately quote trigger patterns. The clearest case:
+    a template file's header comment like
+    `// Reference (live example): apps/api/src/contexts/users/.../user.mapper.ts`
+    that documents the live example SHOULD NOT count as an INC-003
+    file-axis hit (the file lives at `.claude/skills/.../mapper.ts.template`,
+    nowhere near the runtime source tree).
+
+    Earlier versions flattened `tool_input` into event text and matched
+    the glob against content strings, producing false positives on every
+    template, doc snippet, unit-test fixture, or commit message that
+    mentioned a real source path. This helper restores the intended
+    semantics: globs describe WHERE the violation lives, not WHAT it
+    looks like.
+
+    For Bash events the command text is included, because file paths
+    naturally appear in shell commands (e.g.
+    `pnpm test apps/api/src/foo.spec.ts`). Diagnostic-only bash
+    (grep/cat/head/...) is already filtered upstream by
+    `_is_documentation_event` (INC-019), so commands that survive to
+    here are non-trivial and may legitimately mention a runtime path.
+    """
+    fp = event.get("file_path") or event.get("filePath") or ""
+    tool_input = event.get("tool_input")
+    if isinstance(tool_input, dict):
+        ti_fp = tool_input.get("file_path") or tool_input.get("filePath")
+        if isinstance(ti_fp, str) and ti_fp:
+            fp = fp or ti_fp
+    parts: list[str] = [fp]
+    if event.get("tool_name") == "Bash":
+        cmd = ""
+        if isinstance(tool_input, dict):
+            cmd = tool_input.get("command") or ""
+        if not cmd:
+            cmd = event.get("command") or ""
+        if isinstance(cmd, str) and cmd:
+            parts.append(cmd)
+    return " ".join(p for p in parts if p)
 
 
 def _is_documentation_event(event: dict[str, Any]) -> bool:
@@ -196,15 +358,19 @@ def main() -> int:
                     continue
                 if ev.get("tool_name") == "Read":
                     continue  # INC-018: Read doesn't mutate
-                ev_text = _event_text(ev)
+                # INC-025: file-axis glob matches the FILE PATH ONLY
+                # (via _file_path_for_axis), not Write/Edit content. Symbol-axis
+                # still scans full event text via _event_text below, so a
+                # real `import type` in a real source file is still caught.
+                ev_path = _file_path_for_axis(ev)
                 hit = False
                 for rx in compiled_files:
-                    if rx.search(ev_text):
+                    if rx.search(ev_path):
                         hit = True
                         break
                 if hit:
                     file_hits += 1
-                    scoped_parts.append(ev_text)
+                    scoped_parts.append(_event_text(ev))
             if file_hits < MIN_HITS:
                 continue
             scoped_text = " ".join(scoped_parts)
@@ -218,6 +384,42 @@ def main() -> int:
         if shapes:
             if not any(re.search(s, scoped_text) for s in shapes):
                 continue
+
+        # INC-024: when the symbol axis hit came from `import type` AND
+        # the entry has a `symbol_filters.safe_suffixes` list, classify
+        # each matched line and suppress the emission for events the
+        # classifier labels `type-only-safe`. Today's emit path is
+        # preserved for `class-di-risk` and `indeterminate`.
+        symbol_filters = pat.get("symbol_filters") or {}
+        if "import type" in symbols and isinstance(symbol_filters, dict):
+            safe_suffixes = symbol_filters.get("safe_suffixes") or []
+            if isinstance(safe_suffixes, list) and safe_suffixes:
+                # Build a per-line classifier view by splitting the
+                # combined_text on `import type` boundaries. Each chunk
+                # beyond the first starts with `import type { … }` —
+                # the only shape the classifier needs.
+                chunks = scoped_text.split("import type")[1:]
+                all_safe = True
+                saw_any = False
+                for chunk in chunks:
+                    # Re-prepend the marker so the classifier sees the
+                    # full `import type { … }` shape.
+                    sample = "import type" + chunk
+                    cls = classify_import_type_binding(sample)
+                    if cls == "class-di-risk":
+                        all_safe = False
+                        break
+                    if cls == "indeterminate":
+                        saw_any = True
+                        # Keep scanning; only a class-di-risk forces
+                        # the prior emit path.
+                # When every sample resolved to `type-only-safe`, the
+                # entry is suppressed for this window. Mixed
+                # (safe + indeterminate) still emits — preserves the
+                # operator-confirm contract for anything we don't yet
+                # recognise.
+                if chunks and all_safe and not saw_any:
+                    continue
 
         sys.stdout.write(entry["id"] + "\n")
         return 0

@@ -15,9 +15,16 @@
       "id": "INC-001",
       "category": "platform-dep",
       "trigger_pattern": {
-        "files": ["apps/api/src/main.ts"],
-        "symbols": ["SwaggerModule.setup"],
-        "frameworks": ["@nestjs/swagger", "@nestjs/platform-fastify"]
+        "files": [
+          "apps/api/src/main.ts"
+        ],
+        "symbols": [
+          "SwaggerModule.setup"
+        ],
+        "frameworks": [
+          "@nestjs/swagger",
+          "@nestjs/platform-fastify"
+        ]
       },
       "symptom": "ERROR [PackageLoader] The @fastify/static package is missing",
       "root_cause_summary": "SwaggerModule.setup implicitly calls useStaticAssets() which requires @fastify/static as an undeclared peer",
@@ -41,14 +48,18 @@
       "id": "INC-002",
       "category": "api-compat",
       "trigger_pattern": {
-        "files": ["apps/api/src/**/*.ts"],
+        "files": [
+          "apps/api/src/**/*.ts"
+        ],
         "symbols": [
           "res.setHeader",
           "res\\.json\\(",
           "res\\.send\\(",
           "res\\.status\\("
         ],
-        "frameworks": ["@nestjs/platform-fastify"]
+        "frameworks": [
+          "@nestjs/platform-fastify"
+        ]
       },
       "symptom": "res.setHeader is not a function (HTTP 500 on every request)",
       "root_cause_summary": "Express API used against Fastify reply wrapper",
@@ -73,14 +84,31 @@
           "apps/api/src/infra/**/*.ts",
           "apps/api/src/modules/**/*.ts"
         ],
-        "symbols": ["import type"],
+        "symbols": [
+          "import type"
+        ],
         "contexts": [
           "constructor params with DI",
           "@Body()",
           "@Query()",
           "@Param()",
           "@CurrentUser()"
-        ]
+        ],
+        "symbol_filters": {
+          "safe_suffixes": [
+            "Type",
+            "Interface",
+            "Dto",
+            "Context",
+            "Spec",
+            "Map",
+            "Key",
+            "Schema"
+          ],
+          "indeterminate_fallback": "prompt",
+          "added_by_change": "inc-024-detector-type-vs-di",
+          "task": "Task 3 of .openspec/changes/inc-024-detector-type-vs-di/tasks.md"
+        }
       },
       "symptom": "Nest can't resolve dependencies of the X service (?). Argument at index [0] is unavailable",
       "root_cause_summary": "import type erases the runtime value reference that emitDecoratorMetadata relies on for design:paramtypes",
@@ -100,8 +128,13 @@
       "id": "INC-004",
       "category": "prisma-config",
       "trigger_pattern": {
-        "files": ["apps/api/prisma/schema.prisma", "apps/api/package.json"],
-        "missing": ["prisma.seed block"]
+        "files": [
+          "apps/api/prisma/schema.prisma",
+          "apps/api/package.json"
+        ],
+        "missing": [
+          "prisma.seed block"
+        ]
       },
       "symptom": "pnpm db:seed exits 0 with no DB writes",
       "root_cause_summary": "Prisma's db seed command silently no-ops without a registered seed script",
@@ -124,7 +157,9 @@
           "apps/api/src/modules/health/**",
           "apps/api/src/modules/auth/auth.controller.ts"
         ],
-        "missing": ["@Public()"],
+        "missing": [
+          "@Public()"
+        ],
         "context": "global APP_GUARD with JwtAuthGuard"
       },
       "symptom": "GET /api/health returns 401; login endpoints reject all users",
@@ -143,8 +178,13 @@
       "id": "INC-006",
       "category": "dockerfile-order",
       "trigger_pattern": {
-        "files": ["apps/api/Dockerfile.dev", "apps/api/Dockerfile.prod"],
-        "symbols": ["prisma generate"],
+        "files": [
+          "apps/api/Dockerfile.dev",
+          "apps/api/Dockerfile.prod"
+        ],
+        "symbols": [
+          "prisma generate"
+        ],
         "context": "before COPY apps/api"
       },
       "symptom": "docker compose build fails: Could not find Prisma Schema",
@@ -163,8 +203,12 @@
       "id": "INC-007",
       "category": "eslint-config",
       "trigger_pattern": {
-        "files": ["**/package.json"],
-        "scripts": ["lint"],
+        "files": [
+          "**/package.json"
+        ],
+        "scripts": [
+          "lint"
+        ],
         "contains": "--config @.*\\/.*\\.js$"
       },
       "symptom": "ENOENT: no such file or directory, stat '.../@scope/config/file.js'",
@@ -184,8 +228,18 @@
       "id": "INC-008",
       "category": "port-collision",
       "trigger_pattern": {
-        "files": ["docker-compose.yml"],
-        "ports": ["1025", "8025", "3000", "3001", "5432", "4317", "4318"]
+        "files": [
+          "docker-compose.yml"
+        ],
+        "ports": [
+          "1025",
+          "8025",
+          "3000",
+          "3001",
+          "5432",
+          "4317",
+          "4318"
+        ]
       },
       "symptom": "Bind for 127.0.0.1:<port> failed: port is already allocated",
       "root_cause_summary": "Default well-known ports collide with sibling projects on the same host",
@@ -207,8 +261,13 @@
       "id": "INC-009",
       "category": "logger-pattern",
       "trigger_pattern": {
-        "files": ["apps/api/src/main.ts"],
-        "symbols": ["console.log", "console.warn"],
+        "files": [
+          "apps/api/src/main.ts"
+        ],
+        "symbols": [
+          "console.log",
+          "console.warn"
+        ],
         "context": "startup banner"
       },
       "symptom": "Lint no-console warning; or startup banner written to stderr breaking log shippers",
@@ -229,7 +288,9 @@
       "id": "INC-010",
       "category": "peer-warning",
       "trigger_pattern": {
-        "frameworks": ["@nestjs/swagger"],
+        "frameworks": [
+          "@nestjs/swagger"
+        ],
         "version": "^8.0.0",
         "actual": "11.x",
         "warning": "peer-depends on @fastify/static or @nestjs/common that does not match"
@@ -247,8 +308,12 @@
       "id": "INC-011",
       "category": "vite-cjs",
       "trigger_pattern": {
-        "files": ["apps/web/package.json"],
-        "missing": ["type: module"],
+        "files": [
+          "apps/web/package.json"
+        ],
+        "missing": [
+          "type: module"
+        ],
         "warning_emitted": "The CJS build of Vite's Node API is deprecated"
       },
       "symptom": "Vite deprecation warning on every vitest run",
@@ -313,7 +378,9 @@
           ".harness/pattern_match.py",
           ".harness/redact.py"
         ],
-        "symbols": ["\\bjq\\b"],
+        "symbols": [
+          "\\bjq\\b"
+        ],
         "context": "capture scripts that depend on jq silently no-op when jq is not installed"
       },
       "symptom": "The existing Prettier PostToolUse hook in ~/.claude/settings.json depends on jq. jq is not installed on this machine. The hook has been silently a no-op for months — every code change in the repo has gone through without ever being formatted by the hook.",
@@ -326,7 +393,9 @@
       "auto_check": {
         "type": "tool_dependency",
         "python3_required": true,
-        "forbidden_in_capture": ["jq"],
+        "forbidden_in_capture": [
+          "jq"
+        ],
         "rationale": "python3 is the only required interpreter; future hooks MUST NOT add new top-level deps without updating this check."
       },
       "alura_principle": "linter messages with correction instructions — the auto-check prints 'Fix: jq missing/broken; use python3 (see .harness/redact.py)' so the next maintainer knows the remediation path."
@@ -335,8 +404,12 @@
       "id": "INC-014",
       "category": "data-governance",
       "trigger_pattern": {
-        "files": [".gitignore"],
-        "missing": ["^.harness/events/"]
+        "files": [
+          ".gitignore"
+        ],
+        "missing": [
+          "^.harness/events/"
+        ]
       },
       "symptom": "Either events/<date>.jsonl is committed by mistake (leaking session state into the repo), or the agent refuses to capture because the dir doesn't exist (false negative).",
       "root_cause_summary": "The events stream is session state, not source-of-truth. It MUST be gitignored. The digest output (.harness/digest/) is the human-reviewable artifact and stays committed.",
@@ -356,7 +429,9 @@
       "id": "INC-015",
       "category": "operational-discipline",
       "trigger_pattern": {
-        "files": [".harness/digest/"],
+        "files": [
+          ".harness/digest/"
+        ],
         "freshness": "no digest mtime < 25h"
       },
       "symptom": "The daily agent silently stopped running. The harness kept capturing events but never converted them into learnings. After 7+ days, the system had ~10k events but the learnings.json was stale.",
@@ -402,7 +477,10 @@
       },
       "auto_check": {
         "type": "secret_shape_scan",
-        "scope": ["apps/", "packages/"],
+        "scope": [
+          "apps/",
+          "packages/"
+        ],
         "exclude": [
           "node_modules",
           ".next",
@@ -411,7 +489,13 @@
           "coverage",
           "standalone"
         ],
-        "exclude_terms": ["envSchema", "test", "spec", "mock", "fixture"],
+        "exclude_terms": [
+          "envSchema",
+          "test",
+          "spec",
+          "mock",
+          "fixture"
+        ],
         "rationale": "Token-shaped strings in first-party source are always a leak. Tests are excluded because they may legitimately contain mock tokens."
       },
       "alura_principle": "the sensor must catch leaks before they become permanent. The redactor (.harness/redact.py) is the seatbelt; the secret-shape scan is the airbag."
@@ -441,7 +525,9 @@
       "id": "INC-018",
       "category": "detector-design",
       "trigger_pattern": {
-        "files": [".harness/pattern_match.py"],
+        "files": [
+          ".harness/pattern_match.py"
+        ],
         "required_features": [
           "ev.get(\"tool_name\") == \"Read\"",
           "_TODO_TOOL_NAME",
@@ -468,8 +554,13 @@
       "id": "INC-019",
       "category": "detector-design",
       "trigger_pattern": {
-        "files": [".harness/pattern_match.py"],
-        "required_features": ["(?:^|[", "find|md5sum"]
+        "files": [
+          ".harness/pattern_match.py"
+        ],
+        "required_features": [
+          "(?:^|[",
+          "find|md5sum"
+        ]
       },
       "symptom": "L2 detector false-positives on multi-line Bash commands whose diagnostic tool (`find`, `cat`, etc.) is not on line 1. The bash scripts that wrap a `cd /path` + comment + diagnostic command slipped past `_DIAGNOSTIC_BASH_RE` because the regex anchored at `^`.",
       "root_cause_summary": "INC-018 introduced `_DIAGNOSTIC_BASH_RE` with `^\\s*(?:grep|cat|...)\\b`, which only matches at position 0. Multi-line bash like `cd /home/.../padrao\\n# Look for integration test files\\nfind apps packages -name '*.spec.ts'` has `find` at byte position 50+, not position 0, so the diagnostic-exclusion didn't fire and the `*.spec.ts` substring in the command payload triggered INC-012.",
@@ -489,8 +580,13 @@
       "id": "INC-020",
       "category": "detector-design",
       "trigger_pattern": {
-        "files": [".harness/pattern_match.py"],
-        "required_features": ["_symbol_matches", "_ALPHA_RE"]
+        "files": [
+          ".harness/pattern_match.py"
+        ],
+        "required_features": [
+          "_symbol_matches",
+          "_ALPHA_RE"
+        ]
       },
       "symptom": "L2 detector false-positives on alphabetic symbols that substring-match unrelated words. Most painfully, `xit` matched `exit`, `exiting`, `exits` — every bash script that printed `echo \"exit=$?\"` false-fired INC-012 (no skipped tests).",
       "root_cause_summary": "INC-012's symbol-axis check used `s in combined_text` plain substring semantics. For 3-letter alphabetic symbols like `xit`, this is too permissive — the substring appears in dozens of common English words.",
@@ -510,8 +606,12 @@
       "id": "INC-021",
       "category": "detector-design",
       "trigger_pattern": {
-        "files": [".harness/pattern_match.py"],
-        "required_features": ["shapes"]
+        "files": [
+          ".harness/pattern_match.py"
+        ],
+        "required_features": [
+          "shapes"
+        ]
       },
       "symptom": "L2 detector fires INC-016 (no hardcoded secrets) on every Edit to apps/ or packages/, because pattern_match.py silently ignored the `shapes` field of INC-016's trigger_pattern. The file-axis gate fired alone — the shape check was a no-op.",
       "root_cause_summary": "INC-016 declared its triggers as `shapes: [...]` (regex patterns for token shapes). pattern_match.py only checked `symbols`. The result: file-axis `≥2 hits under apps/**/*.ts` was sufficient to fire INC-016, even though the actual content had no token-shaped strings.",
@@ -531,8 +631,12 @@
       "id": "INC-022",
       "category": "detector-design",
       "trigger_pattern": {
-        "files": [".harness/pattern_match.py"],
-        "required_features": ["required_features"]
+        "files": [
+          ".harness/pattern_match.py"
+        ],
+        "required_features": [
+          "required_features"
+        ]
       },
       "symptom": "L2 detector fires INC-018 on every Edit to pattern_match.py, even when all required features are present. INC-018 is supposed to be a regression-detector (fires only when a feature is missing) but the code never checked the `required_features` field.",
       "root_cause_summary": "INC-018 declared its trigger as `required_features: [...]` — an anti-pattern list. pattern_match.py ignored this field entirely, so file-axis alone (≥2 hits on .harness/pattern_match.py) fired INC-018 on every code edit.",
@@ -552,8 +656,13 @@
       "id": "INC-023",
       "category": "detector-design",
       "trigger_pattern": {
-        "files": [".harness/pattern_match.py"],
-        "required_features": ["scoped_text", "scoped_parts"]
+        "files": [
+          ".harness/pattern_match.py"
+        ],
+        "required_features": [
+          "scoped_text",
+          "scoped_parts"
+        ]
       },
       "symptom": "L2 detector false-positives when the file-axis gate is satisfied but the symbol-axis evidence lives in completely unrelated events. The clearest case: any Edit to `.harness/learnings.json` (which legitimately contains `import type`, `xit`, and `ghp_` as trigger-pattern literals) bumps the file-axis count for INC-003/INC-012/INC-016, and the symbol-axis then matches the literal trigger text in the Edit body — every configuration edit triggers the patterns it configures.",
       "root_cause_summary": "pattern_match.py built `combined_text` from every event in the window (Read, Write, Edit, Bash — all 20 events). The symbol-axis check (`s in combined_text`) then matched trigger literals that happened to appear anywhere in the window, including legitimate configuration files. The semantic fix: when `trigger_pattern.files` is declared, restrict the symbol-axis text to the SAME events that count toward the file-axis gate. Trigger literals living in unrelated events stop mattering.",
@@ -573,9 +682,9 @@
       "id": "INC-024",
       "category": "detector-design",
       "trigger_pattern": {
-        "files": ["apps/api/src/**/*.ts"],
-        "symbols": ["import type"],
-        "context": "test files (*.spec.ts) OR type-only/interface bindings (non-DI)"
+        "files": [],
+        "symbols": [],
+        "context": "PASSIVE — INC-024 is now RESOLVED via .openspec/changes/inc-024-detector-type-vs-di/. The original trigger used to fire when a legitimate `import type` for a type/interface slipped through INC-003's tightened file-axis gate. With INC-003's new `symbol_filters.safe_suffixes` classifier, that emission is suppressed at the matcher layer."
       },
       "symptom": "L2 detector fires INC-003 on every legitimate `import type` for an interface or type alias in a NestJS-adjacent file. The clearest case: `import type { AuditContext }` in `audit-context.spec.ts` (an interface returned by AsyncLocalStorage, not a DI'd class) — same `import type` syntax, completely different semantic risk. The current detector counts both as DI violations.",
       "root_cause_summary": "INC-003's trigger pattern is a substring match on `import type` over any file under `apps/api/src/**/*.ts`. The pattern cannot distinguish between (a) `import type { PrismaService }` in a controller constructor (DI risk — `design:paramtypes` is undefined) and (b) `import type { AuditContext }` in a spec file (pure type — erased by TS at compile time, no runtime impact). Both match the same literal substring. INC-023's scoped symbol-axis correctly limits the matcher to file-axis hits but does not filter by file semantics (test vs production) or binding semantics (class vs type).",
@@ -585,11 +694,13 @@
         "section": "Type-only `import type` excluded from INC-003 (INC-024) — pending design decision"
       },
       "auto_check": {
-        "type": "manual_review",
-        "command": "n/a",
-        "expected": "INC-024 is a documented gap; auto-check deferred until one of the four candidate fixes (spec.ts glob tightening, scope by file category, positive-list override, or TypeScript compiler API) lands."
+        "type": "grep_audit",
+        "command": "Verify INC-003 entries' trigger_pattern.symbol_filters.safe_suffixes contains the eight registered suffixes and that pattern_match.py's TYPE_ONLY_SUFFIXES tuple stays in sync.",
+        "expected": "Either entry MUST list ['Type','Interface','Dto','Context','Spec','Map','Key','Schema'] as `safe_suffixes`."
       },
-      "alura_principle": "the right place to fix a detector that fires on legitimate code is the detector itself, not the operator. Until the four candidate fixes are evaluated, operators must confirm each prompt manually — which is acceptable cost for a low-frequency, low-impact prompt, but the long-term answer is making the detector understand binding semantics."
+      "alura_principle": "the right place to fix a detector that fires on legitimate code is the detector itself, not the operator. Until the four candidate fixes are evaluated, operators must confirm each prompt manually — which is acceptable cost for a low-frequency, low-impact prompt, but the long-term answer is making the detector understand binding semantics.",
+      "resolution_status": "resolved 2026-08-05",
+      "resolved_by_change": "inc-024-detector-type-vs-di"
     }
   ],
   "prevention_summary": {
@@ -611,18 +722,52 @@
       "fix-wave-orchestration": []
     },
     "by_policy": {
-      "no-skipped-tests": ["INC-012"],
-      "no-jq-in-capture": ["INC-013"],
-      "events-gitignored": ["INC-014"],
-      "digest-freshness": ["INC-015"],
-      "no-hardcoded-secrets": ["INC-016"],
-      "detector-excludes-docs": ["INC-017", "INC-018"]
+      "no-skipped-tests": [
+        "INC-012"
+      ],
+      "no-jq-in-capture": [
+        "INC-013"
+      ],
+      "events-gitignored": [
+        "INC-014"
+      ],
+      "digest-freshness": [
+        "INC-015"
+      ],
+      "no-hardcoded-secrets": [
+        "INC-016"
+      ],
+      "detector-excludes-docs": [
+        "INC-017",
+        "INC-018"
+      ],
+      "detector-symbol-axis-correctness": [
+        "INC-019",
+        "INC-020",
+        "INC-021",
+        "INC-022",
+        "INC-023"
+      ],
+      "detector-type-vs-di-gap": [
+        "INC-024"
+      ],
+      "detector-type-binding-classifier": [
+        "INC-024"
+      ]
     },
     "by_codemod": {
-      "inc-002-fastify-response": ["INC-002"],
-      "inc-003-nest-di-imports": ["INC-003"],
-      "inc-006-dockerfile-order": ["INC-006"],
-      "inc-009-nest-logger": ["INC-009"]
+      "inc-002-fastify-response": [
+        "INC-002"
+      ],
+      "inc-003-nest-di-imports": [
+        "INC-003"
+      ],
+      "inc-006-dockerfile-order": [
+        "INC-006"
+      ],
+      "inc-009-nest-logger": [
+        "INC-009"
+      ]
     },
     "by_auto_check_type": {
       "grep_audit": [
@@ -632,18 +777,48 @@
         "INC-011",
         "INC-012",
         "INC-017",
-        "INC-018"
+        "INC-018",
+        "INC-019",
+        "INC-020",
+        "INC-021",
+        "INC-022",
+        "INC-023",
+        "INC-024"
       ],
-      "package_json_field": ["INC-004"],
-      "package_json_dep": ["INC-001"],
-      "lint_rule_override": ["INC-003"],
-      "dockerfile_lint": ["INC-006"],
-      "compose_lint": ["INC-008"],
-      "e2e_test": ["INC-005"],
-      "tool_dependency": ["INC-013"],
-      "gitignore_entry": ["INC-014"],
-      "freshness_check": ["INC-015"],
-      "secret_shape_scan": ["INC-016"]
+      "package_json_field": [
+        "INC-004"
+      ],
+      "package_json_dep": [
+        "INC-001"
+      ],
+      "lint_rule_override": [
+        "INC-003"
+      ],
+      "dockerfile_lint": [
+        "INC-006"
+      ],
+      "compose_lint": [
+        "INC-008"
+      ],
+      "e2e_test": [
+        "INC-005"
+      ],
+      "tool_dependency": [
+        "INC-013"
+      ],
+      "gitignore_entry": [
+        "INC-014"
+      ],
+      "freshness_check": [
+        "INC-015"
+      ],
+      "secret_shape_scan": [
+        "INC-016"
+      ],
+      "manual_review": [],
+      "symbol_axis_classifier": [
+        "INC-003"
+      ]
     },
     "next_skill_to_create": null,
     "suggested_agent_rule_updates": [
