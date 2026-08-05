@@ -1,6 +1,5 @@
 import type { UserHistoryEntry } from "@ai-padrao/contracts";
 import { Name } from "../../domain/value-objects/name";
-import { Email } from "../../domain/value-objects/email";
 import { User } from "../../domain/entities/user";
 import { InMemoryUserRepository } from "../testing/in-memory-user.repository";
 import { GetUserHistoryUseCase } from "./get-user-history.use-case";
@@ -93,13 +92,11 @@ describe("GetUserHistoryUseCase", () => {
 
     expect(firstRead).toEqual(secondRead);
     expect(firstRead[1]?.snapshot).toMatchObject({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      name: (initial.toJSON() as any).name,
+      name: initial.toJSON().name,
     });
     // The snapshot captured the prior state, not the post-update state.
     expect(firstRead[1]?.snapshot).toMatchObject({
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      name: "User u1" as any,
+      name: "User u1",
     });
   });
 
