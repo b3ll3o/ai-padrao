@@ -1,4 +1,8 @@
-import type { JwtService } from "@nestjs/jwt";
+// Nest DI needs the runtime value here; `import type` would erase the
+// constructor parameter from design:paramtypes (INC-003). Matches the
+// convention used in jwt.strategy.ts and the Prisma* adapters.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { JwtService } from "@nestjs/jwt";
 import type {
   AccessTokenIssuerPort,
   AccessTokenPayload,
