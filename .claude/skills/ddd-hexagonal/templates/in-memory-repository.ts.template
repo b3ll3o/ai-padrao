@@ -1,0 +1,42 @@
+// Template: In-Memory Repository (test double for use case tests)
+// Reference (live example): apps/api/src/contexts/users/application/testing/in-memory-user.repository.ts
+//
+// Convenção ai-padrao:
+// - Implementa a port com Map<id, entity> em memória
+// - Lógica idêntica ao adapter real (happy + errors)
+// - Reset method para cleanup entre tests
+// - SEM framework (sem @Injectable)
+
+import { <Entity> } from "../../domain/entities/<entity>";
+import type { <<Entity>RepositoryPort> } from "../../domain/ports/<entity>-repository.port";
+
+export class InMemory<Entity>Repository implements <<Entity>RepositoryPort> {
+  private readonly store = new Map<string, <Entity>>();
+
+  async findById(id: string): Promise<<Entity> | null> {
+    return this.store.get(id) ?? null;
+  }
+
+  async findBy<Field>(value: string): Promise<<Entity> | null> {
+    for (const entity of this.store.values()) {
+      if (entity.<field> === value) {
+        return entity;
+      }
+    }
+    return null;
+  }
+
+  async save(entity: <Entity>): Promise<<Entity>> {
+    this.store.set(entity.id, entity);
+    return entity;
+  }
+
+  async delete(id: string): Promise<void> {
+    this.store.delete(id);
+  }
+
+  // Test helper — NOT part of the port
+  reset(): void {
+    this.store.clear();
+  }
+}
