@@ -291,6 +291,39 @@ check "INC-017: detector excludes docs from file-axis" \
   '
 
 # ---------------------------------------------------------------
+# INC-027 — Cyclomatic complexity ≤ 10 enforced across apps/* and packages/*
+# Runs ESLint with the repo's shared base config so the same rule that's
+# enforced per-workspace by `pnpm lint` is also enforced at the harness
+# layer. Functions over the threshold (10) fail the build. Test files
+# are intentionally in scope; legitimate hotspots use
+# `// eslint-disable-next-line complexity -- <reason>` (see design.md in
+# .openspec/changes/complexity-gate/).
+# ---------------------------------------------------------------
+check "INC-027: cyclomatic complexity ≤ 10 in apps/ and packages/" \
+  bash -c '
+    set +e
+    out=$(pnpm exec eslint --no-warn-ignored \
+      --no-config-lookup \
+      --config packages/config-eslint/base.js \
+      apps packages \
+      --ext .ts,.tsx 2>&1)
+    rc=$?
+    complexity_errors=$(printf "%s\n" "$out" | grep -E "complexity" || true)
+    if [ -n "$complexity_errors" ]; then
+      echo "$complexity_errors" | sed "s/^/  /"
+      echo "  One or more functions in apps/ or packages/ exceed cyclomatic complexity 10."
+      echo "  Split into helpers, or annotate with \`// eslint-disable-next-line complexity\`"
+      echo "  and a justification comment."
+      exit 1
+    fi
+    if [ "$rc" -ne 0 ] && [ "$rc" -ne 1 ]; then
+      echo "  ESLint failed to run for an unrelated reason (exit $rc):"
+      echo "$out" | sed "s/^/    /" | tail -20
+      exit 1
+    fi
+  '
+
+# ---------------------------------------------------------------
 # INC-018 — L2 detector excludes Read/TodoWrite/worktree/heredoc/tool_input
 # Ten required features must be present in pattern_match.py (covers
 # INC-017, INC-018, INC-019, INC-020, INC-021, INC-022). Without all ten,
