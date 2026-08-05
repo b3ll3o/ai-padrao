@@ -1,0 +1,22 @@
+// Template: Domain Error (framework-free, custom Error subclass)
+// Reference (live example): apps/api/src/contexts/users/domain/errors/<concrete-example>.error.ts
+//
+// Convenção ai-padrao:
+// - extends Error (no @nestjs/*)
+// - `code` readonly property com string estável usada pelo HTTP layer
+//   para mapear o erro → status code (ver exceptions filter no app.module).
+// - constructor aceita `entityId` (e qualquer outro contexto relevante)
+//   e uma mensagem opcional.
+// - `name` é sobrescrito para o nome da classe — facilita logs e stack traces.
+
+export class <Entity><Situation>Error extends Error {
+  readonly code = "<ENTITY>_<SITUATION>";
+
+  constructor(
+    public readonly entityId: string,
+    message?: string,
+  ) {
+    super(message ?? `<Entity> ${entityId} <situation>`);
+    this.name = "<Entity><Situation>Error";
+  }
+}

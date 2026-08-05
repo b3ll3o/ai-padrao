@@ -8,9 +8,9 @@
 // - SEM framework (sem @Injectable)
 
 import { <Entity> } from "../../domain/entities/<entity>";
-import type { <<Entity>RepositoryPort> } from "../../domain/ports/<entity>-repository.port";
+import type { <Entity>RepositoryPort } from "../../domain/ports/<entity>-repository.port";
 
-export class InMemory<Entity>Repository implements <<Entity>RepositoryPort> {
+export class InMemory<Entity>Repository implements <Entity>RepositoryPort {
   private readonly store = new Map<string, <Entity>>();
 
   async findById(id: string): Promise<<Entity> | null> {

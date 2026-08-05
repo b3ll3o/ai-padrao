@@ -5,29 +5,36 @@ Rodar todos os itens antes de pedir review da feature. Cada `✓` significa veri
 ## 1. Domain purity
 
 - [ ] `apps/api/src/contexts/<ctx>/domain/` NÃO importa `@nestjs/*`
+
   ```bash
   grep -rn "@nestjs" apps/api/src/contexts/<ctx>/domain/
   # Expected: empty output
   ```
+
 - [ ] `apps/api/src/contexts/<ctx>/domain/` NÃO importa `@prisma/*`
+
   ```bash
   grep -rn "@prisma" apps/api/src/contexts/<ctx>/domain/
   # Expected: empty output
   ```
+
 - [ ] Toda entity tem invariantes validadas no construtor (sem setters crus)
 - [ ] Value Objects são imutáveis (sem setters, retornam nova instância)
 
 ## 2. Application layer
 
 - [ ] Cada use case tem `*.spec.ts` correspondente
+
   ```bash
   diff <(find apps/api/src/contexts/<ctx>/application/use-cases -name '*.use-case.ts' | sort) \
        <(find apps/api/src/contexts/<ctx>/application/use-cases -name '*.spec.ts' \
-          | sed 's/\.spec\.ts$/.use-case.ts/' | sort)
+          | sed 's/\.use-case\.spec\.ts$/.use-case.ts/' | sort)
   # Expected: no diff
   ```
+
 - [ ] Use cases recebem port via construtor (NÃO `new PrismaXRepository()` direto)
 - [ ] `application/` NÃO importa `@prisma/client`
+
   ```bash
   grep -rn "@prisma" apps/api/src/contexts/<ctx>/application/
   # Expected: empty output
@@ -53,16 +60,18 @@ Rodar todos os itens antes de pedir review da feature. Cada `✓` significa veri
 
 - [ ] `<ctx>-context.module.ts` registrado em `apps/api/src/app.module.ts`
 - [ ] DI tokens são `Symbol` declarados em `<ctx>-context.tokens.ts` (não string, não classe concreta)
-- [ ] Cada port tem binding: `{ provide: X_PORT, useClass: PrismaXRepository }`
+- [ ] Cada port tem binding: `{ provide: X_PORT, useFactory: ... }` + `{ provide: X_PORT, useExisting: ... }` (NÃO `useClass` — sidesteps INC-003 metadata issues; matches live `users-context.module.ts`)
 - [ ] `import type` proibido em qualquer arquivo de DI (controllers, services, guards, strategies) — INC-003
 
 ## 6. Tests
 
 - [ ] Zero `.skip` / `.todo` / `--passWithNoTests` (INC-012)
+
   ```bash
   grep -rn "\.skip\|\.todo\|passWithNoTests" apps/api/src/contexts/<ctx>/
   # Expected: empty output
   ```
+
 - [ ] E2e em `apps/api/test/<ctx>.e2e-spec.ts` exercita ao menos 1 happy path + 1 erro por rota
 - [ ] `*.spec.ts` existe para cada entity, value object, use case, mapper e adapter
 

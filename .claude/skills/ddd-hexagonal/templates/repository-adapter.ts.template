@@ -3,18 +3,20 @@
 //
 // Convenção ai-padrao:
 // - Implementa a port via `implements <Entity>RepositoryPort`
-// - Recebe PrismaClient via construtor (não `new PrismaClient()`)
+// - Recebe PrismaService via construtor (NÃO PrismaClient puro) —
+//   PrismaService ativa a audit extension (soft-delete filter em reads).
+//   Production contexts MUST use PrismaService. Tests can mock it.
 // - Toda query passa pelo mapper antes de retornar para application/
 // - Emite erros de domínio (`<Entity>NotFoundError`), nunca strings cruas
 
-import { PrismaClient } from "@prisma/client";
 import { <Entity> } from "../../../domain/entities/<entity>";
 import { <Entity>NotFoundError } from "../../../domain/errors/<entity>-not-found.error";
-import type { <<Entity>RepositoryPort> } from "../../../domain/ports/<entity>-repository.port";
+import type { <Entity>RepositoryPort } from "../../../domain/ports/<entity>-repository.port";
+import { PrismaService } from "../../../infra/prisma/prisma.service";
 import { <Entity>Mapper } from "./<entity>.mapper";
 
-export class Prisma<Entity>Repository implements <<Entity>RepositoryPort> {
-  constructor(private readonly prisma: PrismaClient) {}
+export class Prisma<Entity>Repository implements <Entity>RepositoryPort {
+  constructor(private readonly prisma: PrismaService) {}
 
   async findById(id: string): Promise<<Entity> | null> {
     const record = await this.prisma.<entity>.findUnique({ where: { id } });
@@ -24,6 +26,16 @@ export class Prisma<Entity>Repository implements <<Entity>RepositoryPort> {
   async findBy<Field>(value: string): Promise<<Entity> | null> {
     const record = await this.prisma.<entity>.findUnique({ where: { <field>: value } });
     return record ? <Entity>Mapper.toDomain(record) : null;
+  }
+
+  async findAll(): Promise<<Entity>[]> {
+    const records = await this.prisma.<entity>.findMany();
+    return records.map(<Entity>Mapper.toDomain);
+  }
+
+  async existsById(id: string): Promise<boolean> {
+    const count = await this.prisma.<entity>.count({ where: { id } });
+    return count > 0;
   }
 
   async save(entity: <Entity>): Promise<<Entity>> {

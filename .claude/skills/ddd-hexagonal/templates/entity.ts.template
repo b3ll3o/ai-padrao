@@ -8,7 +8,7 @@
 // - toJSON() para serialização (DTO em @ai-padrao/contracts)
 
 import type { <Entity>Dto } from "@ai-padrao/contracts";
-import { <ValueObject1> } from "../value-objects/<value-object-1>";
+import { <ValueObject> } from "../value-objects/<value-object>";
 
 export interface <Entity>PrimitiveProps {
   id: string;
@@ -20,7 +20,7 @@ export interface <Entity>PrimitiveProps {
 
 interface <Entity>Props {
   id: string;
-  <field1>: <ValueObject1>;
+  <field>: <ValueObject>;
   // ...rich domain types
   createdAt: Date;
   updatedAt: Date;
@@ -34,7 +34,7 @@ export class <Entity> {
     // Validate invariants HERE (throw on violation)
     return new <Entity>({
       id: p.id,
-      <field1>: <ValueObject1>.create(p.<field1>),
+      <field>: <ValueObject>.create(p.<field>),
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
       version: p.version,
@@ -43,23 +43,23 @@ export class <Entity> {
 
   // Getters (read-only access)
   get id(): string { return this.props.id; }
-  get <field1>(): <ValueObject1> { return this.props.<field1>; }
+  get <field>(): <ValueObject> { return this.props.<field>; }
   get createdAt(): Date { return this.props.createdAt; }
   get updatedAt(): Date { return this.props.updatedAt; }
   get version(): number { return this.props.version; }
 
   // Domain methods (return new instance if mutated)
-  rename(next: <ValueObject1>): <Entity> {
-    if (this.props.<field1>.equals(next)) {
+  rename(next: <ValueObject>): <Entity> {
+    if (this.props.<field>.equals(next)) {
       return this;
     }
-    return new <Entity>({ ...this.props, <field1>: next, updatedAt: new Date() });
+    return new <Entity>({ ...this.props, <field>: next, updatedAt: new Date() });
   }
 
   toJSON(): <Entity>Dto {
     return {
       id: this.props.id,
-      <field1>: this.props.<field1>.value,
+      <field>: this.props.<field>.value,
       createdAt: this.props.createdAt,
       updatedAt: this.props.updatedAt,
       version: this.props.version,

@@ -83,6 +83,11 @@ apps/api/src/contexts/<ctx>/
 - Errors: `<entidade><situacao>Error` (`UserNotFoundError`)
 - DI tokens: `<ENTIDADE>_PORT` (constante exportada de `<ctx>-context.tokens.ts`)
 
+**Convenção de placeholders nos templates:**
+- `<ctx>` é a forma kebab-case do nome da pasta do contexto (ex.: `users`, `billing`).
+- `<CTX>` é a forma UPPER_SNAKE_CASE do mesmo nome (ex.: `USERS`, `BILLING`), usada em DI tokens (`<CTX>_EVENT_BUS_PORT`).
+- `<Entities>` assume plural regular `+s` (User→Users). Plurais irregulares (Person→People, Child→Children) exigem edição manual após copiar o template.
+
 ---
 
 ## 3. Workflow de criação (ordem obrigatória)

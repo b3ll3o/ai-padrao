@@ -9,10 +9,10 @@
 
 import { <Entity> } from "../../domain/entities/<entity>";
 import { <Entity>NotFoundError } from "../../domain/errors/<entity>-not-found.error";
-import type { <<Entity>RepositoryPort> } from "../../domain/ports/<entity>-repository.port";
+import type { <Entity>RepositoryPort } from "../../domain/ports/<entity>-repository.port";
 
 export class <Verb><Entity>UseCase {
-  constructor(private readonly repository: <<Entity>RepositoryPort>) {}
+  constructor(private readonly repository: <Entity>RepositoryPort) {}
 
   async execute(id: string): Promise<<Entity>> {
     const entity = await this.repository.findById(id);

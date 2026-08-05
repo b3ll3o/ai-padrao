@@ -9,12 +9,17 @@
 
 import type { <Entity> } from "../entities/<entity>";
 
-export interface <<Entity>RepositoryPort> {
+export interface <Entity>RepositoryPort {
   findById(id: string): Promise<<Entity> | null>;
   findBy<Field>(value: string): Promise<<Entity> | null>;
   findAll(): Promise<<Entity>[]>;
   existsById(id: string): Promise<boolean>;
   save(entity: <Entity>): Promise<<Entity>>;
   delete(id: string): Promise<void>;
-  // Add other methods as needed (list, update, etc.)
+  // ADR-014: audit-aware ports MUST also expose:
+  //   - findByIdIncludingDeleted(id): for restoring soft-deleted rows
+  //   - softDelete(id, actor): writes a history row, sets deletedAt
+  //   - restore(id, actor): clears deletedAt, writes a history row
+  //   - getHistory(id): returns the audit trail
+  // Skip these only for non-audited contexts (rare).
 }
