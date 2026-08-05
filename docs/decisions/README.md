@@ -15,7 +15,7 @@ Each ADR has four sections: **Context**, **Decision**, **Consequences**,
 **Enforcement**. Conventions: `Status: Accepted`, `Date: 2026-08-04` for all
 ADRs in this initial set.
 
-## Index (13 ADRs)
+## Index (14 ADRs)
 
 | ADR                                                          | Title                                                   | Incident | Tag                             |
 | ------------------------------------------------------------ | ------------------------------------------------------- | -------- | ------------------------------- |
@@ -33,6 +33,7 @@ ADRs in this initial set.
 | [ADR-013](ADR-013-independent-80-percent-coverage.md)        | Independent 80% coverage per app + metric               | —        | testing                         |
 | [ADR-014](ADR-014-domain-audit-foundation.md)                | Domain audit: typed history, soft-delete, versioning    | —        | api-design                      |
 | [ADR-015](ADR-015-bind-mount-prisma-dir-in-api-container.md) | Bind-mount `apps/api/prisma/` into the api container    | INC-026  | docker-dev-loop                 |
+| [ADR-018](ADR-018-documentation-coverage-skill.md)           | Documentation coverage is a build-time concern          | INC-028  | documentation                   |
 
 ## The three highest-traffic ADRs
 

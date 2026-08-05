@@ -16,7 +16,7 @@ Make every change in this repo **carry its own documentation** by default, and m
 1. A globally-installable Claude skill (`~/.claude/skills/documentation/`) that auto-activates when the agent edits code or docs.
 2. The skill classifies every change into one of the four Diátaxis quadrants and enforces that the corresponding artifact (JSDoc / ADR / README / OpenSpec spec / runbook) exists.
 3. A manual `audit` mode produces a coverage report and (optionally) fills the gaps in parallel.
-4. A new `.harness/check.sh` entry (`INC-018-doc-coverage`) fails the build if any bounded context lacks a README or if a touched file drops below 80% JSDoc coverage on its public surface.
+4. A new `.harness/check.sh` entry (`INC-028-doc-coverage` — the next free number after INC-027 which is the cyclomatic-complexity check) fails the build if any bounded context lacks a README or if a touched file drops below 80% JSDoc coverage on its public surface.
 
 ## Background / motivation
 
