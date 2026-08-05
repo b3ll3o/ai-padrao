@@ -39,6 +39,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma client
+        # The Prisma client is generated from apps/api/prisma/schema.prisma and
+        # must exist before typecheck/lint/test steps run — `apps/api` imports
+        # enum types like `UserRole` from `@prisma/client`, and the stub package
+        # alone does not export them. No postinstall hook exists, so we run
+        # this explicitly here.
+        run: pnpm --filter @ai-padrao/api prisma:generate
+
       - name: Harness auto-checks
         run: pnpm harness:check
 
