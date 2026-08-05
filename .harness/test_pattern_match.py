@@ -70,6 +70,22 @@ def _noise_event(idx):
     return {"tool_name": "Read", "file_path": "README.md"}
 
 
+def _spec_event(idx, body):
+    """A Write event on a path that hits INC-012's spec.ts glob.
+
+    The path is constructed at runtime so the test source does NOT carry
+    the contiguous `*.spec.ts` substring (which would self-trigger on
+    every Read of this file).
+    """
+    path = "apps/api/src/" + "foo{}.spec".format(idx) + "." + "ts"
+    return {
+        "tool_name": "Write",
+        "file_path": path,
+        "description": body[:60],
+        "tool_input": {"file_path": path, "content": body},
+    }
+
+
 # ---------------------------------------------------------------------------
 # Harness: pipe a synthetic window through pattern_match.main()
 # ---------------------------------------------------------------------------
@@ -305,6 +321,57 @@ class PatternMatchNoiseExclusion(unittest.TestCase):
         rc, ids = _run(window)
         self.assertEqual(rc, 0, "expected clean exit, got non-zero")
         self.assertEqual(ids, [], f"expected no INC id, got {ids}")
+
+    def test_multiline_diagnostic_bash_excluded(self):
+        """INC-019: multi-line bash scripts where `find` is not on line 1 still excluded.
+
+        Pre-fix: _DIAGNOSTIC_BASH_RE used `^\\s*find\\b`, which only matched
+        at position 0 of the command string. Scripts like
+        `cd /x\\nfind apps packages -name "*.spec.ts"` slipped through and
+        the `find` command's payload substring-matched INC-012's spec.ts
+        glob. Post-fix: the regex allows the diagnostic command to appear
+        after whitespace or shell separators (`;`, `&`, `|`) — anywhere
+        in the multiline string.
+        """
+        cmd = (
+            "cd /home/leo/Documentos/projetos/padrao\n"
+            "# Look for integration test files\n"
+            "find apps packages -name '*.spec.ts' -print 2>/dev/null"
+        )
+        window = [{"tool_name": "Bash", "tool_input": {"command": cmd}} for _ in range(20)]
+        rc, ids = _run(window)
+        self.assertEqual(rc, 0, "expected clean exit, got non-zero")
+        self.assertEqual(ids, [], f"expected no INC id, got {ids}")
+
+    def test_xit_does_not_match_exit_word(self):
+        """INC-020: `xit` symbol must NOT match the substring inside `exit`, `exiting`, etc.
+
+        Pre-fix: symbol-axis used `s in combined_text` plain substring, so
+        `xit` matched the middle of `exit`, `exiting`, `exits`. Bash
+        scripts that print `echo "exit=$?"` false-fired INC-012. Post-fix:
+        alphabetic symbols use word boundaries (`\\bxit\\b`).
+        """
+        # Two events that hit INC-012's spec.ts file-axis, plus a body
+        # whose only `xit`-shaped substring is inside the word `exit`.
+        body_with_exit = "// run-time check exited successfully with exit=0"
+        window = [_spec_event(i, body_with_exit) for i in range(2)]
+        window.extend(_noise_event(i) for i in range(18))
+        rc, ids = _run(window)
+        self.assertEqual(rc, 0, "expected clean exit, got non-zero")
+        self.assertEqual(ids, [], f"expected no INC id, got {ids}")
+
+    def test_xit_still_matches_standalone(self):
+        """INC-020: `xit` symbol DOES match the standalone word `xit`.
+
+        Guards against the word-boundary fix accidentally weakening
+        detection of the actual forbidden pattern.
+        """
+        body_with_xit = "// legacy: xit('pending work')"
+        window = [_spec_event(i, body_with_xit) for i in range(2)]
+        window.extend(_noise_event(i) for i in range(18))
+        rc, ids = _run(window)
+        self.assertEqual(rc, 0)
+        self.assertEqual(ids, ["INC-012"], f"expected INC-012, got {ids}")
 
 
 if __name__ == "__main__":

@@ -292,16 +292,19 @@ check "INC-017: detector excludes docs from file-axis" \
 
 # ---------------------------------------------------------------
 # INC-018 — L2 detector excludes Read/TodoWrite/worktree/heredoc/tool_input
-# Six required features must be present in pattern_match.py:
-#   1. 'Read' tool_name skip from file-axis
-#   2. TodoWrite skip (constant _TODO_TOOL_NAME)
-#   3. .claude/worktrees/ regex inside SOURCE_PATH_PATTERNS
-#   4. python3 << heredoc support in _DIAGNOSTIC_BASH_RE
-#   5. tool_input.command lookup (not just top-level event['command'])
-#   6. SOURCE_PATH_PATTERNS regex tolerates absolute paths (leading slash
-#      + any path segments before docs/.harness) AND the file_path
-#      lookup reads tool_input.file_path as a fallback.
-# Without all six, the detector false-positives on every session action.
+# Ten required features must be present in pattern_match.py (covers
+# INC-017, INC-018, INC-019, INC-020, INC-021, INC-022). Without all ten,
+# the detector false-positives on every session action.
+#   1. INC-018 Read-skip
+#   2. INC-018 TodoWrite-skip
+#   3. INC-018 worktree-regex
+#   4. INC-018 heredoc-regex (python3 << support)
+#   5. INC-018 tool_input-command lookup
+#   6. INC-018 absolute-path-regex tolerates leading slash
+#   7. INC-018 tmp-path-regex
+#   8. INC-019 diagnostic-bash regex accepts commands after shell separators
+#   9. INC-020 alphabetic symbol-axis uses word boundaries
+#  10. INC-021+022 shapes + required_features recognized in trigger_pattern
 # ---------------------------------------------------------------
 check "INC-018: detector excludes Read/TodoWrite/worktree/heredoc" \
   bash -c '
@@ -328,10 +331,28 @@ check "INC-018: detector excludes Read/TodoWrite/worktree/heredoc" \
     if ! grep -qE "/tmp/" "$pm"; then
       missing="$missing tmp-path-regex"
     fi
+    # INC-019: diagnostic-bash regex must allow diagnostic commands to appear
+    # after whitespace or shell separators, not only at position 0.
+    if ! grep -qF "(?:^|[" "$pm"; then
+      missing="$missing shell-separator-bash-regex (INC-019)"
+    fi
+    # INC-020: alphabetic symbols use word-boundary regex (\b...\b).
+    if ! grep -qF "_symbol_matches" "$pm"; then
+      missing="$missing word-boundary-symbol-matcher (INC-020)"
+    fi
+    # INC-021: shapes field is read alongside symbols.
+    if ! grep -qF "shapes" "$pm"; then
+      missing="$missing shapes-axis (INC-021)"
+    fi
+    # INC-022: required_features anti-pattern gate is implemented.
+    if ! grep -qF "required_features" "$pm"; then
+      missing="$missing required_features-axis (INC-022)"
+    fi
     if [ -n "$missing" ]; then
-      echo "  .harness/pattern_match.py is missing INC-018 features:$missing"
-      echo "  Without them, the L2 detector will false-positive on Read,"
-      echo "  TodoWrite, worktree, absolute-path, and python-heredoc events."
+      echo "  .harness/pattern_match.py is missing INC-018..INC-022 features:$missing"
+      echo "  Without them, the L2 detector false-positives on multi-line"
+      echo "  bash scripts, alphabetic symbol substrings, INC-016 file-axis,"
+      echo "  and INC-018 edits to pattern_match.py itself."
       exit 1
     fi
   '

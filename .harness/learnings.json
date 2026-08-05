@@ -438,11 +438,11 @@
       "trigger_pattern": {
         "files": [".harness/pattern_match.py"],
         "required_features": [
-          "tool_name == 'Read' skip",
-          "tool_name == 'TodoWrite' skip",
-          "SOURCE_PATH_PATTERNS entry matching \\.claude/worktrees/",
-          "_DIAGNOSTIC_BASH_RE matching python3 <<",
-          "tool_input.command lookup (not just top-level event['command'])"
+          "ev.get(\"tool_name\") == \"Read\"",
+          "_TODO_TOOL_NAME",
+          "claude/worktrees",
+          "python3\\s+(?:-c\\b|<<)",
+          "tool_input.get(\"command\")"
         ]
       },
       "symptom": "L2 detector false-positives on Read events, TodoWrite events, .claude/worktrees/<name>/ paths, and python3 << 'PY' heredocs. Every session action triggered INC-004 confirmation, even pure inspection events that never mutated runtime source.",
@@ -458,6 +458,90 @@
         "expected": "all five required features present"
       },
       "alura_principle": "the L2 detector must distinguish intent (Read vs Edit/Write) and context (worktree vs main repo, heredoc vs command). The exclusion list at pattern_match.py is the seatbelt; the auto-check is the airbag."
+    },
+    {
+      "id": "INC-019",
+      "category": "detector-design",
+      "trigger_pattern": {
+        "files": [".harness/pattern_match.py"],
+        "required_features": ["(?:^|[", "find|md5sum"]
+      },
+      "symptom": "L2 detector false-positives on multi-line Bash commands whose diagnostic tool (`find`, `cat`, etc.) is not on line 1. The bash scripts that wrap a `cd /path` + comment + diagnostic command slipped past `_DIAGNOSTIC_BASH_RE` because the regex anchored at `^`.",
+      "root_cause_summary": "INC-018 introduced `_DIAGNOSTIC_BASH_RE` with `^\\s*(?:grep|cat|...)\\b`, which only matches at position 0. Multi-line bash like `cd /home/.../padrao\\n# Look for integration test files\\nfind apps packages -name '*.spec.ts'` has `find` at byte position 50+, not position 0, so the diagnostic-exclusion didn't fire and the `*.spec.ts` substring in the command payload triggered INC-012.",
+      "prevention": {
+        "type": "policy",
+        "ref": "AGENTS.md §Continuous learning → Detector exclusion list",
+        "section": "Bash events matching read-only diagnostic regex (INC-017 + INC-018)"
+      },
+      "auto_check": {
+        "type": "grep_audit",
+        "command": "grep -F '(?:^|[' .harness/pattern_match.py",
+        "expected": "shell-separator-aware diagnostic regex present"
+      },
+      "alura_principle": "a regex that anchors at the start of a string fails on multi-line input. Diagnostic bash detection must look for the diagnostic command anywhere in the multiline string."
+    },
+    {
+      "id": "INC-020",
+      "category": "detector-design",
+      "trigger_pattern": {
+        "files": [".harness/pattern_match.py"],
+        "required_features": ["_symbol_matches", "_ALPHA_RE"]
+      },
+      "symptom": "L2 detector false-positives on alphabetic symbols that substring-match unrelated words. Most painfully, `xit` matched `exit`, `exiting`, `exits` — every bash script that printed `echo \"exit=$?\"` false-fired INC-012 (no skipped tests).",
+      "root_cause_summary": "INC-012's symbol-axis check used `s in combined_text` plain substring semantics. For 3-letter alphabetic symbols like `xit`, this is too permissive — the substring appears in dozens of common English words.",
+      "prevention": {
+        "type": "policy",
+        "ref": "AGENTS.md §Continuous learning → Detector exclusion list",
+        "section": "alphabetic symbol-axis uses word boundaries (INC-020)"
+      },
+      "auto_check": {
+        "type": "grep_audit",
+        "command": "grep -F '_symbol_matches' .harness/pattern_match.py",
+        "expected": "word-boundary symbol matcher present"
+      },
+      "alura_principle": "substring matching is not symbol matching. A 3-letter symbol like `xit` needs word boundaries to avoid matching the middle of `exit`. The Alura principle of correcting the false-positive at the source, not at the consumer."
+    },
+    {
+      "id": "INC-021",
+      "category": "detector-design",
+      "trigger_pattern": {
+        "files": [".harness/pattern_match.py"],
+        "required_features": ["shapes"]
+      },
+      "symptom": "L2 detector fires INC-016 (no hardcoded secrets) on every Edit to apps/ or packages/, because pattern_match.py silently ignored the `shapes` field of INC-016's trigger_pattern. The file-axis gate fired alone — the shape check was a no-op.",
+      "root_cause_summary": "INC-016 declared its triggers as `shapes: [...]` (regex patterns for token shapes). pattern_match.py only checked `symbols`. The result: file-axis `≥2 hits under apps/**/*.ts` was sufficient to fire INC-016, even though the actual content had no token-shaped strings.",
+      "prevention": {
+        "type": "policy",
+        "ref": "AGENTS.md §Continuous learning → Detector exclusion list",
+        "section": "shapes field recognized (INC-021)"
+      },
+      "auto_check": {
+        "type": "grep_audit",
+        "command": "grep -F 'shapes' .harness/pattern_match.py",
+        "expected": "shapes-axis honored"
+      },
+      "alura_principle": "silently ignoring a config field is worse than rejecting it — the user gets no signal that the field exists. Either implement the field or remove it from the schema."
+    },
+    {
+      "id": "INC-022",
+      "category": "detector-design",
+      "trigger_pattern": {
+        "files": [".harness/pattern_match.py"],
+        "required_features": ["required_features"]
+      },
+      "symptom": "L2 detector fires INC-018 on every Edit to pattern_match.py, even when all required features are present. INC-018 is supposed to be a regression-detector (fires only when a feature is missing) but the code never checked the `required_features` field.",
+      "root_cause_summary": "INC-018 declared its trigger as `required_features: [...]` — an anti-pattern list. pattern_match.py ignored this field entirely, so file-axis alone (≥2 hits on .harness/pattern_match.py) fired INC-018 on every code edit.",
+      "prevention": {
+        "type": "policy",
+        "ref": "AGENTS.md §Continuous learning → Detector exclusion list",
+        "section": "required_features anti-pattern gate (INC-022)"
+      },
+      "auto_check": {
+        "type": "grep_audit",
+        "command": "grep -F 'required_features' .harness/pattern_match.py",
+        "expected": "required_features-axis implemented"
+      },
+      "alura_principle": "regression-detectors must gate on the regression, not on the file. INC-018 is about whether the features are still present — checking the file alone is a false-positive waiting to happen."
     }
   ],
   "prevention_summary": {
