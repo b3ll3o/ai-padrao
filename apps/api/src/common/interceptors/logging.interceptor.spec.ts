@@ -36,7 +36,9 @@ describe("LoggingInterceptor", () => {
       new LoggingInterceptor().intercept(ctx, buildHandler()),
     );
     expect(result).toBe("payload");
-    expect((req as { requestId: string }).requestId).toBe("incoming-id");
+    expect((req as unknown as { requestId: string }).requestId).toBe(
+      "incoming-id",
+    );
   });
 
   it("emits a uuid when no header present, writes it to res.header and req.requestId", async () => {
@@ -45,7 +47,7 @@ describe("LoggingInterceptor", () => {
       new LoggingInterceptor().intercept(ctx, buildHandler()),
     );
     expect(header).toHaveBeenCalledWith("x-request-id", expect.any(String));
-    expect((req as { requestId: string }).requestId).toMatch(
+    expect((req as unknown as { requestId: string }).requestId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
     );
     expect(res.statusCode).toBe(200);
