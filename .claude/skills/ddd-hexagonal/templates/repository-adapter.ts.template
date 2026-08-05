@@ -1,0 +1,46 @@
+// Template: Prisma Repository Adapter (implements RepositoryPort)
+// Reference (live example): apps/api/src/contexts/users/infrastructure/persistence/prisma/prisma-user.repository.ts
+//
+// Convenção ai-padrao:
+// - Implementa a port via `implements <Entity>RepositoryPort`
+// - Recebe PrismaClient via construtor (não `new PrismaClient()`)
+// - Toda query passa pelo mapper antes de retornar para application/
+// - Emite erros de domínio (`<Entity>NotFoundError`), nunca strings cruas
+
+import { PrismaClient } from "@prisma/client";
+import { <Entity> } from "../../../domain/entities/<entity>";
+import { <Entity>NotFoundError } from "../../../domain/errors/<entity>-not-found.error";
+import type { <<Entity>RepositoryPort> } from "../../../domain/ports/<entity>-repository.port";
+import { <Entity>Mapper } from "./<entity>.mapper";
+
+export class Prisma<Entity>Repository implements <<Entity>RepositoryPort> {
+  constructor(private readonly prisma: PrismaClient) {}
+
+  async findById(id: string): Promise<<Entity> | null> {
+    const record = await this.prisma.<entity>.findUnique({ where: { id } });
+    return record ? <Entity>Mapper.toDomain(record) : null;
+  }
+
+  async findBy<Field>(value: string): Promise<<Entity> | null> {
+    const record = await this.prisma.<entity>.findUnique({ where: { <field>: value } });
+    return record ? <Entity>Mapper.toDomain(record) : null;
+  }
+
+  async save(entity: <Entity>): Promise<<Entity>> {
+    const data = <Entity>Mapper.toPrisma(entity);
+    const record = await this.prisma.<entity>.upsert({
+      where: { id: entity.id },
+      create: data,
+      update: data,
+    });
+    return <Entity>Mapper.toDomain(record);
+  }
+
+  async delete(id: string): Promise<void> {
+    const existing = await this.prisma.<entity>.findUnique({ where: { id } });
+    if (!existing) {
+      throw new <Entity>NotFoundError(id);
+    }
+    await this.prisma.<entity>.delete({ where: { id } });
+  }
+}
