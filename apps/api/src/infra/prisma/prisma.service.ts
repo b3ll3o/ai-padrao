@@ -1,4 +1,5 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import type { OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { PrismaClient } from "@prisma/client";
 import { auditExtension } from "./audit/audit-extension";
 
@@ -29,12 +30,12 @@ export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   private readonly extended: any;
 
   constructor() {
     super();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     this.extended = (this as unknown as PrismaClient).$extends(auditExtension);
     // Copy model accessors and any other own properties of the extended
     // proxy onto `this`. Object.assign only iterates own enumerable props,
