@@ -13,6 +13,8 @@ function user(id: string, name: string, email: string): User {
     role: "USER",
     createdAt: fixedDate,
     updatedAt: fixedDate,
+    deletedAt: null,
+    version: 0,
   });
 }
 

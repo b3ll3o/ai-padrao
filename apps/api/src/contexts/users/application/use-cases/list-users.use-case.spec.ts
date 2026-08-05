@@ -14,6 +14,8 @@ function seed(): User[] {
       role: "USER",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: fixedDate,
+      deletedAt: null,
+      version: 0,
     }),
     User.build({
       id: "u2",
@@ -22,6 +24,8 @@ function seed(): User[] {
       role: "USER",
       createdAt: new Date("2026-02-01T00:00:00.000Z"),
       updatedAt: fixedDate,
+      deletedAt: null,
+      version: 0,
     }),
   ];
 }
@@ -47,6 +51,8 @@ describe("ListUsersUseCase", () => {
       role: "USER",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
       updatedAt: fixedDate,
+      deletedAt: null,
+      version: 0,
     });
     const newer = User.build({
       id: "u2",
@@ -55,6 +61,8 @@ describe("ListUsersUseCase", () => {
       role: "USER",
       createdAt: new Date("2026-02-01T00:00:00.000Z"),
       updatedAt: fixedDate,
+      deletedAt: null,
+      version: 0,
     });
     const repo = new InMemoryUserRepository([older, newer]);
     const useCase = new ListUsersUseCase(repo);

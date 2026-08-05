@@ -10,9 +10,13 @@ export interface UpdateUserInput {
 export class UpdateUserUseCase {
   constructor(private readonly users: UserRepositoryPort) {}
 
-  async execute(id: string, patch: UpdateUserInput): Promise<User> {
+  async execute(
+    id: string,
+    patch: UpdateUserInput,
+    actorId?: string,
+  ): Promise<User> {
     const current = await this.users.findById(id);
     if (!current) throw new UserNotFoundError(id);
-    return this.users.update(id, patch);
+    return this.users.update(id, patch, actorId);
   }
 }
