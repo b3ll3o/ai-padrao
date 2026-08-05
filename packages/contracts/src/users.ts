@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import { UserRoleSchema } from './auth';
+import { z } from "zod";
+import { UserRoleSchema } from "./auth";
 
 export const UserDtoSchema = z.object({
   id: z.string(),
@@ -8,8 +8,21 @@ export const UserDtoSchema = z.object({
   role: UserRoleSchema,
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
+  deletedAt: z.coerce.date().nullable(),
+  version: z.number().int().min(0),
 });
 export type UserDto = z.infer<typeof UserDtoSchema>;
+
+export const UserHistoryEntrySchema = z.object({
+  id: z.string(),
+  originalId: z.string(),
+  version: z.number().int().min(0),
+  operation: z.enum(["CREATE", "UPDATE", "DELETE", "RESTORE"]),
+  changedAt: z.coerce.date(),
+  changedBy: z.string().nullable(),
+  snapshot: z.unknown(),
+});
+export type UserHistoryEntry = z.infer<typeof UserHistoryEntrySchema>;
 
 export const UpdateUserInputSchema = z
   .object({
@@ -17,7 +30,7 @@ export const UpdateUserInputSchema = z
     email: z.string().email().optional(),
   })
   .refine((data) => data.name !== undefined || data.email !== undefined, {
-    message: 'At least one field must be provided',
+    message: "At least one field must be provided",
   });
 export type UpdateUserInput = z.infer<typeof UpdateUserInputSchema>;
 
