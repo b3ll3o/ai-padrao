@@ -1,0 +1,53 @@
+// Template: Entity unit tests (Vitest, pure)
+// Reference (live example): apps/api/src/contexts/users/domain/entities/user.spec.ts
+//
+// Convenção ai-padrao:
+// - Testa cada invariante (constructor throws)
+// - Testa cada método de domínio (happy + edge case)
+// - Testa toJSON() shape
+
+import { describe, it, expect } from "vitest";
+import { <Entity> } from "<entity>";
+
+describe("<Entity>", () => {
+  describe("build()", () => {
+    it("rejects invalid primitive props", () => {
+      expect(() => <Entity>.build({ /* invalid */ } as any)).toThrow();
+    });
+
+    it("accepts valid primitive props", () => {
+      const entity = <Entity>.build({
+        id: "id-1",
+        // ...valid fields
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        version: 0,
+      });
+      expect(entity.id).toBe("id-1");
+    });
+  });
+
+  describe("rename()", () => {
+    it("returns a new instance with updated field", () => {
+      const entity = <Entity>.build({ /* valid */ });
+      const next = /* new ValueObject */;
+      const renamed = entity.rename(next);
+      expect(renamed).not.toBe(entity);
+      expect(renamed.<field>).toBe(next);
+    });
+
+    it("returns same instance if no change", () => {
+      const entity = <Entity>.build({ /* valid */ });
+      const same = entity.rename(entity.<field>);
+      expect(same).toBe(entity);
+    });
+  });
+
+  describe("toJSON()", () => {
+    it("serializes to DTO shape", () => {
+      const entity = <Entity>.build({ /* valid */ });
+      const json = entity.toJSON();
+      expect(json).toMatchObject({ id: entity.id /* ... */ });
+    });
+  });
+});
