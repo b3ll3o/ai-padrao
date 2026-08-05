@@ -11,11 +11,21 @@ git clone <repo-url> my-project
 cd my-project
 corepack enable
 pnpm install
+pnpm postmerge:install   # opt-in: enables .githooks/post-merge
 cp .env.example .env
 pnpm up
 pnpm db:migrate
 pnpm db:seed
 ```
+
+`pnpm postmerge:install` is a one-time command that sets
+`git config core.hooksPath .githooks` for the local clone. After every
+`git pull` (or merge), the hook runs the validation steps implied by the
+files that changed — `pnpm install` if `pnpm-lock.yaml` moved, `pnpm db:migrate`
+if a Prisma schema changed, `pnpm harness:check` if harness internals
+moved, `pnpm test` if runtime source moved. See
+[`.githooks/README.md`](.githooks/README.md) for the full design. Opt out
+with `git config --local --unset core.hooksPath`.
 
 Open:
 
