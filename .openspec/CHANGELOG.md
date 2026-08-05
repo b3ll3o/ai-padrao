@@ -97,3 +97,19 @@ truth. Entries here record when each spec moved from `changes/` to `specs/`.
   `.openspec/specs/harness/post-merge-pull-workflow.md`. Hook shipped
   in commits `ff0acf0` (scaffolding), `866dba8` (script),
   `48897da` (postmerge:install), `346615e` (quickstart docs).
+
+- **ddd-hexagonal-audit-fixes** — Round 1 of audit findings against the
+  ddd-hexagonal skill. Closes: (F1) two untested use cases in the
+  `users` context (`GetUserHistoryUseCase`, `RestoreUserUseCase`) now
+  have unit specs; (F2) `AUTH_CONTEXT_CONFIG` migrated from a plain
+  string token to `Symbol("AuthContextConfig")` in
+  `auth-context.tokens.ts`; (F3) `jwt-access-token.issuer.ts` switched
+  from `import type` to a runtime `import` for its `JwtService`
+  constructor parameter, matching the convention used by every other
+  DI-consuming file in the project. No runtime behavior change. All
+  four verification gates green: `pnpm test` 204/204, `pnpm lint`
+  5/5, `pnpm typecheck` 6/6, `pnpm harness:check` 16 PASS / 0 FAIL.
+  Spec archived at
+  `.openspec/specs/api/ddd-hexagonal-audit-fixes.md`. Shipped in 5
+  commits (`5124e35` spec F1.a, `3a7515e` spec F1.b, `dab14f9`
+  refactor F2, `87751fb` refactor F3, `3f09e00` lint cleanup).
