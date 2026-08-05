@@ -42,7 +42,8 @@ characterization tests) were intentionally left unchecked in the original
 proposal because they were superseded by the dedicated commits above and are
 not required for the archived capability. The final archival commit (Task 15.5)
 closes out the change folder.
-# OpenSpec Changelog
+
+## OpenSpec Changelog
 
 Archived specs in `.openspec/specs/<area>/<feature>.md` are the source of
 truth. Entries here record when each spec moved from `changes/` to `specs/`.
@@ -59,3 +60,40 @@ truth. Entries here record when each spec moved from `changes/` to `specs/`.
   Implementation tasks 1–6 (INCIDENTS.md, learnings.json,
   pattern_match.py, test_pattern_match.py, check.sh wire-up, full
   green run) completed; PASS=15, SKIP=3.
+
+## 2026-08-05
+
+- **domain-audit-foundation** — Every domain entity (now `User`,
+  future bounded contexts) ships with `id`, `createdAt`, `updatedAt`,
+  `deletedAt`, `version`, plus a typed `<entity>_history` table. Audit
+  extension lives at `apps/api/src/infra/prisma/audit/` and is bound
+  once in `PrismaModule` via a Prisma Client extension. New routes:
+  `PATCH /api/users/:id/restore` and `GET /api/users/:id/history`.
+  Spec archived at
+  `.openspec/specs/api/domain-audit-foundation.md`. Linked to
+  [ADR-014](../docs/decisions/ADR-014-domain-audit-foundation.md).
+
+- **inc-024-detector-type-vs-di** — Closes the INC-024 + INC-025 gap on
+  the L2 detector's `import type` heuristics. (1) INC-025: file-axis
+  globs now match the file path only via the new
+  `_file_path_for_axis(event)` helper, not Write/Edit content
+  (structural). (2) INC-024: AST-lite brace classifier
+  (`classify_import_type_binding`) marks suffix-marked bindings
+  (Type, Interface, Dto, Context, Spec, Map, Key, Schema) as
+  `type-only-safe` and suppresses INC-003. Class-DI-risk bindings
+  (e.g. `FindUserUseCase`, `User`, `PrismaService`) still fire.
+  Spec archived at
+  `.openspec/specs/harness/inc-024-detector-type-vs-di.md`. Linked to
+  INC-024 + INC-025 in `.harness/INCIDENTS.md`.
+
+- **post-merge-pull-workflow** — Opt-in `.githooks/post-merge` hook
+  runs the validation steps implied by files changed in a merge
+  (including `git pull`): `pnpm-lock.yaml` → `pnpm install
+  --frozen-lockfile`; `apps/api/prisma/**` → `pnpm db:migrate`;
+  `.harness/**` → `pnpm harness:check`; runtime source changes →
+  `pnpm test`. Hook is enabled by `pnpm postmerge:install`
+  (idempotent, sets `core.hooksPath`); locally disabled via
+  `git config --local --unset core.hooksPath`. Spec archived at
+  `.openspec/specs/harness/post-merge-pull-workflow.md`. Hook shipped
+  in commits `ff0acf0` (scaffolding), `866dba8` (script),
+  `48897da` (postmerge:install), `346615e` (quickstart docs).
