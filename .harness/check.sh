@@ -95,7 +95,7 @@ check "INC-004: prisma.seed configured" \
 # INC-005 — Health controller has @Public()
 # ---------------------------------------------------------------
 check "INC-005: health controller @Public()" \
-  bash -c 'grep -q "@Public" apps/api/src/modules/health/health.controller.ts'
+  bash -c 'grep -q "@Public" apps/api/src/contexts/health/infrastructure/http/health-http.controller.ts'
 
 # ---------------------------------------------------------------
 # INC-006 — Dockerfile ordering: schema COPY before generate
@@ -413,7 +413,10 @@ else
     bash -c "python3 \"$DOC_SKILL/adr_ref_check.py\" \"$ROOT\" >/dev/null"
 
   # JSDoc coverage is only meaningful on staged files.
-  STAGED_TS=$(git diff --name-only --cached -- 'apps/**/*.ts' 'apps/**/*.tsx' 'packages/*/src/**/*.ts' 'packages/*/src/**/*.tsx' 2>/dev/null | grep -vE '\.spec\.ts$|\.test\.tsx?$|index\.ts$' | head -50)
+  # `tr '\n' ' '` flattens the newline-separated list into space-separated
+  # args — otherwise `bash -c "python3 ... $STAGED_TS"` interprets each
+  # path as a separate command line (INC-028c fails with "Permission denied").
+  STAGED_TS=$(git diff --name-only --cached --diff-filter=AM -- 'apps/**/*.ts' 'apps/**/*.tsx' 'packages/*/src/**/*.ts' 'packages/*/src/**/*.tsx' 2>/dev/null | grep -vE '\.spec\.ts$|\.test\.tsx?$|index\.ts$' | head -50 | tr '\n' ' ' | sed 's/ $//')
   if [ -z "$STAGED_TS" ]; then
     note "INC-028c: JSDoc coverage on staged files (no staged .ts/.tsx outside specs)"
   else
