@@ -636,6 +636,54 @@
         "expected": "All three sub-checks PASS."
       },
       "alura_principle": "any project rule that lives only in AGENTS.md (a guide) is weaker than the same rule living as an auto-check in .harness/check.sh (an enforcement). When adding a new category of project hygiene — docs, lint, formatting, naming — ask 'can this be a check() call in check.sh?' If yes, prefer the auto-check; the prose becomes a cross-link."
+    },
+    {
+      "id": "INC-029",
+      "category": "detector-design",
+      "trigger_pattern": {
+        "files": [],
+        "symbols": [],
+        "context": "PASSIVE — INC-029 fires only when the L2 detector blocks a legitimate read-only operation (lint, typecheck, format-check, test list). The incident template below documents the *symptom class*, not a specific command. The actual mitigation lives in `_DIAGNOSTIC_BASH_RE` in `pattern_match.py` (extension of INC-019) and the `HARNESS_L2_ENABLED` env var added to `detect.sh`."
+      },
+      "symptom": "L2 detector (INC-012, 'no skipped tests') fires confirmation prompts when the operator runs `pnpm exec eslint`, `pnpm exec prettier --check`, `pnpm exec tsc --noEmit`, `pnpm test --list`, or `pnpm exec playwright test --list` against a file that legitimately contains `test.skip(...)` as a placeholder (e.g. inside a placeholder test fixture or a file under active authoring). The detector's file-axis counts the lint bash event, the symbol-axis finds `.skip(` in the file content, and the gate fires — even though the operator is *reading* the file, not *writing* a new skip.",
+      "root_cause_summary": "INC-019's diagnostic-bash filter was scoped to read-only commands that *do not mention runtime paths* (grep/cat/head/ls/find/md5sum). It missed the much larger category of linter invocations that *do* mention runtime paths (`eslint path/to/file.ts`). Combined with the symbol-axis scoped_text from INC-023 — which now legitimately reads file content via `_event_text` — the result is over-eager blocking. The fix has two parts: (1) extend `_DIAGNOSTIC_BASH_RE` to match `eslint|tsc|prettier|vitest|jest|playwright` invocations as read-only, and (2) add `HARNESS_L2_ENABLED` to `detect.sh` so an operator can globally opt out without modifying `~/.claude/settings.json`.",
+      "prevention": {
+        "type": "skill",
+        "ref": "harness-self-improvement",
+        "section": "Detector over-eagerness"
+      },
+      "auto_check": {
+        "type": "grep_audit",
+        "command": "grep -nE '(eslint|tsc|prettier|vitest|jest|playwright)' /home/leo/Documentos/projetos/padrao/.harness/pattern_match.py | grep -E '_DIAGNOSTIC_BASH_RE' ; grep -nE 'HARNESS_L2_ENABLED' /home/leo/Documentos/projetos/padrao/.harness/detect.sh",
+        "expected": "Both grep matches present (the regex set in pattern_match.py AND the env-var gate in detect.sh)."
+      },
+      "alura_principle": "A detector that fires on every legitimate read of a file becomes noise, and noisy detectors get globally muted — at which point the catch on real reincarnations is also muted. The two-part fix (extend the filter + add an opt-out escape hatch) lets the detector stay strict on writes while becoming invisible on reads.",
+      "resolution_status": "resolved 2026-09-04",
+      "resolved_by_change": "inc-029-detector-over-eager-on-lint"
+    },
+    {
+      "id": "INC-030",
+      "category": "detector-design",
+      "trigger_pattern": {
+        "files": [],
+        "symbols": [],
+        "context": "PASSIVE — INC-030 fires only when an L2 detector entry declares ONLY a file-axis (no symbols/shapes/required_features) AND the file-axis is the enforcer for a soft-reminder category. The mitigation lives in `pattern_match.py:_RUNTIME_SKIPPABLE_CATEGORIES`."
+      },
+      "symptom": "Soft-reminder INC entries that rely solely on the file-axis pollute every operator interaction: any Edit/Write to a path inside the file globs triggers the gate, including workflow-irrelevant commands like `pnpm exec eslint path/to/file.ts` or `git diff` quoted in a commit. INC-028 (documentation coverage) is the canonical example — its `files: apps/api/src/**` globs catch EVERY code edit, and the entry has no symbol/shape/required_features axis to verify intent, so the gate fires on noise. Build-time enforcement (`check.sh` doc_coverage auto_check) already runs at PR time and catches real drift, making the L2 emit redundant.",
+      "root_cause_summary": "Two layers of enforcement existed: L2 runtime detector (fires on every interaction to remind operators) and `check.sh` auto_check (fires at PR pre-commit/build). For soft-reminder categories — `documentation-coverage`, `process-discipline` — the build-time auto_check is the right cadence and the L2 emit adds only noise. The fix: skip L2 emit when an entry's category is in a soft-reminder set AND the entry has no symbols/shapes/required_features axis. Hard-gate categories (security, DI, schema) keep firing — their risk is too high to delegate to build-time only.",
+      "prevention": {
+        "type": "skill",
+        "ref": "harness-self-improvement",
+        "section": "Soft-reminder detector design"
+      },
+      "auto_check": {
+        "type": "grep_audit",
+        "command": "grep -nE '_RUNTIME_SKIPPABLE_CATEGORIES' /home/leo/Documentos/projetos/padrao/.harness/pattern_match.py",
+        "expected": "match present (the soft-reminder category set is defined in pattern_match.py)"
+      },
+      "alura_principle": "A detector's job is to catch real reincarnations, not to remind on every interaction. If a project rule has both a soft prose form (AGENTS.md) and an auto_check at build time (check.sh), the runtime L2 detector should defer to the build hook for low-stakes categories. Hard-stakes categories (anything that can prod-bug a customer) keep firing at every relevant interaction regardless.",
+      "resolution_status": "resolved 2026-09-04",
+      "resolved_by_change": "inc-030-soft-reminder-runtime-detector-skip"
     }
   ],
   "prevention_summary": {

@@ -7,6 +7,14 @@
 # exit as a "soft" warning that Claude surfaces to the user, who can
 # then confirm or override.
 #
+# INC-029 — operator opt-out: setting `HARNESS_L2_ENABLED=0` (or any
+# falsy value: `false`, `no`, `off`, empty) disables L2 detection for
+# this hook invocation without modifying `~/.claude/settings.json`. This
+# is the recommended escape hatch when the detector fires on legitimate
+# read-only operations (lint, typecheck, test-listing). The harness still
+# captures every event via `capture.sh` so disabling L2 only silences the
+# confirmation prompts — it does NOT stop the sensor from learning.
+#
 # Exit codes:
 #   0 = no match (normal flow)
 #   2 = match found, INC id printed to stderr
@@ -17,6 +25,16 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TODAY="$(date -u +%F)"
 EVENTS="$ROOT/events/$TODAY.jsonl"
+
+# INC-029 — escape hatch. Default is ON (`1`); explicit `0`, `false`,
+# `no`, `off`, or empty value turns it off. Any other value (including
+# unset) preserves the original behaviour.
+L2_FLAG="${HARNESS_L2_ENABLED:-1}"
+case "${L2_FLAG,,}" in
+  0|false|no|off|"")
+    exit 0
+    ;;
+esac
 
 if [[ ! -f "$EVENTS" ]]; then
   exit 0

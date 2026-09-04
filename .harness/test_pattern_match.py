@@ -475,5 +475,117 @@ class PatternMatchNoiseExclusion(unittest.TestCase):
         self.assertEqual(ids, ["INC-012"], f"expected INC-012, got {ids}")
 
 
+# ---------------------------------------------------------------------------
+# Test cases (INC-029) — linter invocations must NOT trigger INC-012.
+# ---------------------------------------------------------------------------
+
+def _lint_bash_event(spec_file: str, command: str) -> dict:
+    """Build a Bash event that invokes a linter against a spec file.
+
+    The body of the spec file (intentionally) contains `test.skip(...)` —
+    exactly the scenario where INC-012 would false-fire before INC-029.
+    """
+    return {
+        "tool_name": "Bash",
+        "command": command,
+        "tool_input": {"command": command},
+    }
+
+
+class PatternMatchLinterExclusion(unittest.TestCase):
+    """INC-029: linter invocations are read-only and excluded from file-axis.
+
+    Realistic scenario (before fix): an operator in mid-iteration runs a
+    single lint invocation against a spec file that already contains a
+    legitimate `test.skip(...)` placeholder. The recent-event window
+    captures the lint Bash event plus surrounding noise, with the spec
+    Write events far enough in the past that they fall OUTSIDE the
+    20-line window. INC-012's symbol-axis still finds `.skip(` because
+    the lint event's command text quotes the spec path AND INC-023's
+    scoped_text logic includes the lint event's payload in the symbol
+    match. Post-fix: linter invocations are treated as diagnostic bash
+    and excluded from the file-axis count (extended `_DIAGNOSTIC_BASH_RE`),
+    so file_hits < MIN_HITS and INC-012 won't fire from a lone lint.
+    """
+
+    def _lint_only_window(self, command: str) -> list:
+        # No spec Write events in the window at all. The recent activity
+        # band contains 1 lint Bash + 19 noise entries. Pre-fix this
+        # false-fired INC-012 because the lint command matched the spec
+        # file glob and got counted toward file-axis; post-fix the lint
+        # is excluded and INC-012 doesn't emit.
+        window: list[dict] = []
+        for i in range(20):
+            if i == 10:
+                window.append(_lint_bash_event("apps/web/foo.spec.ts", command))
+            else:
+                window.append(_noise_event(i))
+        return window
+
+    def test_eslint_invocation_excluded(self):
+        rc, ids = _run(self._lint_only_window(
+            "pnpm exec eslint apps/web/foo.spec.ts"
+        ))
+        self.assertEqual(rc, 0, "expected clean exit, got non-zero")
+        self.assertEqual(ids, [], f"expected no INC id, got {ids}")
+
+    def test_tsc_noemit_invocation_excluded(self):
+        rc, ids = _run(self._lint_only_window(
+            "pnpm exec tsc --noEmit"
+        ))
+        self.assertEqual(rc, 0)
+        self.assertEqual(ids, [], f"expected no INC id, got {ids}")
+
+    def test_prettier_check_invocation_excluded(self):
+        rc, ids = _run(self._lint_only_window(
+            "pnpm exec prettier --check apps/web/foo.spec.ts"
+        ))
+        self.assertEqual(rc, 0)
+        self.assertEqual(ids, [], f"expected no INC id, got {ids}")
+
+    def test_vitest_list_invocation_excluded(self):
+        rc, ids = _run(self._lint_only_window(
+            "pnpm exec vitest --list apps/web/foo.spec.ts"
+        ))
+        self.assertEqual(rc, 0)
+        self.assertEqual(ids, [], f"expected no INC id, got {ids}")
+
+    def test_playwright_list_invocation_excluded(self):
+        rc, ids = _run(self._lint_only_window(
+            "pnpm exec playwright test --list apps/web/foo.spec.ts"
+        ))
+        self.assertEqual(rc, 0)
+        self.assertEqual(ids, [], f"expected no INC id, got {ids}")
+
+    def test_vitest_run_still_counts_as_file_axis(self):
+        """Negative control: a window with `vitest run` against a spec
+        file still triggers INC-012 (mutates state — test run counts,
+        snapshots, coverage).
+
+        Uses the `_spec_window` fixture (with 2 spec Writes) because
+        the lint command alone doesn't accumulate to MIN_HITS even
+        without INC-029's exclusion — vitest run DOES count, but with
+        only 1 such event and no spec Write events, file_hits < 2.
+        Adding the 2 Writes brings the file_hits over MIN_HITS and the
+        symbol-axis match on `.skip(` produces INC-012.
+        """
+        body = "describe('foo', () => {\n  it.skip('todo', () => {});\n});\n"
+        window = [_spec_event(i, body) for i in range(2)]
+        for i in range(18):
+            if i == 5:
+                window.append(_lint_bash_event(
+                    "apps/web/foo.spec.ts",
+                    "pnpm exec vitest run apps/web/foo.spec.ts",
+                ))
+            else:
+                window.append(_noise_event(i))
+        rc, ids = _run(window)
+        self.assertEqual(rc, 0)
+        self.assertEqual(
+            ids, ["INC-012"],
+            "vitest run must still count toward the file-axis (mutates state)",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

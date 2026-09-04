@@ -432,6 +432,50 @@ else
   fi
 fi
 
+# ---------------------------------------------------------------
+# INC-029 — L2 detector respects linter invocations as read-only.
+# Auto-check verifies the two surgical changes documented in INC-029:
+#   1. `_DIAGNOSTIC_BASH_RE` in pattern_match.py mentions the linter
+#      verbs (eslint/tsc/prettier/vitest/jest/playwright).
+#   2. `detect.sh` exposes the `HARNESS_L2_ENABLED` escape hatch.
+# Without either, INC-012 fires confirmation prompts on legitimate
+# `pnpm exec eslint path/to/file.spec.ts` invocations against files
+# that legitimately contain `test.skip(...)` placeholders.
+# ---------------------------------------------------------------
+check "INC-029: L2 detector treats linters as read-only + HARNESS_L2_ENABLED escape" \
+  bash -c "ROOT='$ROOT'; missing='';
+    if ! grep -qE '(eslint|tsc|prettier|vitest|jest|playwright)' \"\$ROOT/.harness/pattern_match.py\"; then
+      missing=\"\$missing lint_verbs_in_pattern_match\"
+    fi
+    if ! grep -qE 'HARNESS_L2_ENABLED' \"\$ROOT/.harness/detect.sh\"; then
+      missing=\"\$missing HARNESS_L2_ENABLED_in_detect\"
+    fi
+    if [ -n \"\$missing\" ]; then
+      echo '  INC-029 requires two surgical changes; missing:'\"\$missing\";
+      echo '  See .harness/INCIDENTS.md §INC-029 and .harness/learnings.json INC-029.'
+      exit 1
+    fi
+  "
+
+# ---------------------------------------------------------------
+# INC-030 — runtime detector skips file-axis-only soft reminders.
+# Auto-check verifies the `_RUNTIME_SKIPPABLE_CATEGORIES` set is
+# declared in pattern_match.py (the gate that delegates
+# `documentation-coverage` / `process-discipline` L2 emits to
+# build-time check.sh auto_checks instead). Without this guard, every
+# Edit to apps/api/src/** or apps/web/src/** triggers INC-028
+# confirmation prompts, polluting even read-only workflows like
+# `pnpm exec eslint path/to/file.ts`.
+# ---------------------------------------------------------------
+check "INC-030: L2 detector skips file-axis-only soft-reminder categories" \
+  bash -c "ROOT='$ROOT';
+    if ! grep -qE '_RUNTIME_SKIPPABLE_CATEGORIES' \"\$ROOT/.harness/pattern_match.py\"; then
+      echo '  INC-030 requires _RUNTIME_SKIPPABLE_CATEGORIES in pattern_match.py.'
+      echo '  See .harness/learnings.json INC-030.'
+      exit 1
+    fi
+  "
+
 echo
 echo "========================================"
 echo -e "  ${GREEN}PASS${NC}: $PASS_COUNT  ${RED}FAIL${NC}: $FAIL_COUNT  ${YELLOW}SKIP${NC}: $SKIP_COUNT"

@@ -159,9 +159,30 @@ SOURCE_PATH_PATTERNS: tuple[re.Pattern[str], ...] = (
 )
 # INC-019: diagnostic commands can appear after whitespace or shell
 # separators (`;`, `&`, `|`), not only at position 0.
+# INC-029: extend the read-only filter to cover linters and test listers
+# (`eslint`, `tsc`, `prettier`, `vitest`, `jest`, `playwright`). Without
+# this extension, INC-012 fires confirmation prompts when an operator
+# runs e.g. `pnpm exec eslint path/to/file.spec.ts` against a file that
+# legitimately contains `test.skip(...)` as a placeholder — the lint
+# command counts as a file-axis hit and the file's content provides the
+# symbol-axis match. Linters don't *create* skips, they only *report*
+# on existing code, so treating them as diagnostic is safe.
+#
+# Coverage matrix:
+#   bare `eslint` / `prettier` / `tsc` ........... always diagnostic
+#   `vitest --list` / `vitest --watch` ........... diagnostic
+#   `vitest run` (no list flag) .................. MUTATING → keep
+#   `playwright test --list` ..................... diagnostic
+#   `playwright test` (no --list) ................ MUTATING → keep
+#   `jest --list` ................................. diagnostic
+#   `jest` (no --list) ............................ MUTATING → keep
 _DIAGNOSTIC_BASH_RE: re.Pattern[str] = re.compile(
     r"(?:^|[\s;&|]+)(?:grep|cat|head|tail|wc|ls|find|md5sum)\b"
     r"|python3\s+(?:-c\b|<<)"
+    r"|(?:^|[\s;&|/]+)(?:eslint|prettier|tsc)\b"
+    r"|(?:^|[\s;&|/]+)vitest\s+(?:--list\b|--watch\b)"
+    r"|(?:^|[\s;&|/]+)playwright\s+test\s+(?:--list\b)"
+    r"|(?:^|[\s;&|/]+)jest\s+(?:--list\b)"
 )
 # INC-018: TodoWrite events carry prose, never mutate source.
 _TODO_TOOL_NAME = "TodoWrite"
@@ -331,6 +352,31 @@ def main() -> int:
             f for f in (pat.get("required_features") or []) if isinstance(f, str)
         ]
         if not files and not symbols and not shapes and not required_features:
+            continue
+        # INC-030: a runtime-detector entry that declares ONLY a file-axis
+        # AND falls in a "soft reminder" category (`documentation-coverage`
+        # or `process-discipline`) is delegated to its build-time
+        # auto_check — the runtime detector would otherwise fire
+        # confirmation prompts every time an operator touches the
+        # listed paths, polluting every lint/test command (e.g.
+        # INC-028 fires on `pnpm exec eslint` against any file in
+        # apps/web/src). Build-time check.sh runs the corresponding
+        # auto_check at the right cadence (PR / pre-commit), so the
+        # operator-facing reminder is the build hook, not the L2
+        # detector. Hard-gate categories (security, schema, DI) keep
+        # firing at runtime regardless — they need the immediate
+        # confirmation even if auto_check covers them.
+        _RUNTIME_SKIPPABLE_CATEGORIES = frozenset({
+            "documentation-coverage",
+            "process-discipline",
+        })
+        if (
+            files
+            and not symbols
+            and not shapes
+            and not required_features
+            and entry.get("category") in _RUNTIME_SKIPPABLE_CATEGORIES
+        ):
             continue
         if required_features:
             pm_text = (ROOT / "pattern_match.py").read_text(encoding="utf-8")

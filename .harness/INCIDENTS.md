@@ -886,3 +886,63 @@ The first failure (BC README presence) is the report — fixing the gaps is the 
 **Prevention rule (lesson):** Any project rule that lives only in `AGENTS.md` (a guide) is weaker than the same rule living as an auto-check in `.harness/check.sh` (an enforcement). When adding a new category of project hygiene — docs, lint, formatting, naming — ask "can this be a `check()` call in `check.sh`?" If yes, prefer the auto-check over the prose rule; the prose becomes a cross-link.
 
 **Would have been caught by:** An automated check that fails the build when any bounded context folder lacks a `README.md`, or when the public surface of a touched file has < 80% JSDoc coverage. This is exactly what `INC-028` now does.
+
+---
+
+## INC-029: L2 detector fires confirmation prompts on legitimate linter invocations against files containing `test.skip(...)` placeholders
+
+**Discovery (2026-09-04):** While running `pnpm exec eslint`, `pnpm exec prettier --check`, `pnpm exec tsc --noEmit`, and `pnpm exec playwright test --list` against spec files inside `apps/web/tests/e2e/` that legitimately contain `test.skip(...)` placeholders (a normal workflow during active test authoring), the L2 detector fired INC-012 confirmation prompts on every single command. Each prompt consumed ~3 s of operator context and broke the workflow's "lint → iterate → commit" loop. The detector treated the lint command as a file-axis hit (because the command quotes the spec path), then matched `.skip(` in the file content (via INC-023's scoped_text), and emitted even though the operator was *reading* the file, not *writing* a new skip.
+
+**Root cause:** Two concurrent mechanisms each contribute to the false-positive:
+
+1. **INC-019's diagnostic-bash filter was too narrow.** The regex `^[\s;&|]+(?:grep|cat|head|...)\b` matched only read-only commands that *do not mention runtime paths* (`grep`, `cat`, `head`, etc.). Linter invocations that *do* mention the runtime path (`eslint path/to/file.ts`, `tsc`, `vitest --list path/to/file.ts`) fell through the filter, so they counted toward `MIN_HITS=2` on the file-axis side.
+2. **INC-023's scoped_text reading makes the lint command's quoted path matter.** Even when the lint command was the *only* file-axis hit, INC-023 still fed the command's quoted-payload into the symbol-axis check. The lint command text never contains `.skip(` literally, but a window that also includes a real spec Write event (the file the lint was checking) provides the symbol-axis match.
+
+Combined, every legitimate `pnpm exec eslint path/to/file.spec.ts` on a file with `.skip(` triggered INC-012.
+
+**Fix (two parts):**
+
+1. **Extend `_DIAGNOSTIC_BASH_RE` in `pattern_match.py`** to match bare linter invocations and linter invocations with `--list` / `--check` / `-c` / `--noEmit` / `--dry-run` flags. Coverage matrix:
+   - bare `eslint` / `prettier` / `tsc` ........................ always diagnostic
+   - `vitest --list` / `vitest --watch` .................... diagnostic
+   - `vitest run` (no list flag) ........................... **mutating → kept (counts toward file-axis)**
+   - `playwright test --list` .............................. diagnostic
+   - `playwright test` (no --list) ........................ **mutating → kept**
+   - `jest --list` ......................................... diagnostic
+   - `jest` (no --list) ................................... **mutating → kept**
+2. **Add `HARNESS_L2_ENABLED` env var to `detect.sh`** as an escape hatch. Setting `HARNESS_L2_ENABLED=0` (or `false` / `no` / `off` / empty) exits `detect.sh` early without modifying `~/.claude/settings.json`. The harness **still captures every event** via `capture.sh`, so the L2 detector continues to learn — only the confirmation prompts are silenced. This is the recommended escape hatch when the detector fires on legitimate operations during a long-running session; the operator can re-enable with `unset HARNESS_L2_ENABLED` (or `=1`) once the noise source is identified.
+
+**Verification:** New test class `PatternMatchLinterExclusion` in `test_pattern_match.py` (6 tests, 28-test total run): each linter invocation is verified to NOT emit INC-012, and the negative-control test (`vitest run` against a spec body containing `.skip(`) confirms INC-012 still fires when the underlying write is real. Tests run via `python3 -m unittest test_pattern_match` from `.harness/`.
+
+**Tradeoff:** The negative-control test relies on a window with **both** spec Write events (containing `.skip(`) AND a `vitest run` event. The detection still works because the spec Writes satisfy `MIN_HITS=2` and the `.skip(` symbol match is real. Operators who only run `vitest run` without prior spec Writes still see the INC-012 prompt — this is intended: the prompt is the gate, and the spec file's content is the audit trail.
+
+**Architectural companion:** [ADR-018](../docs/decisions/ADR-018-documentation-coverage-skill.md) (same ADR — both INC-028 and INC-029 are detector-discipline corrections).
+
+**Prevention rule (lesson):** When extending any read-only command filter, audit whether the command is *always* read-only or *conditionally* read-only. Linters fall in the second bucket — `vitest --list` is read-only, `vitest run` mutates. The regex must distinguish both with explicit branches; a single "matches linter verb" predicate breaks on `run` and lets real mutations through silently.
+
+**Would have been caught by:** A test class that runs each linter against a representative spec fixture and asserts no INC emit. Without the test, any change to `_DIAGNOSTIC_BASH_RE` is silent until an operator hits the case in production.
+
+---
+
+## INC-030: L2 detector over-fires on file-axis-only soft-reminder entries (INC-028 was the canonical example)
+
+**Discovery (2026-09-04):** After INC-029's linter fix landed, the L2 detector still fired INC-028 (documentation coverage reminder) on every Edit/Write to paths inside `apps/api/src/**` / `apps/web/src/**`. The `test_xit_does_not_match_exit_word` test failed because the window had only 2 spec Writes plus 18 noise entries — neither side was a `.skip(` literal, so INC-012 was correctly suppressed, but INC-028 fired on file-axis alone. Reading INC-028's `trigger_pattern` revealed the gap: `files: [apps/api/src/**, ...]` with empty `symbols: []` and no `shapes` or `required_features`. The gate fired from file-axis hits alone, polluting every operator interaction regardless of whether the operator was authoring code, running lint, or refreshing docs.
+
+**Root cause:** Two-layer enforcement existed for soft-reminder categories:
+
+1. **L2 runtime detector** fires confirmation prompts on every relevant interaction. For category `documentation-coverage`, INC-028's `files` globs catch every code edit.
+2. **`check.sh` auto_check** (here `doc_coverage`) runs at PR pre-commit / build time and is the actual enforcement.
+
+For soft-reminder categories, the build-time hook is the **right cadence** — too noisy at runtime, just right at build time. INC-028's `auto_check.type = doc_coverage` already runs the equivalent enforcement; the L2 emit added nothing but noise. The detection latency for INC-028 was hours-to-days (build time on PR open) which is acceptable for documentation drift.
+
+**Fix:** Add `_RUNTIME_SKIPPABLE_CATEGORIES = frozenset({"documentation-coverage", "process-discipline"})` in `pattern_match.py`. When an entry's `trigger_pattern` declares only `files` (no symbols/shapes/required_features) AND its `category` is in this set, the L2 detector skips the entry. Build-time enforcement in `check.sh` continues to run. Hard-gate categories (security, schema, DI — INC-001..INC-019 mostly) keep firing at runtime regardless because their risk surfaces in real-time operator decisions.
+
+**Verification:** Existing `test_xit_does_not_match_exit_word` and `test_xit_still_matches_standalone` (in `test_pattern_match.py`) confirm both behaviors — INC-028 does not pollute the `xit`/`exit`-boundary test, while INC-012 still emits on real `xit()` calls. The `test_real_edits_still_emit` test confirms INC-004 (`category: prisma-config`, NOT a soft-reminder) still fires from the file-axis side. Total: `28 tests / 28 pass`.
+
+**Tradeoff:** Operators working on `apps/api/src/**` no longer see INC-028's "documentation reminder" prompt on every Edit. The reminder still fires at PR time via `check.sh` with the three sub-checks (BC README, JSDoc coverage, ADR cross-refs). If a project rule needs **immediate** operator prompting during interactive work, do NOT mark it as `documentation-coverage` or `process-discipline` — instead give it a hard-gate `category` so the runtime detector continues to surface it.
+
+**Architectural companion:** Same self-discipline as INC-029 (a detector that fires on every legitimate read becomes noise → globally muted → real reincarnations also muted). Both corrections lean on the same `harness-self-improvement` skill.
+
+**Prevention rule (lesson):** When designing an L2 detector entry, ask: "is this a soft reminder (build-time enforcement is sufficient) or a hard gate (immediate operator prompting is required)?" Map the answer to a `category` value, and let `pattern_match.py:_RUNTIME_SKIPPABLE_CATEGORIES` decide. Without this discipline, every Edit that touches runtime source fires every soft-reminder entry, and operators mute the harness.
+
+**Would have been caught by:** An E2E test that runs `bash check.sh` against the harness and confirms `INC-028: JSDoc coverage ≥ 80% on staged files` PASSES in the build-time hook even when the L2 detector would have over-fired. The fix is in the detector itself, not the auto-check.
