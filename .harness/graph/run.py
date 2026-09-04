@@ -26,6 +26,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+_UTC = _dt.timezone.utc
+
 _HARNESS_DIR = Path(__file__).resolve().parent.parent
 if str(_HARNESS_DIR) not in sys.path:
     sys.path.insert(0, str(_HARNESS_DIR))
@@ -40,6 +42,19 @@ CODEMOD_TIMEOUT_SEC = 10
 def _l2_disabled() -> bool:
     flag = os.environ.get("HARNESS_L2_ENABLED", "1")
     return flag.lower() in {"0", "false", "no", "off", ""}
+
+
+def _graph_disabled() -> bool:
+    """Opt-in switch for the graph engine.
+
+    Unlike `HARNESS_L2_ENABLED` (default ON), `HARNESS_GRAPH_ENABLED`
+    defaults OFF so the harness can ship the engines wired into
+    `~/.claude/settings.json` without forcing every operator to deal with
+    proactive-codemod announcements. Set to `1`, `true`, `yes`, or `on`
+    to enable. Any other value (including unset) keeps the engine silent.
+    """
+    flag = os.environ.get("HARNESS_GRAPH_ENABLED", "0")
+    return flag.lower() not in {"1", "true", "yes", "on"}
 
 
 def _load_learnings_entries() -> list[dict[str, Any]]:
@@ -108,6 +123,9 @@ def main() -> int:
     if _l2_disabled():
         return 0
 
+    if _graph_disabled():
+        return 0
+
     tool_name = (event.get("tool_name") or "").strip()
     if tool_name not in ("Edit", "Write", "MultiEdit"):
         return 0  # Graph engine only acts on mutations.
@@ -140,12 +158,12 @@ def main() -> int:
             )
 
     # Audit log (best-effort).
-    now = _dt.datetime.utcnow()
+    now = _dt.datetime.now(_UTC)
     _write_walk_audit(
         date_str=now.strftime("%F"),
         ts_str=now.strftime("%H%M%S%f"),
         payload={
-            "ts": now.isoformat() + "Z",
+            "ts": now.isoformat(),
             "tool_name": tool_name,
             "file_path": steps[0]["file_path"],
             "rel_path": steps[0]["rel_path"],

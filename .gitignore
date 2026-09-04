@@ -43,3 +43,6 @@ apps/api/prisma/migrations/dev.db*
 
 # python bytecode from harness scripts (digest.py, pattern_match.py, codemods)
 __pycache__/
+
+# graph engine walk audit logs (per-event, not source-of-truth)
+.harness/graph/walks/

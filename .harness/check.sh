@@ -476,6 +476,47 @@ check "INC-030: L2 detector skips file-axis-only soft-reminder categories" \
     fi
   "
 
+# ---------------------------------------------------------------
+# Loop engine — typed dispatch + atomic state persistence.
+# Auto-check verifies the four typed handlers exist in loop/run.py
+# and that LoopState has load/save methods on state.py. Without these
+# hooks, the engine would dispatch all events through a single
+# function (losing per-tool semantics) or fail to persist session
+# state across PostToolUse invocations.
+# ---------------------------------------------------------------
+check "loop engine: typed dispatch + state persistence" \
+  bash -c "ROOT='$ROOT'; missing='';
+    if ! grep -qE 'def _handle_read' \"\$ROOT/.harness/loop/run.py\"; then missing=\"\$missing read_handler\"; fi
+    if ! grep -qE 'def _handle_mutation' \"\$ROOT/.harness/loop/run.py\"; then missing=\"\$missing mutation_handler\"; fi
+    if ! grep -qE 'def _handle_bash' \"\$ROOT/.harness/loop/run.py\"; then missing=\"\$missing bash_handler\"; fi
+    if ! grep -qE 'def _handle_other' \"\$ROOT/.harness/loop/run.py\"; then missing=\"\$missing other_handler\"; fi
+    if ! grep -qE 'def save_to_disk' \"\$ROOT/.harness/loop/state.py\"; then missing=\"\$missing save_to_disk\"; fi
+    if ! grep -qE 'def load_from_disk' \"\$ROOT/.harness/loop/state.py\"; then missing=\"\$missing load_from_disk\"; fi
+    if ! grep -qE 'os\\.replace' \"\$ROOT/.harness/loop/state.py\"; then missing=\"\$missing atomic_rename\"; fi
+    if [[ -n \"\$missing\" ]]; then
+      echo \"  loop engine is missing: \$missing\"
+      exit 1
+    fi
+  "
+
+# ---------------------------------------------------------------
+# Graph engine — proactive codemod walk + opt-in flag.
+# Auto-check verifies graph/walk.py exposes the pure `walk()` and
+# graph/run.py invokes codemod subprocesses with --check. Also
+# verifies HARNESS_GRAPH_ENABLED opt-in is honoured (so the engines
+# can ship wired-in but dormant).
+# ---------------------------------------------------------------
+check "graph engine: walk + codemod subprocess + opt-in flag" \
+  bash -c "ROOT='$ROOT'; missing='';
+    if ! grep -qE '^def walk\\(' \"\$ROOT/.harness/graph/walk.py\"; then missing=\"\$missing walk_function\"; fi
+    if ! grep -qE 'subprocess\\.run' \"\$ROOT/.harness/graph/run.py\"; then missing=\"\$missing codemod_subprocess\"; fi
+    if ! grep -qE 'HARNESS_GRAPH_ENABLED' \"\$ROOT/.harness/graph/run.py\"; then missing=\"\$missing opt_in_flag\"; fi
+    if [[ -n \"\$missing\" ]]; then
+      echo \"  graph engine is missing: \$missing\"
+      exit 1
+    fi
+  "
+
 echo
 echo "========================================"
 echo -e "  ${GREEN}PASS${NC}: $PASS_COUNT  ${RED}FAIL${NC}: $FAIL_COUNT  ${YELLOW}SKIP${NC}: $SKIP_COUNT"

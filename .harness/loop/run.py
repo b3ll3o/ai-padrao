@@ -30,6 +30,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+_UTC = _dt.timezone.utc
+
 # Make the harness root importable for `redact` / `pattern_match`.
 _HARNESS_DIR = Path(__file__).resolve().parent.parent
 if str(_HARNESS_DIR) not in sys.path:
@@ -55,7 +57,7 @@ def _l2_disabled() -> bool:
 
 
 def _today_events_path() -> Path:
-    return EVENTS_DIR / (_dt.datetime.utcnow().strftime("%F") + ".jsonl")
+    return EVENTS_DIR / (_dt.datetime.now(_UTC).strftime("%F") + ".jsonl")
 
 
 def _load_recent_events(exclude_count: int = 0) -> list[dict[str, Any]]:
