@@ -346,8 +346,12 @@ services:
     build: /opt/ai-padrao/repo/infra/caddy
     container_name: ai-padrao-caddy
     restart: unless-stopped
-    env_file:
-      - /opt/ai-padrao/infra/.env.production
+    # Use Docker secrets (not env_file:) so the file is mounted at
+    # /run/secrets/caddy_env to match the path baked into the Caddy
+    # CMD in infra/caddy/Dockerfile. Mounting as a secret also enforces
+    # 0400 root-only mode, which env_file: does not.
+    secrets:
+      - caddy_env
     ports:
       - "80:80"
       - "443:443"
@@ -359,6 +363,10 @@ services:
       - api
     networks:
       - default
+
+secrets:
+  caddy_env:
+    file: /opt/ai-padrao/infra/.env.production
 
 volumes:
   caddy_data:
