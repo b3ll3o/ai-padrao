@@ -1,6 +1,7 @@
-// Root eslint config: delegate per-package configs based on file location.
-// Without this, lint-staged's `eslint --fix` from the repo root cannot find
-// a flat config (the per-package configs live in apps/{api,web}/eslint.config.mjs).
+// Root eslint config: applies per-package rules based on file location.
+// `pnpm lint` (turbo) fans out to each package's own lint script and
+// reads its local eslint.config.mjs, so this file is what runs when
+// ESLint is invoked from the repo root (CI, editors).
 
 import tseslint from '@typescript-eslint/eslint-plugin';
 import tsparser from '@typescript-eslint/parser';
