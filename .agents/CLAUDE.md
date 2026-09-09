@@ -1,170 +1,176 @@
 # CLAUDE.md
 
-> **Canonical location:** `.agents/CLAUDE.md`. The project follows a single
-> `.agents/` standard; there is no `CLAUDE.md` or `.claude/` directory at
-> the repo root — see [`.agents/README.md`](README.md) for the layout and
-> the tool-discovery rules.
+> **Local canônico:** `.agents/CLAUDE.md`. O projeto segue um único
+> padrão `.agents/`; não há `CLAUDE.md` ou `.claude/` na raiz do
+> repositório — veja [`.agents/README.md`](README.md) para o layout
+> e as regras de descoberta por ferramenta.
 
-Guidance for Claude Code (claude.ai/code) when working in this repository.
-The project-wide AI-assistant rulebook lives in [`AGENTS.md`](AGENTS.md);
-this file only covers Claude-Code-specific orientation.
+Orientação para o Claude Code (claude.ai/code) ao trabalhar neste
+repositório. O livro de regras global para IA vive em
+[`AGENTS.md`](AGENTS.md); este arquivo cobre apenas orientação
+específica do Claude Code.
 
-## Configuring Claude Code to find skills under `.agents/skills/`
+## Configurando o Claude Code para encontrar skills em `.agents/skills/`
 
-Claude Code scans `~/.claude/skills/` (user) and `.claude/skills/`
-(project) by default. This project keeps skills under
-[`.agents/skills/`](skills/) instead. To make Claude Code find them in
-this repo, add `.agents/skills` to your machine-level
-`~/.claude/settings.json` under `skillsPaths`, or set the environment
-variable `CLAUDE_CODE_SKILLS_PATH=.agents/skills` before launching
-Claude Code. See [`.agents/README.md`](README.md) for the full
-discovery rationale.
+O Claude Code varre `~/.claude/skills/` (usuário) e `.claude/skills/`
+(projeto) por padrão. Este projeto mantém skills em
+[`.agents/skills/`](skills/). Para fazer o Claude Code encontrá-las
+neste repo, adicione `.agents/skills` em `skillsPaths` no seu
+`~/.claude/settings.json` (nível de máquina), ou exporte a variável
+de ambiente `CLAUDE_CODE_SKILLS_PATH=.agents/skills` antes de
+iniciar o Claude Code. Veja [`.agents/README.md`](README.md) para a
+racional completa da descoberta.
 
-## 1. Project identity
+## 1. Identidade do projeto
 
-This repo is **`ai-padrao`**, a monorepo blueprint for SDD-driven
-full-stack apps: Next.js 15 (web) and NestJS 11 / Fastify (api) and
-Prisma 6 and Postgres, all wired through pnpm 9 workspaces and
-Turborepo 2. It is a **blueprint** — conventions and ADRs are
-first-class deliverables, not just incidental source. The reader
-is expected to copy the shape and adapt the content.
+Este repo é **`ai-padrao`**, um blueprint de monorepo para apps
+full-stack guiadas por SDD: Next.js 15 (web) e NestJS 11 / Fastify
+(api) e Prisma 6 e Postgres, tudo conectado via pnpm 9 workspaces e
+Turborepo 2. É um **blueprint** — convenções e ADRs são entregáveis
+de primeira classe, não apenas código incidental. O leitor é
+encorajado a copiar a forma e adaptar o conteúdo.
 
-Editor of record: **Visual Studio Code** (settings in `.vscode/`).
+Editor de referência: **Visual Studio Code** (configurações em
+`.vscode/`).
 
-## 2. Common commands
+## 2. Comandos comuns
 
-All commands run from the repo root unless noted. Defined in
+Todos os comandos rodam da raiz do repo salvo indicação. Definidos em
 [`package.json`](package.json).
 
 ```bash
 pnpm up               # docker compose up -d (postgres + mailhog)
 pnpm down             # docker compose down
 pnpm logs             # docker compose logs -f
-pnpm db:migrate       # prisma migrate dev (inside api container)
-pnpm db:seed          # prisma seed (admin user)
+pnpm db:migrate       # prisma migrate dev (dentro do container da api)
+pnpm db:seed          # prisma seed (usuário admin)
 pnpm db:reset         # prisma migrate reset --force
-pnpm dev              # turbo run dev (api + web hot-reload)
+pnpm dev              # turbo run dev (api + web com hot-reload)
 pnpm build            # turbo run build
 pnpm lint             # turbo run lint
 pnpm typecheck        # turbo run typecheck
 pnpm test             # turbo run test (vitest, unit + e2e)
 ```
 
-Single-test invocation (from any package): `pnpm test path/to/spec.ts`.
+Para rodar um único teste (de qualquer pacote):
+`pnpm test path/to/spec.ts`.
 
-## 3. High-level architecture
+## 3. Arquitetura de alto nível
 
 ```text
 .
 ├── apps/
-│   ├── api/          NestJS 11 + Fastify adapter. Modules under src/modules/.
-│   │                 Prisma 6 client lives here. Only app that may import Prisma.
-│   └── web/          Next.js 15 App Router. UI in packages/ui, types in packages/contracts.
+│   ├── api/          NestJS 11 + adapter Fastify. Modules sob src/modules/.
+│   │                 Cliente Prisma 6 vive aqui. Único app que pode importar Prisma.
+│   └── web/          Next.js 15 App Router. UI em packages/ui, tipos em packages/contracts.
 ├── packages/
-│   ├── contracts/    Zod schemas shared between api and web. Source of truth for
-│   │                 request/response shapes. Touch this BEFORE schema.prisma.
-│   ├── db/           Prisma client wrapper, migrations, seed helpers.
-│   ├── ui/           shadcn/ui components + Tailwind 4 primitives.
-│   └── config-{tsconfig,eslint,prettier}/  Shared toolchain config.
+│   ├── contracts/    Schemas Zod compartilhados entre api e web. Fonte da verdade para
+│   │                 shapes de request/response. Toque ANTES de schema.prisma.
+│   ├── db/           Wrapper do cliente Prisma, migrations, helpers de seed.
+│   ├── ui/           Componentes shadcn/ui + primitivos Tailwind 4.
+│   └── config-{tsconfig,eslint,prettier}/  Configs de toolchain compartilhadas.
 ├── docs/
-│   ├── decisions/    ADRs (ADR-001..). Each is short and Nygard-formatted.
-│   └── superpowers/  Optional planning artifacts (brainstorming → plans → review).
-├── .openspec/        SDD workflow (proposal → approval → build → archive).
-├── .githooks/        Local pre-push + post-merge gates.
-├── infra/            Dockerfiles, compose, observability collector config.
-└── docker-compose.yml  Postgres + MailHog + OTel Collector for local dev.
+│   ├── decisions/    ADRs (ADR-001..). Cada um curto e no formato Nygard.
+│   └── superpowers/  Artefatos opcionais de planejamento (brainstorming → planos → review).
+├── .openspec/        Fluxo SDD (proposal → approval → build → archive).
+├── .githooks/        Gates locais de pre-push + post-merge.
+├── infra/            Dockerfiles, compose, config do OTel Collector.
+└── docker-compose.yml  Postgres + MailHog + OTel Collector para dev local.
 ```
 
-**Request flow (web → api):** Next.js Server Component / Route Handler
-imports a typed client from `packages/contracts` (which re-exports the
-Zod schemas). The client calls the api over HTTP with a JWT from the
-httpOnly cookie. The api validates with the same Zod schema via
-`nestjs-zod`, hits Prisma, returns the typed response.
+**Fluxo de requisição (web → api):** Server Component / Route Handler
+do Next.js importa um cliente tipado de `packages/contracts` (que
+re-exporta os schemas Zod). O cliente chama a api via HTTP com um
+JWT a partir do cookie httpOnly. A api valida com o mesmo schema Zod
+via `nestjs-zod`, bate no Prisma e retorna a resposta tipada.
 
-**Module boundaries (api):** each feature lives in
-`src/modules/<feature>/` with `controller.ts`, `service.ts`,
-`*.module.ts`, and `dto/` for Zod-input types. Cross-module imports
-happen via the module's exported service, never via the database
-directly.
+**Limites de módulo (api):** cada feature vive em
+`src/modules/<feature>/` com `controller.ts`, `service.ts`,
+`*.module.ts` e `dto/` para tipos Zod de input. Imports cross-module
+acontecem via o service exportado do módulo, nunca via banco
+diretamente.
 
-## 4. Repo conventions unique to ai-padrao
+## 4. Convenções únicas do ai-padrao
 
-These are the things you cannot infer from reading one file:
+Coisas que você não consegue inferir lendo um único arquivo:
 
-- **Conventional Commits are mandatory.** Scopes come from the
-  allowlist in [`.commitlintrc.json`](.commitlintrc.json):
-  `root`, `api`, `web`, `contracts`, `db`, `ui`, `config`, `docker`,
-  `sdd`, `deps`.
-- **PRs that change behavior MUST reference an OpenSpec change** at
-  `.openspec/changes/<feature>/`. `AGENTS.md` lists the only exceptions
-  (cosmetic, dep bump, doc fix). Default to opening a change.
-- **Architecture decisions are recorded as ADRs.** When you introduce
-  a NEW decision that doesn't fit any ADR, write a new one — see the
-  "When to add a new ADR" section in `docs/decisions/README.md`.
-- **No skipped tests, anywhere.** Zero tolerance — see AGENTS.md
-  §"No skipped tests" for the full rule.
-- **Auth tokens live in httpOnly cookies, never localStorage.** See
-  AGENTS.md for the full list of forbidden actions.
+- **Conventional Commits são obrigatórios.** Escopos vêm do allowlist
+  em [`.commitlintrc.json`](.commitlintrc.json): `root`, `api`,
+  `web`, `contracts`, `db`, `ui`, `config`, `docker`, `sdd`, `deps`.
+- **PRs que mudam comportamento DEVEM referenciar uma change
+  OpenSpec** em `.openspec/changes/<feature>/`. `AGENTS.md` lista as
+  únicas exceções (cosmético, bump de dep, fix de doc). Por padrão,
+  abra uma change.
+- **Decisões de arquitetura viram ADR.** Quando você introduz uma
+  decisão NOVA que não cabe em nenhum ADR, escreva um novo — veja a
+  seção "When to add a new ADR" em `docs/decisions/README.md`.
+- **Sem testes pulados, em lugar nenhum.** Tolerância zero — veja
+  AGENTS.md §"Sem testes pulados" para a regra completa.
+- **Tokens de auth vivem em cookies httpOnly, nunca em
+  localStorage.** Veja AGENTS.md para a lista completa de ações
+  proibidas.
 
-## 5. Decision records
+## 5. Registros de decisão
 
-Open [`docs/decisions/README.md`](docs/decisions/README.md) first —
-the index lists all ADRs in one table. The three highest-traffic
-ones (read these even if you read nothing else):
+Abra [`docs/decisions/README.md`](docs/decisions/README.md) primeiro
+— o índice lista todos os ADRs em uma tabela. Os três de maior
+tráfego (leia-os mesmo que não leia mais nada):
 
-1. **ADR-007** — No skipped tests. Triggered every test you write.
-2. **ADR-002** — Don't `import type` for Nest DI. Triggered every
-   import refactor under `apps/api/`.
-3. **ADR-006** — Use Nest `Logger`, not `console.*`. Triggered every
-   edit to `apps/api/src/main.ts`.
+1. **ADR-007** — Sem testes pulados. Disparado em cada teste que
+   você escreve.
+2. **ADR-002** — Não use `import type` para DI do Nest. Disparado
+   em cada refactor de import sob `apps/api/`.
+3. **ADR-006** — Use `Logger` do Nest, não `console.*`. Disparado em
+   cada edit em `apps/api/src/main.ts`.
 
-When you change behavior, find the matching ADR and update it.
+Quando você mudar comportamento, encontre o ADR correspondente e
+atualize-o.
 
-## 6. Editor / AI-assistant config
+## 6. Editor / configuração de IA
 
-- **`.vscode/settings.json`** — Prettier as default formatter for
-  TS/TSX/JSON/Markdown; ESLint flat config with explicit save-fix;
-  TypeScript workspace TS locked to the repo's TS; Tailwind class
-  regex includes `cN()` and `cn()` patterns from `packages/ui`.
-  Format-on-save is **on** for all listed languages.
-- **`.vscode/extensions.json`** — Recommended: ESLint, Prettier,
+- **`.vscode/settings.json`** — Prettier como formatador padrão para
+  TS/TSX/JSON/Markdown; ESLint flat config com save-fix explícito;
+  TypeScript do workspace travado no TS do repo; regex de classes do
+  Tailwind inclui padrões `cN()` e `cn()` de `packages/ui`.
+  Format-on-save está **on** para todas as linguagens listadas.
+- **`.vscode/extensions.json`** — Recomendadas: ESLint, Prettier,
   Tailwind IntelliSense, Prisma, Docker, GitLens, Vitest Explorer,
-  Copilot + Copilot Chat, Ruby LSP (Shopify). The Copilot Chat commit
-  instructions are pre-loaded with the Conventional Commits + scope
-  rules — you should not need to re-prompt them.
-- **`.editorconfig`** — LF line endings, final newline, trim trailing
-  whitespace. Matches Prettier defaults.
-- **`AGENTS.md`** — The canonical rulebook for ALL AI assistants
-  (Claude Code, Gemini CLI, Codex). Read it. It is stricter than this
-  file on SDD and secrets.
-- **`.github/copilot-instructions.md`** — Not present; AGENTS.md is
-  the cross-tool source of truth.
+  Copilot + Copilot Chat, Ruby LSP (Shopify). As instruções de
+  commit do Copilot Chat já vêm pré-carregadas com as regras de
+  Conventional Commits + escopo — você não precisa re-promptá-las.
+- **`.editorconfig`** — LF, newline final, sem trailing whitespace.
+  Casa com defaults do Prettier.
+- **`AGENTS.md`** — O livro de regras canônico para TODAS as
+  assistentes de IA (Claude Code, Gemini CLI, Codex). Leia. É mais
+  estrito que este arquivo em SDD e secrets.
+- **`.github/copilot-instructions.md`** — Não presente; AGENTS.md é a
+  fonte cross-tool.
 
-## 7. Workflow expectations for Claude Code
+## 7. Expectativas de fluxo para Claude Code
 
-When you are asked to make a behavior change:
+Quando você receber um pedido de mudança de comportamento:
 
-1. **Read AGENTS.md first.** If you have not, you do not have context
-   to act. The SDD rule applies even to "small" changes.
-2. **Open an OpenSpec change** at
-   `.openspec/changes/<feature>/` with the four required files
+1. **Leia AGENTS.md primeiro.** Se não leu, não tem contexto para
+   agir. A regra de SDD vale até para mudanças "pequenas".
+2. **Abra uma change OpenSpec** em
+   `.openspec/changes/<feature>/` com os quatro arquivos exigidos
    (`proposal.md`, `tasks.md`, `design.md`, `specs/<area>/spec.md`).
-   See `.agents/sdd/AGENTS.md` §2 for the template and the §5 procedure
-   to archive the change after merge.
-3. **Stop and wait for human approval** on the proposal. Do not start
-   tasks.md before approval lands.
-4. **Execute tasks.md in order, one commit per task** using the
-   Conventional Commits scope matching the file area. Reference the
-   task number in the commit body.
-5. **After merge, archive** per `.agents/sdd/AGENTS.md` §5: move the
-   spec delta to `.openspec/specs/<area>/<feature>.md`, append to
-   `.openspec/CHANGELOG.md`, delete the change folder.
+   Veja `.agents/sdd/AGENTS.md` §2 para o template e o §5 para
+   arquivar a change depois do merge.
+3. **Pare e aguarde a aprovação humana** na proposta. Não comece o
+   `tasks.md` antes da aprovação chegar.
+4. **Execute o `tasks.md` em ordem, um commit por tarefa** usando o
+   escopo de Conventional Commits que casa com a área do arquivo.
+   Referencie o número da tarefa no corpo do commit.
+5. **Após o merge, arquive** conforme `.agents/sdd/AGENTS.md` §5:
+   mova o delta de spec para `.openspec/specs/<area>/<feature>.md`,
+   acrescente ao `.openspec/CHANGELOG.md`, apague a pasta da change.
 
-When the user asks for documentation-only work (`.agents/CLAUDE.md`,
-`README.md`, ADRs, `CONTRIBUTING.md`, `ARCHITECTURE.md`), follow §10 of
-`AGENTS.md`: SDD is not required, but Conventional Commits still apply. Use
-the `sdd` scope
-for ADRs and `root` for the rest.
+Quando o usuário pedir trabalho só de documentação
+(`.agents/CLAUDE.md`, `README.md`, ADRs, `CONTRIBUTING.md`,
+`ARCHITECTURE.md`), siga o §10 de `AGENTS.md`: SDD não é exigido,
+mas Conventional Commits valem. Use o escopo `sdd` para ADRs e
+`root` para o resto.
 
-When in doubt about whether an action is forbidden, consult
-AGENTS.md §"Forbidden actions" before acting.
+Em caso de dúvida sobre uma ação ser proibida, consulte
+AGENTS.md §"Ações proibidas" antes de agir.
