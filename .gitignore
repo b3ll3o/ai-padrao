@@ -46,3 +46,8 @@ __pycache__/
 # before they realise the policy.
 .claude/worktrees/
 .claude/scheduled_tasks.json
+infra/.env.production
+infra/data/
+
+# Local SSH keys for testing deploys
+*.pem
