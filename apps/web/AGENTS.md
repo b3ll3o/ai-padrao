@@ -1,106 +1,67 @@
-# Web Rules — DDD and Hexagonal Architecture
+# App Web — Orientação para Agentes de IA
 
-This file extends the repository-wide rules in [`../../AGENTS.md`](../../AGENTS.md).
-The root rules remain authoritative. These rules apply to every file under
-`apps/web/`.
+> **Regras do monorepo:** [`.agents/REGRAS.md`](../../.agents/REGRAS.md)
+> são a fonte da verdade. Este arquivo **estende** (nunca enfraquece) as
+> regras raiz e foca no app `web`.
 
-## Required architecture
+Este arquivo é a porta de entrada para IA trabalhar em `apps/web`. A
+ordem de leitura recomendada:
 
-The web app MUST follow Domain-Driven Design (DDD) and hexagonal architecture
-for capabilities that contain business behavior. New capabilities MUST be
-organized as vertical feature contexts. Existing features migrate incrementally
-without changing routes or API contracts unless an approved OpenSpec delta
-explicitly changes them.
+1. **[`../../.agents/AGENTS.md`](../../.agents/AGENTS.md)** —
+   orientação geral do monorepo (comandos, layout `.agents/`).
+2. **[`../../.agents/REGRAS.md`](../../.agents/REGRAS.md)** —
+   livro de regras raiz (SDD, sem testes pulados, sem secrets, idioma).
+3. **[`./REGRAS.md`](./REGRAS.md)** — regras e boas práticas específicas
+   deste app (DDD/hexagonal, Next.js, Server vs Client Components,
+   Tailwind/a11y, auth via cookies).
+4. **[`../../.agents/sdd/AGENTS.md`](../../.agents/sdd/AGENTS.md)** —
+   fluxo OpenSpec/SDD ao propor uma mudança.
 
-A feature context SHOULD use this shape:
+## Comandos específicos do web
 
-```text
-features/<context>/
-├── domain/
-├── application/
-├── adapters/
-│   └── presentation/
-└── infrastructure/
-    └── adapters/
+```bash
+pnpm --filter @ai-padrao/web typecheck   # type-check
+pnpm --filter @ai-padrao/web lint        # lint
+pnpm --filter @ai-padrao/web test        # testes (Vitest)
+pnpm --filter @ai-padrao/web test:coverage   # cobertura ≥80%
+pnpm --filter @ai-padrao/web build       # build de produção Next.js
+pnpm --filter @ai-padrao/web start       # servidor de produção
 ```
 
-Apply frontend DDD pragmatically. Purely presentational pages and components do
-not need artificial entities, value objects, or use cases. Introduce domain
-abstractions only for real behavior, invariants, and workflows.
-
-## Dependency rules
-
-Dependencies MUST point inward:
+## Estrutura do app
 
 ```text
-presentation adapters -> application -> domain
-infrastructure adapters -> application/domain ports
-composition root -> all layers
+apps/web/
+├── src/
+│   ├── app/                       # App Router (pages, layouts, etc.)
+│   │   ├── (public)/              # grupo de rotas públicas
+│   │   ├── (auth)/                # grupo de rotas autenticadas
+│   │   ├── layout.tsx             # layout raiz
+│   │   └── globals.css            # CSS global + tokens
+│   ├── features/                  # bounded contexts web
+│   │   └── <context>/
+│   │       ├── domain/
+│   │       ├── application/
+│   │       ├── adapters/
+│   │       │   └── presentation/  # páginas, componentes, hooks
+│   │       └── infrastructure/    # HTTP, cookies, storage
+│   └── components/                # componentes cross-cutting (não-UI)
+├── public/                        # assets estáticos
+├── next.config.ts                 # config Next.js
+└── vitest.config.ts               # config de testes
 ```
 
-- `domain/` MUST NOT import React, Next.js, browser APIs, HTTP clients,
-  rendering libraries, or infrastructure code.
-- `application/` MUST depend on domain types and declared ports, never concrete
-  transport, cookie, navigation, or framework implementations.
-- Pages, components, forms, hooks, and view models are presentation adapters.
-  They MUST NOT contain domain rules.
-- HTTP clients, cookie access, browser storage, server integration, and
-  navigation are infrastructure adapters behind ports.
-- App Router pages and factories act as composition roots where dependencies
-  are assembled.
-- Shared request and response schemas MUST continue to come from
-  `packages/contracts`.
-- Authentication tokens MUST stay in httpOnly cookies and MUST NEVER be stored
-  in `localStorage` or `sessionStorage`.
-- A feature MUST expose an explicit application-facing contract and MUST NOT
-  import another feature's internal adapters.
-- Code under shared locations MUST be framework-neutral or genuinely
-  cross-cutting. Do not use `shared` to bypass feature boundaries.
+## Atalho: regras mais cobradas (apps/web)
 
-## Testing rules
+Se você só puder ler três seções do [`./REGRAS.md`](./REGRAS.md), leia:
 
-Tests MUST follow the same boundaries:
+1. [§3 Server vs Client Components](./REGRAS.md#3-server-vs-client-components) —
+   Server-first; `"use client"` só quando precisar interagir.
+2. [§7 Auth e sessão](./REGRAS.md#7-auth-e-sessao) —
+   tokens em cookies httpOnly, **nunca** em `localStorage`.
+3. [§8 UI, Tailwind e acessibilidade](./REGRAS.md#8-ui-tailwind-e-acessibilidade) —
+   primitivos de `packages/ui`, tokens de tema, a11y AA obrigatória.
 
-1. Test domain rules and value objects with pure unit tests.
-2. Test application use cases with deterministic fake ports.
-3. Test forms, hooks, view models, and critical components as presentation
-   adapters.
-4. Test HTTP, cookie, and navigation adapters with deterministic integration
-   tests.
-5. Cover critical login, registration, session, refresh, logout, and redirect
-   flows.
-6. Enforce forbidden imports and dependency direction with architecture tests
-   or lint rules.
-7. Every bug fix requires a regression test.
-
-The repository-wide zero-tolerance rule for skipped, disabled, placeholder, or
-conditional tests remains in force.
-
-## Minimum coverage
-
-`apps/web` MUST independently maintain at least **80%** in every coverage metric:
-
-- statements: 80%;
-- branches: 80%;
-- functions: 80%;
-- lines: 80%.
-
-The coverage command and CI MUST fail when any metric is below its threshold.
-Coverage from another workspace or app cannot compensate for a web shortfall.
-
-Coverage exclusions are limited to generated code, declaration files,
-declarative configuration, and composition roots that contain only dependency
-wiring. Business logic, use cases, adapters, error branches, domain models,
-forms, and behavioral components MUST NOT be excluded to reach the threshold.
-Every exclusion must be explicit and justified next to the coverage
-configuration.
-
-Do not lower thresholds, add ignore directives, or write assertion-free tests to
-make coverage pass. Add meaningful tests instead.
-
-## Change workflow
-
-DDD/hexagonal migrations and coverage-enforcement changes affect behavior or
-build policy. They require an approved OpenSpec change under
-`.openspec/changes/<feature>/` before implementation, as required by the root
-rules.
+Quando uma mudança for grande (nova feature, migração hexagonal,
+mudança de política de cobertura), abra uma change OpenSpec antes
+de codificar.
