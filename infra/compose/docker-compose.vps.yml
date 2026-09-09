@@ -1,0 +1,55 @@
+name: ai-padrao-vps
+
+services:
+  postgres:
+    env_file:
+      - /opt/ai-padrao/infra/.env.production
+
+  api:
+    env_file:
+      - /opt/ai-padrao/infra/.env.production
+    environment:
+      NODE_ENV: production
+      CORS_ORIGINS: ${WEB_ORIGIN}
+    # No `volumes:` block — overrides REPLACE the base `volumes:` list, so by
+    # omitting it we drop the bind-mounts of ./apps/api/src and ./apps/api/prisma
+    # from the base file. The api image is fully baked at build time in prod.
+
+  web:
+    env_file:
+      - /opt/ai-padrao/infra/.env.production
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: ${WEB_ORIGIN}
+    # Same rule as api: no `volumes:` block here drops the src bind-mounts.
+    # .next/standalone output is already baked into the image at build time.
+
+  caddy:
+    build: /opt/ai-padrao/repo/infra/caddy
+    container_name: ai-padrao-caddy
+    restart: unless-stopped
+    # Use Docker secrets (not env_file:) so the file is mounted at
+    # /run/secrets/caddy_env to match the path baked into the Caddy
+    # CMD in infra/caddy/Dockerfile. Mounting as a secret also enforces
+    # 0400 root-only mode, which env_file: does not.
+    secrets:
+      - caddy_env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+    networks:
+      - default
+
+secrets:
+  caddy_env:
+    file: /opt/ai-padrao/infra/.env.production
+
+volumes:
+  caddy_data:
+  caddy_config:
