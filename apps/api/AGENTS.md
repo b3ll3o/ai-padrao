@@ -1,104 +1,69 @@
-# API Rules — DDD and Hexagonal Architecture
+# App API — Orientação para Agentes de IA
 
-This file extends the repository-wide rules in [`../../AGENTS.md`](../../AGENTS.md).
-The root rules remain authoritative. These rules apply to every file under
-`apps/api/`.
+> **Regras do monorepo:** [`.agents/REGRAS.md`](../../.agents/REGRAS.md)
+> são a fonte da verdade. Este arquivo **estende** (nunca enfraquece) as
+> regras raiz e foca no app `api`.
 
-## Required architecture
+Este arquivo é a porta de entrada para IA trabalhar em `apps/api`. A
+ordem de leitura recomendada:
 
-The API MUST follow Domain-Driven Design (DDD) and hexagonal architecture. New
-business capabilities MUST be implemented as vertical bounded contexts. Existing
-contexts migrate incrementally; a migration must keep external contracts stable
-unless an approved OpenSpec delta explicitly changes them.
+1. **[`../../.agents/AGENTS.md`](../../.agents/AGENTS.md)** —
+   orientação geral do monorepo (comandos, layout `.agents/`).
+2. **[`../../.agents/REGRAS.md`](../../.agents/REGRAS.md)** —
+   livro de regras raiz (SDD, sem testes pulados, sem secrets, idioma).
+3. **[`./REGRAS.md`](./REGRAS.md)** — regras e boas práticas específicas
+   deste app (DDD/hexagonal, NestJS, Prisma, Zod, auth, observabilidade).
+4. **[`../../.agents/sdd/AGENTS.md`](../../.agents/sdd/AGENTS.md)** —
+   fluxo OpenSpec/SDD ao propor uma mudança.
 
-A context SHOULD use this shape:
+## Comandos específicos da API
 
-```text
-<context>/
-├── domain/
-├── application/
-├── adapters/
-│   └── inbound/
-├── infrastructure/
-│   └── adapters/
-└── <context>.module.ts
+```bash
+pnpm --filter @ai-padrao/api typecheck   # type-check
+pnpm --filter @ai-padrao/api lint        # lint
+pnpm --filter @ai-padrao/api test        # testes unit + e2e
+pnpm --filter @ai-padrao/api test:coverage   # cobertura ≥80%
+pnpm --filter @ai-padrao/api prisma:studio   # GUI do Prisma
+pnpm db:migrate          # roda migrations Prisma no container
+pnpm db:seed             # popula usuário admin
+pnpm db:reset            # reset completo do schema (dev)
 ```
 
-Use DDD pragmatically. Create entities, value objects, aggregates, domain
-services, and domain events only when they represent real behavior or
-invariants. Do not add abstractions that only rename framework or database
-operations.
-
-## Dependency rules
-
-Dependencies MUST point inward:
+## Estrutura do app
 
 ```text
-inbound adapters -> application -> domain
-infrastructure adapters -> application/domain ports
-composition root -> all layers
+apps/api/
+├── src/
+│   ├── contexts/         # bounded contexts (auth, users, health, ...)
+│   │   └── <context>/
+│   │       ├── domain/           # entidades, value objects, ports
+│   │       ├── application/      # casos de uso, DTOs
+│   │       ├── adapters/
+│   │       │   └── inbound/      # controllers, presenters
+│   │       └── infrastructure/
+│   │           └── adapters/     # Prisma repositories, clients
+│   ├── modules/          # cross-cutting (config, observability, etc.)
+│   ├── main.ts           # bootstrap NestJS + OTel
+│   └── app.module.ts     # composition root global
+├── prisma/
+│   ├── schema.prisma     # schema do banco
+│   ├── migrations/       # migrações versionadas
+│   └── seed.ts           # seed idem-potente (dev)
+└── test/                 # testes e2e (Supertest + Fastify injector)
 ```
 
-- `domain/` MUST NOT import NestJS, Fastify, Prisma, database clients, HTTP
-  libraries, or infrastructure code.
-- `application/` MUST depend on domain types and declared ports, never concrete
-  adapters.
-- Controllers and DTOs are inbound adapters. They validate and translate HTTP
-  data but MUST NOT contain business rules.
-- Prisma repositories, JWT services, password hashers, clocks, ID generators,
-  queues, and external clients are outbound adapters behind ports.
-- Prisma records are persistence models, not domain entities. Map them at the
-  infrastructure boundary.
-- Nest modules are composition roots. They bind ports to implementations and
-  MUST NOT contain business rules.
-- A bounded context MUST NOT access another context's tables or internal
-  adapters. Cross-context calls use an explicitly exported application-facing
-  contract.
-- Code under shared locations MUST be domain-neutral. Do not use `shared` as a
-  shortcut around context boundaries.
+## Atalho: regras mais cobradas (apps/api)
 
-## Testing rules
+Se você só puder ler três seções do [`./REGRAS.md`](./REGRAS.md), leia:
 
-Tests MUST follow the same boundaries:
+1. [§2 Regras de dependência](./REGRAS.md#2-regras-de-dependencia) —
+   `domain` não importa NestJS/Prisma/HTTP; sempre via ports.
+2. [§5 Boas práticas Prisma](./REGRAS.md#5-boas-praticas-prisma) —
+   `schema.prisma` é atualizado **depois** dos schemas Zod.
+3. [§7 Logs e erros](./REGRAS.md#7-logs-e-erros) + [§8 Auth](./REGRAS.md#8-auth-e-seguranca) —
+   Nest `Logger` (não `console.*`), tokens em cookies httpOnly, sem
+   PII em logs.
 
-1. Test domain entities, value objects, aggregates, invariants, and domain
-   services with pure unit tests.
-2. Test application use cases with deterministic fakes or in-memory port
-   implementations; do not require NestJS or a real database.
-3. Test outbound adapters with integration or contract tests.
-4. Test HTTP validation, authentication, authorization, serialization, and
-   public contracts with controller or e2e tests.
-5. Enforce forbidden imports and dependency direction with architecture tests
-   or lint rules.
-6. Every bug fix requires a regression test.
-
-The repository-wide zero-tolerance rule for skipped, disabled, placeholder, or
-conditional tests remains in force.
-
-## Minimum coverage
-
-`apps/api` MUST independently maintain at least **80%** in every coverage metric:
-
-- statements: 80%;
-- branches: 80%;
-- functions: 80%;
-- lines: 80%.
-
-The coverage command and CI MUST fail when any metric is below its threshold.
-Coverage from another workspace or app cannot compensate for an API shortfall.
-
-Coverage exclusions are limited to generated code, declaration files,
-declarative configuration, and composition roots that contain only dependency
-wiring. Business logic, controllers, use cases, adapters, error branches, and
-domain models MUST NOT be excluded to reach the threshold. Every exclusion must
-be explicit and justified next to the coverage configuration.
-
-Do not lower thresholds, add ignore directives, or write assertion-free tests to
-make coverage pass. Add meaningful tests instead.
-
-## Change workflow
-
-DDD/hexagonal migrations and coverage-enforcement changes affect behavior or
-build policy. They require an approved OpenSpec change under
-`.openspec/changes/<feature>/` before implementation, as required by the root
-rules.
+Quando uma mudança for grande (nova feature, migração hexagonal,
+mudança de política de cobertura), abra uma change OpenSpec antes
+de codificar.
