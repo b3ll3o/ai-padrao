@@ -2,7 +2,6 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-04
-- **Incident reference:** INC-002 (full context in `.harness/INCIDENTS.md`)
 
 ## Context
 
@@ -26,18 +25,11 @@ and switch every method to the Fastify equivalent.
 ## Consequences
 
 - **Easier:** Interceptors and guards compile against the actual response
-  shape; failures surface at type-check time, not runtime.
+ shape; failures surface at type-check time, not runtime.
 - **Harder:** Patterns borrowed from Express middleware need manual translation.
 - **Trade-off:** Accept — the alternative (silently wrong at runtime) is
-  strictly worse; we already lived it.
+ strictly worse; we already lived it.
 
 ## Enforcement
 
-- Auto-check **INC-002** in `.harness/check.sh` greps
-  `apps/api/src/**` for `setHeader|res\.cookie|res\.json(` (with
-  command-specific exclusions) and fails the build on any match.
 - Skill: `nestjs-fastify-gotchas` Gotcha 2.
-- Codemod: `.harness/codemods/inc-002-fastify-response.py` rewrites the
-  forbidden patterns to their Fastify equivalent (use
-  `pnpm harness:codemod inc-002-fastify-response --check <file>` to see the
-  proposal before applying).

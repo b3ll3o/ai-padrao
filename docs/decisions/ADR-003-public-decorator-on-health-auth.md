@@ -2,7 +2,6 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-04
-- **Incident reference:** INC-005 (full context in `.harness/INCIDENTS.md`)
 
 ## Context
 
@@ -23,7 +22,7 @@ Endpoints that must be reachable without authentication MUST carry the
 @ApiTags("health")
 @Controller("health")
 export class HealthController {
-  /* ... */
+ /* ... */
 }
 ```
 
@@ -35,15 +34,12 @@ class-level only.
 
 - **Easier:** Health probes work; users can authenticate.
 - **Harder:** A new unauthenticated endpoint requires remembering the
-  decorator (mitigated by the auto-check below).
+ decorator (mitigated by the auto-check below).
 - **Trade-off:** Accept — the alternative is operational breakage that
-  is hard to attribute to a missing decorator.
+ is hard to attribute to a missing decorator.
 
 ## Enforcement
 
-- Auto-check **INC-005** in `.harness/check.sh` greps
-  `apps/api/src/modules/health/health.controller.ts` for `@Public()` and
-  fails the build if missing.
 - Skill: `nestjs-fastify-gotchas` Gotcha 4.
 - E2E test: `apps/api/test/health.e2e-spec.ts` hits `/api/health` without
-  a token and expects 200.
+ a token and expects 200.

@@ -30,7 +30,6 @@ The keywords **SHALL**, **SHOULD**, and **MAY** follow RFC 2119.
 
 - THE system SHALL maintain `apps/api` coverage at ≥ 80% on every metric (statements, branches, functions, lines).
 - THE system SHALL NOT introduce any skipped or `.todo` tests in tracked files.
-- THE system SHALL NOT bypass the harness inline detector without acknowledging the matched INC.
 
 ## Examples
 

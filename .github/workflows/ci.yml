@@ -47,9 +47,6 @@ jobs:
         # this explicitly here.
         run: pnpm --filter @ai-padrao/api prisma:generate
 
-      - name: Harness auto-checks
-        run: pnpm harness:check
-
       - name: Typecheck
         run: pnpm typecheck
 

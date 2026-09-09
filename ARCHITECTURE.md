@@ -49,9 +49,8 @@ packages/
   ui/            shadcn/ui components + Tailwind 4 primitives.
   config-*/      Shared TS / ESLint / Prettier configs.
 docs/
-  decisions/     11 ADRs (Nygard format). Each one a real incident.
+  decisions/     ADRs (Nygard format). Each one a real decision.
   superpowers/   Brainstorming and planning artifacts.
-.harness/        Self-improving agent loop (capture → detect → digest → enforce).
 .openspec/       SDD workflow (proposal → approval → build → archive).
 infra/           Dockerfiles, observability collector config.
 ```
@@ -196,12 +195,6 @@ The architecture encodes 11 decisions, each linked to a real defect:
   Nest `Logger`, not `console.*`.
 - [ADR-007](docs/decisions/ADR-007-no-skipped-tests.md) — Zero
   skipped tests.
-- [ADR-008](docs/decisions/ADR-008-capture-scripts-bash-and-python3-only.md) —
-  Capture scripts use bash + python3 only.
-- [ADR-009](docs/decisions/ADR-009-events-directory-is-gitignored.md) —
-  `.harness/events/` is gitignored.
-- [ADR-010](docs/decisions/ADR-010-daily-digest-freshness.md) — Daily
-  digest freshness check.
 - [ADR-011](docs/decisions/ADR-011-no-plaintext-secrets-in-source.md) —
   No plaintext tokens in tracked source.
 
@@ -217,8 +210,5 @@ before opening a change to any of these areas.
   the route in `apps/web/app/<route>/page.tsx`.
 - **New DB column:** update `packages/contracts` Zod, then
   `apps/api/prisma/schema.prisma`, then run `pnpm db:migrate`.
-- **New ADR:** write `docs/decisions/ADR-NNN-<slug>.md`, add to the
-  index table, link from `.harness/INCIDENTS.md`.
-- **New harness rule:** add INC entry in `.harness/INCIDENTS.md`,
-  then `learnings.json` entry with `trigger_pattern` +
-  `auto_check`, then a `check.sh` block.
+- **New ADR:** write `docs/decisions/ADR-NNN-<slug>.md` and add to
+  the index table.

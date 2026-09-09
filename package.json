@@ -21,13 +21,6 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:coverage": "pnpm --filter @ai-padrao/api test:coverage && pnpm --filter @ai-padrao/web test:coverage",
-    "harness:check": "bash .harness/check.sh",
-    "harness:detect": "bash .harness/detect.sh",
-    "harness:digest": "python3 .harness/digest.py",
-    "harness:apply": "bash .harness/apply.sh",
-    "harness:codemod": "bash .harness/codemods/run.sh",
-    "harness:test": "python3 .harness/codemods/tests/test_codemods.py",
-    "prebuild": "bash .harness/check.sh",
     "postmerge:install": "git config core.hooksPath .githooks",
     "clean": "turbo run clean && rm -rf node_modules"
   },

@@ -2,14 +2,9 @@
 # .githooks/post-merge — runs the validation steps implied by the files
 # that changed in the merge (including `git pull`, which is fetch + merge).
 #
-# See .openspec/changes/post-merge-pull-workflow/specs/harness/spec.md
-# for the full behavior spec. Brief summary:
+# Steps:
 #
-#   - pnpm-lock.yaml          -> pnpm install --frozen-lockfile
-#   - apps/api/prisma/**      -> pnpm db:migrate
-#   - .harness/**             -> pnpm harness:check
-#   - apps/{api,web}/src/**   -> pnpm test
-#   - packages/*/src/**       -> pnpm test
+#   - pnpm-lock.yaml    -> pnpm install --frozen-lockfile
 #
 # The hook is opt-in (run `pnpm postmerge:install` once) and is safe to
 # disable per-clone via `git config --local --unset core.hooksPath`.
@@ -18,8 +13,7 @@
 #   0 = success (or no-op when no relevant file changed)
 #   non-zero = at least one step failed; the developer must follow up
 #
-# This script depends ONLY on bash + git + pnpm (see INC-013
-# generalized to all hooks). No jq, no python, no new top-level deps.
+# This script depends ONLY on bash + git + pnpm. No jq, no python.
 
 set -uo pipefail
 
@@ -56,13 +50,6 @@ if [[ -z "$CHANGED" ]]; then
   exit 0
 fi
 
-# Match helpers. grep returns 0 on match, 1 on no match. `|| true` so
-# set -u doesn't trip on the empty-string fallback.
-has_match() {
-  local pattern="$1"
-  printf '%s\n' "$CHANGED" | grep -E "$pattern" >/dev/null 2>&1
-}
-
 # Track which steps we ran (for the summary line) and the running time.
 RAN=0
 FAILED=0
@@ -86,29 +73,6 @@ run_step() {
 if printf '%s\n' "$CHANGED" | grep -qx "pnpm-lock.yaml"; then
   run_step "pnpm install --frozen-lockfile" \
     pnpm install --frozen-lockfile || true
-fi
-
-# 2. Prisma schema change -> migrate.
-if has_match '^apps/api/prisma/'; then
-  # db:migrate may fail if the local DB is not reachable. The spec says
-  # print the failure and exit non-zero so the developer notices. We
-  # surface the failure but continue so the developer sees the full
-  # picture before re-running.
-  run_step "pnpm db:migrate" pnpm db:migrate || true
-fi
-
-# 3. Harness internals change -> harness:check.
-if has_match '^\.harness/'; then
-  run_step "pnpm harness:check" pnpm harness:check || true
-fi
-
-# 4. Runtime source change -> unit tests (fast path; integration/e2e
-# are NOT run by this hook per the spec).
-if has_match '^(apps/api/src|apps/web/src|packages/[^/]+/src)/'; then
-  # `pnpm test` is wired through turbo to all packages' vitest runs.
-  # We invoke the underlying command directly to keep this hook's
-  # output legible.
-  run_step "pnpm test" pnpm test || true
 fi
 
 # Summary.

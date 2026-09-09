@@ -26,7 +26,8 @@ once.
 
 | Hook             | When it fires                                | What it does                                                                          |
 | ---------------- | -------------------------------------------- | ------------------------------------------------------------------------------------- |
-| `post-merge`     | After every successful merge (incl. `pull`)  | Runs the validation steps implied by the files that changed (install / migrate / test). See `.openspec/changes/post-merge-pull-workflow/specs/harness/spec.md` for the full behavior spec. |
+| `pre-push`       | Before every `git push`                      | Runs `pnpm lint`, `pnpm typecheck`, `pnpm test` and blocks the push on failure.       |
+| `post-merge`     | After every successful merge (incl. `pull`)  | Runs `pnpm install --frozen-lockfile` when `pnpm-lock.yaml` changed.                  |
 
 ## Adding a new hook
 

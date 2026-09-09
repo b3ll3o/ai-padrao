@@ -24,10 +24,10 @@ The audit foundation is delivered through a single, focused change with four par
 1. **Per-entity typed history table** with `originalId`, `version`, `operation` (`AuditOp` enum), `changedAt`, `changedBy?`, `snapshot Json`. The table is FK-linked back to the entity with `ON DELETE SET NULL` so history survives a hard delete.
 2. **Domain entity gains `deletedAt`, `version` readonly fields plus `markDeleted(at)` and `restore()` factory methods.** All instances stay immutable.
 3. **Prisma Client extension** at `apps/api/src/infra/prisma/audit/audit-extension.ts` is bound once in `PrismaModule`. It:
-   - Injects `where: { deletedAt: null }` into every `user.*` read (unless `__includeDeleted: true`).
-   - Replaces `user.delete` with `UPDATE … SET deleted_at = now(), version = version + 1` + a `DELETE` history entry.
-   - Wraps `user.update`/`upsert` in `prisma.$transaction` to atomically read the prior row, increment `version`, and write a history entry whose `snapshot` is the prior state.
-   - Wraps `user.create` to also write a `CREATE` history entry.
+ - Injects `where: { deletedAt: null }` into every `user.*` read (unless `__includeDeleted: true`).
+ - Replaces `user.delete` with `UPDATE … SET deleted_at = now(), version = version + 1` + a `DELETE` history entry.
+ - Wraps `user.update`/`upsert` in `prisma.$transaction` to atomically read the prior row, increment `version`, and write a history entry whose `snapshot` is the prior state.
+ - Wraps `user.create` to also write a `CREATE` history entry.
 4. **Typed allowlist** `export const AUDITED_MODELS = ['User'] as const`. New bounded contexts add their entity name(s) to this tuple as part of their OpenSpec change.
 
 ## Consequences
@@ -57,4 +57,4 @@ Negative:
 
 - `.openspec/changes/domain-audit-foundation/` — proposal, tasks, design, spec delta.
 - `docs/superpowers/specs/2026-08-05-domain-audit-foundation-design.md` — full design.
-- `.harness/INCIDENTS.md` — the audit-foundation work pre-empts the "no undo for delete" class of incidents.
+- The audit-foundation work pre-empts the "no undo for delete" class of incidents.

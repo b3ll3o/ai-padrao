@@ -2,7 +2,6 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-04
-- **Incident reference:** INC-003 (full context in `.harness/INCIDENTS.md`)
 
 ## Context
 
@@ -37,12 +36,10 @@ relevant lines with `// eslint-disable-next-line @typescript-eslint/consistent-t
 - **Easier:** DI continues to work; `pnpm lint --fix` is safe.
 - **Harder:** Splitting imports by usage is a small cost.
 - **Trade-off:** Accept — the alternative (a global eslint exemption) would
-  defeat the lint rule for everyone.
+ defeat the lint rule for everyone.
 
 ## Enforcement
 
 - Skill: `nestjs-fastify-gotchas` Gotcha 1.
-- Codemod: `.harness/codemods/inc-003-nest-di-imports.py` audits DI'd
-  files and surfaces offending imports.
-- Auto-check **INC-003** is documented but **manual** (it would require a
-  TypeScript-aware rule that knows framework boundaries); review by hand.
+- No automated check exists for this rule — it would require a TypeScript-aware
+ rule that knows framework boundaries; review by hand.

@@ -60,12 +60,12 @@ Rodar todos os itens antes de pedir review da feature. Cada `✓` significa veri
 
 - [ ] `<ctx>-context.module.ts` registrado em `apps/api/src/app.module.ts`
 - [ ] DI tokens são `Symbol` declarados em `<ctx>-context.tokens.ts` (não string, não classe concreta)
-- [ ] Cada port tem binding: `{ provide: X_PORT, useFactory: ... }` + `{ provide: X_PORT, useExisting: ... }` (NÃO `useClass` — sidesteps INC-003 metadata issues; matches live `users-context.module.ts`)
-- [ ] `import type` proibido em qualquer arquivo de DI (controllers, services, guards, strategies) — INC-003
+- [ ] Cada port tem binding: `{ provide: X_PORT, useFactory: ... }` + `{ provide: X_PORT, useExisting: ... }` (NÃO `useClass` — sidestaps Nest DI metadata issues; matches live `users-context.module.ts`)
+- [ ] `import type` proibido em qualquer arquivo de DI (controllers, services, guards, strategies)
 
 ## 6. Tests
 
-- [ ] Zero `.skip` / `.todo` / `--passWithNoTests` (INC-012)
+- [ ] Zero `.skip` / `.todo` / `--passWithNoTests`
 
   ```bash
   grep -rn "\.skip\|\.todo\|passWithNoTests" apps/api/src/contexts/<ctx>/

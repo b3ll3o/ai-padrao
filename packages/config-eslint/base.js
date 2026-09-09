@@ -27,10 +27,9 @@ export default [
         { argsIgnorePattern: "^_" },
       ],
       "@typescript-eslint/consistent-type-imports": "error",
-      // INC-019 (proposal: complexity-gate). Cyclomatic complexity threshold
-      // matches SonarSource's default. `pnpm harness:check` (INC-019) and
-      // `.githooks/pre-push` enforce the same rule at the repo level; this
-      // declaration makes `pnpm lint` (turbo) fail per-workspace too.
+      // Cyclomatic complexity threshold matches SonarSource's default.
+      // `.githooks/pre-push` enforces the same rule at the repo level;
+      // this declaration makes `pnpm lint` (turbo) fail per-workspace too.
       complexity: ["error", { max: 10 }],
       "no-console": ["warn", { allow: ["warn", "error"] }],
     },

@@ -30,8 +30,6 @@ These MUST still use [Conventional Commits](https://www.conventionalcommits.org/
 - ❌ Import Prisma directly into `apps/web` (only `apps/api` may use Prisma)
 - ❌ Modify `apps/api/prisma/schema.prisma` without coordinating with the contracts in `packages/contracts`
 - ❌ **Skip, disable, or stub a test.** The repo uses zero-tolerance for skipped tests — see [No skipped tests](#no-skipped-tests) below.
-- ❌ **Bypass the harness inline detector.** If the inline detector surfaces a known INC pattern, do not silently proceed — confirm with the user that the pattern is intentional. See [Continuous learning](#continuous-learning) below.
-- ❌ **Add `jq` (or any new top-level binary dep) to a capture hook.** Capture scripts must use bash + `python3` only. See [Continuous learning → Capture dependencies](#capture-dependencies) below.
 
 ## Tech stack reminder
 
@@ -63,7 +61,7 @@ shortfall. Do not lower thresholds, exclude business code, add coverage-ignore
 directives, or write meaningless tests to satisfy the gate.
 
 These local rule files extend this root rulebook and MUST NOT weaken the SDD,
-security, harness, or no-skipped-test requirements below.
+security, or no-skipped-test requirements below.
 
 ## Common commands
 
@@ -76,11 +74,6 @@ pnpm db:seed          # seed admin user
 pnpm test             # run unit + e2e tests across packages
 pnpm lint             # lint all packages
 pnpm typecheck        # type-check all packages
-pnpm harness:check    # run all 16 auto-checks (also runs on prebuild)
-pnpm harness:digest   # write today's digest + propose safe updates
-pnpm harness:apply    # apply a proposed patch under .harness/proposed/
-pnpm harness:codemod  # invoke a codemod (e.g. inc-002-fastify-response)
-pnpm harness:test     # run codemod unit tests
 ```
 
 ## No skipped tests
@@ -101,7 +94,7 @@ pnpm harness:test     # run codemod unit tests
 
 ### Why
 
-A skipped test is a lie. It says "this is covered" while delivering zero signal. We learned this the hard way during stabilization: every green build hid at least one assumption that wasn't actually exercised (see [`.harness/INCIDENTS.md`](.harness/INCIDENTS.md) INC-005 — `/api/health` was "covered" by tests but in fact 401'd because no e2e test ever called it without a token).
+A skipped test is a lie. It says "this is covered" while delivering zero signal. We learned this the hard way during stabilization: every green build hid at least one assumption that wasn't actually exercised — e.g. `/api/health` was "covered" by tests but in fact 401'd because no e2e test ever called it without a token.
 
 ### What to do instead
 
@@ -112,133 +105,11 @@ A skipped test is a lie. It says "this is covered" while delivering zero signal.
 
 ### Enforcement
 
-The auto-check [`.harness/check.sh`](.harness/check.sh) entry **INC-012** scans every `*.spec.ts`, `*.test.ts`, `*.spec.tsx`, `*.test.tsx`, and `package.json` for the patterns above and fails the build if any match. CI runs the same check before tests run.
+Code reviewers and CI MUST scan every `*.spec.ts`, `*.test.ts`, `*.spec.tsx`, `*.test.tsx`, and `package.json` for the patterns above and fail the build if any match.
 
-## Documentation coverage
+## No plaintext secrets
 
-**Every change carries its own documentation** — Diátaxis-classified, build-time enforced. The [`documentation`](../.claude/skills/documentation/) skill (installed at `~/.claude/skills/documentation/`) auto-fires on Edit / Write to `apps/`, `packages/`, `docs/`, `.openspec/`, and `infra/`. It classifies every change into one of four quadrants — **tutorial** (BC README), **how-to** (runbook / OpenSpec spec), **reference** (JSDoc + Zod + OpenAPI), **explanation** (ADR) — and emits a non-blocking warning when the corresponding artifact is missing or stale. Run a full audit at any time with `/documentar --audit`; generate the gaps with `/documentar --fix`. The auto-check [`.harness/check.sh`](.harness/check.sh) entry **INC-028** fails the build when a touched file drops below 80% JSDoc coverage on its public surface, when a bounded context or feature folder lacks `README.md`, or when an ADR cross-reference cannot be resolved. Single-source-of-truth rule: each fact lives in one canonical artifact; everywhere else only links. Architectural companion: [ADR-018](docs/decisions/ADR-018-documentation-coverage-skill.md).
+`~/.claude/settings.json` on this machine carries a live `ANTHROPIC_AUTH_TOKEN` (`sk-cp-…`) and `GITHUB_PERSONAL_ACCESS_TOKEN` (`github_pat_…`) in plaintext. Any code or hook that captures tool inputs without redaction risks writing these tokens to disk. The two-layer defense:
 
-## Continuous learning
-
-The harness is a **closed feedback loop** — it learns from every event that happens in this repo, not only from escaped defects. The model is: **agente = modelo + harness**, where the harness has two halves:
-
-- **Guias (feedforward):** tell the agent the safe form BEFORE it writes the bad form. Codemods in `.harness/codemods/` and the inline detector (L2) are guias.
-- **Sensores (feedback):** observe what the agent did and surface it. Capture (L1), daily digest (L3), auto-checks (L4) are sensores.
-
-### The four layers
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│ L1 — Capture (sensor)                                                   │
-│   PostToolUse hooks on Bash|Edit|Write|MCP append one JSONL line        │
-│   to .harness/events/<date>.jsonl. Tokens redacted via redact.py.       │
-│   Always exit 0 — capture failures must never block the user.           │
-└────────────────────────────────────────────────────────────────────────┘
-                              ↓
-┌────────────────────────────────────────────────────────────────────────┐
-│ L2 — Inline detection (guia)                                            │
-│   detect.sh tails last 20 events, runs pattern_match.py.                │
-│   Match against .harness/learnings.json trigger_patterns →              │
-│   blocking confirmation prompt to the assistant.                        │
-└────────────────────────────────────────────────────────────────────────┘
-                              ↓
-┌────────────────────────────────────────────────────────────────────────┐
-│ L3 — Daily digest (sensor)                                              │
-│   CronCreate @ 22:03 local runs an agent that reads events/*.jsonl,     │
-│   writes .harness/digest/<date>.md, and proposes updates to            │
-│   learnings.json / AGENTS.md / skills under .harness/proposed/<date>.patch. │
-│   Safe promotions auto-apply via pnpm harness:apply.                    │
-└────────────────────────────────────────────────────────────────────────┘
-                              ↓
-┌────────────────────────────────────────────────────────────────────────┐
-│ L4 — Enforcement (sensor)                                               │
-│   .harness/check.sh runs all 16 auto-checks (INC-001..INC-016)         │
-│   before every build. New auto-checks are added when an INC pattern     │
-│   re-occurs and the existing prevention isn't strong enough.            │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-### How the inline detector works
-
-When the agent is about to edit, write, or run a bash command, the L2 hook tails the last 20 events and compares them against `trigger_pattern` for every entry in `learnings.json`. If a match is found:
-
-1. The hook exits non-zero with a message like `harness-detect: matched INC-006 in recent events — confirm with user before proceeding`.
-2. Claude Code surfaces the warning to the assistant.
-3. The assistant MUST stop, explain the matched pattern, and ask the user to confirm or override.
-
-**The user can always say "yes, proceed" — the detector is a guide, not a wall.** But bypassing the warning without acknowledging the known pattern is a forbidden action.
-
-### Codemods as feedforward guides
-
-For each `INC-XXX` whose pattern is regular enough to rewrite deterministically, we ship a codemod under `.harness/codemods/inc-XXX-…`. The agent SHOULD invoke the codemod before editing a file that matches the INC `trigger_pattern.files`, OR during a fix wave to eliminate every existing instance:
-
-```bash
-# Dry-run: show the proposed rewrite
-pnpm harness:codemod inc-002-fastify-response --check apps/api/src/modules/audit/audit.interceptor.ts
-
-# Apply the rewrite
-pnpm harness:codemod inc-002-fastify-response --apply apps/api/src/modules/audit/audit.interceptor.ts
-```
-
-The codemods are documented in [`.harness/codemods/README.md`](.harness/codemods/README.md). When you add a new INC, ask: "is this pattern regular enough to rewrite deterministically?" If yes, add a codemod as part of the prevention layer.
-
-### Capture dependencies
-
-All capture scripts (`.harness/capture.sh`, `.harness/detect.sh`, `.harness/digest.py`, `.harness/pattern_match.py`, `.harness/redact.py`) MUST use bash + `python3` only. Adding `jq` (or any other top-level binary dep) to a capture hook is a forbidden action.
-
-The auto-check **INC-013** in `.harness/check.sh` enforces this:
-
-- Asserts `python3` is present.
-- Greps every capture script for `jq` and fails if any match.
-- Error message: _"Fix: jq missing/broken; use python3 (see .harness/redact.py)"_ — the Alura principle of "linter messages with correction instructions."
-
-The original Prettier PostToolUse hook depended on `jq` and was silently a no-op for months (see [`.harness/INCIDENTS.md`](.harness/INCIDENTS.md) INC-013). We rewrote it to use `python3 -c 'import json,sys; ...'`.
-
-### Detector exclusion list
-
-The L2 inline detector at `.harness/pattern_match.py` MUST exclude the following event classes from the file-axis count (the symbol-axis is unchanged — code violations still surface):
-
-| Excluded class                                                                 | Why                                                                                            |
-| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| `file_path` matches `^docs/` or `^\.harness/` (absolute or relative) (INC-017) | Harness internals and documentation deliberately quote trigger patterns.                       |
-| `tool_name == "Read"` (INC-018)                                                | Read is inspection, not mutation. INC-004 is a mutation-only pattern.                          |
-| `tool_name == "TodoWrite"` (INC-018)                                           | Session planning, never mutates source.                                                        |
-| `file_path` contains `.claude/worktrees/` (INC-018)                            | Worktree sessions share the main event stream but operate on isolated branches.                |
-| `file_path` matches `/tmp/` (INC-018)                                          | Ephemeral test scratch (test drivers for the detector or post-merge hook).                     |
-| `Bash` events matching read-only diagnostic regex (INC-017 + INC-018)           | `grep`/`cat`/`head`/`tail`/`wc`/`ls`/`find`/`md5sum`, `python3 -c`, `python3 <<EOF` heredocs. |
-
-The file_path lookup reads both the top-level `event["file_path"]` and the fallback `event.tool_input.file_path` (Edit/Write events store the path under `tool_input`). The Bash command lookup reads `event.tool_input.command` and falls back to the top-level `event["command"]`.
-
-Adding a new excluded class requires updating **INC-018** in `.harness/check.sh` AND adding a regression test in `.harness/test_pattern_match.py` in the same patch.
-
-### Events are transient
-
-`.harness/events/<date>.jsonl` is session state, NOT source-of-truth. It MUST be gitignored. The aggregated output (`.harness/digest/<date>.md`) and the proposed patches (`.harness/proposed/<date>.patch`) ARE source-of-truth and stay committed.
-
-The auto-check **INC-014** in `.harness/check.sh` asserts the `.gitignore` entry is present.
-
-### Daily digest freshness
-
-The daily digest must run. If the newest `.harness/digest/*.md` is more than 25 hours old, the harness has stopped learning.
-
-The auto-check **INC-015** in `.harness/check.sh` enforces this:
-
-- Asserts `.harness/digest/` exists.
-- Asserts the newest digest mtime is < 25h.
-- Error message: _"Fix: run `pnpm harness:digest` to refresh the daily digest."_
-
-### No plaintext secrets
-
-`~/.claude/settings.json` on this machine carries a live `ANTHROPIC_AUTH_TOKEN` (`sk-cp-…`) and `GITHUB_PERSONAL_ACCESS_TOKEN` (`github_pat_…`) in plaintext. Any hook that captures tool inputs without redaction risks writing these tokens to disk. The two-layer defense:
-
-1. **Redaction at capture (seatbelt).** `.harness/redact.py` strips tokens before they hit `.harness/events/`. Run on every Bash/Edit/Write/MCP via the L1 hook.
-2. **Secret-shape scan at pre-commit (airbag).** The auto-check **INC-016** in `.harness/check.sh` greps every `*.ts`/`*.tsx`/`*.js`/`*.jsx` under `apps/` and `packages/` for known token shapes (`sk-ant-`, `sk-cp-`, `ghp_`, `github_pat_`, `AKIA…`) and fails the build.
-
-### When the inline detector fires
-
-1. Acknowledge the matched `INC-XXX` to the user.
-2. State the recommended remediation (run the codemod, or apply the fix manually).
-3. Ask: "Continue anyway, or apply the fix?"
-4. If the user says continue, do so — but the matched INC is now extra evidence for the next self-improvement pass.
-
-Bypassing the detector without acknowledging the pattern is a forbidden action.
+1. **Redaction at capture (seatbelt).** Strip tokens before they hit any persistent log. Run on every Bash/Edit/Write/MCP via the L1 hook.
+2. **Secret-shape scan at pre-commit (airbag).** Grep every `*.ts`/`*.tsx`/`*.js`/`*.jsx` under `apps/` and `packages/` for known token shapes (`sk-ant-`, `sk-cp-`, `ghp_`, `github_pat_`, `AKIA…`) and fail the build.

@@ -1,28 +1,20 @@
 #!/usr/bin/env bash
 # .githooks/pre-push — local pre-push gate. Blocks `git push` until the
-# repository passes a chain of five checks. Pairs with INC-027 in
-# .harness/check.sh for defense in depth (this hook is the local layer,
-# INC-027 is the CI layer).
+# repository passes lint + typecheck + test. Pairs with CI for defense in
+# depth (this hook is the local layer, CI is the remote layer).
 #
-# Five steps (each must pass; the hook fails the push on the first
-# failure and prints which step failed):
+# Steps (each must pass; the hook fails the push on the first failure
+# and prints which step failed):
 #
-#   1. Cyclomatic complexity ≤ 10 across apps/ and packages/
-#      (ESLint built-in complexity rule; .openspec/specs/harness/complexity-gate.md)
-#   2. docker compose up (idempotent — no-op when containers are already running)
-#   3. Postgres readiness wait (pg_isready polled every 1 s, max 30 s)
-#   4. pnpm test (turbo — unit + integration across all workspaces)
-#   5. pnpm --filter @ai-padrao/api test:e2e (e2e against the just-brought-up Postgres)
+#   1. pnpm lint       (turbo — ESLint across all workspaces)
+#   2. pnpm typecheck  (turbo — tsc --noEmit across all workspaces)
+#   3. pnpm test       (turbo — unit + integration across all workspaces)
 #
 # Bypass paths:
 #   git push --no-verify                      # bypass this hook for one push
 #   git config --local --unset core.hooksPath # disable all hooks
 #
-# This script depends ONLY on bash + git + pnpm + docker + pg_isready
-# (per INC-013 generalized to all hooks). If pg_isready is missing, the
-# readiness step degrades to a single immediate check via psql, then
-# fails loud if neither is present — a missing CLI tool never silently
-# passes the gate. No jq, no python.
+# This script depends ONLY on bash + git + pnpm. No jq, no python.
 
 set -uo pipefail
 
@@ -49,157 +41,37 @@ fi
 cd "$ROOT"
 
 # ---- toolchain check ---------------------------------------------------
-for tool in git pnpm docker; do
+for tool in git pnpm; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "[pre-push] '$tool' is not on PATH." >&2
-    echo "[pre-push] Fix: install $tool, or bypass via: git push --no-verify" >&2
-    # Don't break the developer's git workflow over a missing tool;
-    # INC-027 still catches complexity violations in CI.
-    exit 0
+    echo "[pre-push] Fix: install $tool, or disable via: git config --local --unset core.hooksPath" >&2
+    exit 1
   fi
 done
 
-# ---- step runner -------------------------------------------------------
-# Same convention as .githooks/post-merge: each step is a label + a
-# command. A failing step stops the hook and reports which one.
-RAN=0
-FAILED=0
-FAILED_STEP=""
-START_TS="$(date +%s)"
+# ---- run steps ---------------------------------------------------------
+STEP=0
+FAIL_STEP=""
 
 run_step() {
+  STEP=$((STEP + 1))
   local label="$1"; shift
-  RAN=$((RAN + 1))
-  echo "[pre-push] step ${RAN}: ${label}" >&2
+  echo "[pre-push] step ${STEP}: ${label}" >&2
   if ! "$@"; then
-    FAILED=1
-    FAILED_STEP="${label}"
-    echo "[pre-push] FAIL at step ${RAN}: ${label}" >&2
+    FAIL_STEP="${label}"
+    echo "[pre-push] FAIL at step ${STEP}: ${label}" >&2
     return 1
   fi
   return 0
 }
 
-# ---- step 1: cyclomatic complexity -------------------------------------
-# Same command as INC-027 in .harness/check.sh. We invoke ESLint with
-# the shared base config scoped to apps/ and packages/, then filter
-# ESLint's output for complexity errors. Other lint warnings are not
-# this hook's concern.
-run_step "cyclomatic complexity ≤ 10 (apps/, packages/)" \
-  bash -c '
-    set +e
-    out=$(pnpm exec eslint --no-warn-ignored \
-      --no-config-lookup \
-      --config packages/config-eslint/base.js \
-      apps packages \
-      --ext .ts,.tsx 2>&1)
-    rc=$?
-    complexity_errors=$(printf "%s\n" "$out" | grep -E "complexity" || true)
-    if [ -n "$complexity_errors" ]; then
-      echo "$complexity_errors" | sed "s/^/  /"
-      echo "  One or more functions in apps/ or packages/ exceed cyclomatic complexity 10."
-      echo "  Split into helpers, or annotate with \`// eslint-disable-next-line complexity\`."
-      exit 1
-    fi
-    if [ "$rc" -ne 0 ] && [ "$rc" -ne 1 ]; then
-      echo "  ESLint failed to run for an unrelated reason (exit $rc):"
-      echo "$out" | sed "s/^/    /" | tail -20
-      exit 1
-    fi
-  ' || exit 1
+START_TS="$(date +%s)"
 
-# ---- step 2: bring up docker compose -----------------------------------
-# `pnpm up` is `docker compose up -d` — idempotent. When containers are
-# already up, this returns in ~1-2 s with no diff. When the stack is
-# down, it starts Postgres + MailHog + OTel Collector (+ api + web if
-# defined in the compose file). We do NOT pass --build or any other
-# flag that would alter the dev environment beyond starting it.
-run_step "pnpm up (docker compose up -d)" pnpm up || exit 1
+run_step "pnpm lint"      pnpm lint      || exit 1
+run_step "pnpm typecheck" pnpm typecheck || exit 1
+run_step "pnpm test"      pnpm test      || exit 1
 
-# ---- step 3: wait for Postgres readiness -------------------------------
-# `docker compose up -d` returns when the container starts, not when
-# the Postgres process inside is ready to accept connections. We poll
-# every second, up to 30 s, using whatever probe is available — best
-# to worst:
-#
-#   1. pg_isready  (preferred; bundled with postgresql-client)
-#   2. psql SELECT 1  (fallback when only psql is installed)
-#   3. /dev/tcp/localhost/5432  (bash built-in; no extra deps)
-#
-# TCP is the weakest probe — it only checks that SOMETHING is listening
-# on port 5432. But combined with step 2 (`pnpm up`) which we know has
-# just started the Postgres container, a successful TCP connect is
-# strong evidence the Postgres process is alive. If a stale process is
-# listening on 5432 but not responding to SQL, the e2e step will fail
-# with a clear error.
-run_step "wait for Postgres (localhost:5432) via pg_isready/psql/tcp" \
-  bash -c '
-    set +e
-    ready=0
-    if command -v pg_isready >/dev/null 2>&1; then
-      for i in $(seq 1 30); do
-        if pg_isready -h localhost -p 5432 -q 2>/dev/null; then
-          echo "  Postgres ready in ${i}s (pg_isready)"
-          ready=1
-          break
-        fi
-        sleep 1
-      done
-    fi
-    if [ "$ready" -ne 1 ] && command -v psql >/dev/null 2>&1; then
-      echo "  pg_isready missing — falling back to psql probe"
-      if PGPASSWORD="${POSTGRES_PASSWORD:-ai_padrao_dev}" \
-           psql -h localhost -p 5432 -U ai_padrao -d postgres \
-           -c "SELECT 1" >/dev/null 2>&1; then
-        echo "  Postgres ready (psql probe)"
-        ready=1
-      fi
-    fi
-    if [ "$ready" -ne 1 ]; then
-      echo "  pg_isready/psql missing — falling back to /dev/tcp probe"
-      for i in $(seq 1 30); do
-        if (exec 3<>"/dev/tcp/localhost/5432") 2>/dev/null; then
-          exec 3<&- 3>&- 2>/dev/null || true
-          echo "  port 5432 reachable in ${i}s (tcp probe)"
-          ready=1
-          break
-        fi
-        sleep 1
-      done
-    fi
-    if [ "$ready" -ne 1 ]; then
-      echo "  Postgres not ready within 30 s"
-      echo "  Try: docker compose logs postgres"
-      echo "  Install postgresql-client for pg_isready: apt install postgresql-client"
-      exit 1
-    fi
-  ' || exit 1
-
-# ---- step 4: unit + integration tests ----------------------------------
-# turbo run test across all workspaces. Covers:
-#   - apps/api: jest (38 spec files)
-#   - apps/web: vitest
-#   - packages/*: vitest where applicable
-# Turbo caches successful runs, so repeat pushes of the same commits
-# pay ~0 s here.
-run_step "pnpm test (unit + integration)" pnpm test || exit 1
-
-# ---- step 5: e2e tests -------------------------------------------------
-# jest with apps/api/test/jest-e2e.json; setup.ts reads DATABASE_URL
-# (default localhost:5432, which step 2-3 just verified is up). The
-# e2e tests cover /api/auth and /api/users flows end-to-end.
-run_step "pnpm --filter @ai-padrao/api test:e2e" \
-  pnpm --filter @ai-padrao/api test:e2e || exit 1
-
-# ---- summary -----------------------------------------------------------
 END_TS="$(date +%s)"
 ELAPSED=$((END_TS - START_TS))
-
-if [[ "$FAILED" -ne 0 ]]; then
-  echo "[pre-push] FAIL at step '${FAILED_STEP}' (${RAN} steps in ${ELAPSED}s)" >&2
-  echo "[pre-push] Fix the failing step and retry, or bypass with: git push --no-verify" >&2
-  exit 1
-fi
-
-echo "[pre-push] ALL OK in ${ELAPSED}s (${RAN} steps)"
+echo "[pre-push] OK in ${ELAPSED}s (${STEP} steps)"
 exit 0

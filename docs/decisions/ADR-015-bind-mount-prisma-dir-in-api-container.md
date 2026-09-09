@@ -4,7 +4,6 @@
 - **Date:** 2026-08-05
 - **Decision type:** Bug-driven architecture decision
 - **Related ADRs:** [ADR-004](./ADR-004-dockerfile-copy-schema-before-generate.md), [ADR-006](./ADR-006-nest-logger-not-console.md)
-- **Related INC:** [INC-026](../.harness/INCIDENTS.md#inc-026-api-containers-migrations-directory-went-stale-after-a-fresh-migration-landed-on-the-host--prisma-migrate-dev-reported-phantom-drift-on-the-merged-main)
 
 ## Context
 
@@ -22,7 +21,6 @@ That worked fine while schema changes were rare and migrations were always shipp
 
 Prisma correctly reported that something was inconsistent and (incorrectly) recommended `prisma migrate reset`. The DB was actually healthy — `_prisma_migrations` showed both migrations applied, the `users_history` table and `AuditOp` enum were present, and the `users.deleted_at` + `users.version` columns existed. Only the container's view of `migrations/` was stale.
 
-See [INC-026](../.harness/INCIDENTS.md) for the full incident writeup (symptom, root cause, verification).
 
 ## Decision
 
@@ -37,7 +35,7 @@ Positive:
 - `prisma migrate dev` inside the container always sees the same `migrations/` directory as the host. No more phantom drift.
 - A future contributor can land a new migration locally without rebuilding the api container first.
 - The pattern is now uniform across the api container's hot-reload surface (`src/`, `prisma/`, plus the shared `packages/` mount).
-- Drift-class incidents like INC-026 stop recurring at the source.
+- Drift-class incidents stop recurring at the source.
 
 Negative:
 
@@ -47,13 +45,11 @@ Negative:
 
 ## Enforcement
 
-1. The drift-smoke-test addition recommended by INC-026 (`prisma migrate status` after `docker compose up`) would catch a regression in CI before it reaches `main`.
+1. The drift-smoke-test addition (`prisma migrate status` after `docker compose up`) would catch a regression in CI before it reaches `main`.
 2. The bind mount lives in a single, easy-to-spot line of `docker-compose.yml`. Code review of any change to the api service's `volumes:` block must confirm the `./apps/api/prisma` mount is still present.
-3. The companion `pattern_match.py` change in INC-025 (file-axis globs match paths, not content) means a future automated check that greps `docker-compose.yml` for the bind mount won't false-positive on template files that quote the path as a reference.
-4. No `.skip` tests (ADR-007) — any test added for the drift class must run for real, not be silenced.
+3. No `.skip` tests (ADR-007) — any test added for the drift class must run for real, not be silenced.
 
 ## References
 
-- `.harness/INCIDENTS.md` — INC-026 (the incident this ADR closes).
 - `docker-compose.yml` — the `api` service `volumes:` block, specifically the new `./apps/api/prisma:/app/apps/api/prisma` entry.
 - `apps/api/prisma/migrations/20260805000000_domain_audit/migration.sql` — the migration that surfaced the gap.

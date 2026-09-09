@@ -36,13 +36,5 @@ coverage/
 # prisma
 apps/api/prisma/migrations/dev.db*
 
-# harness session state (captured events are per-session, not source-of-truth)
-# See .harness/INCIDENTS.md INC-014. The digest output (.harness/digest/) and
-# proposed patches (.harness/proposed/) ARE committed.
-.harness/events/
-
-# python bytecode from harness scripts (digest.py, pattern_match.py, codemods)
+# python bytecode
 __pycache__/
-
-# graph engine walk audit logs (per-event, not source-of-truth)
-.harness/graph/walks/

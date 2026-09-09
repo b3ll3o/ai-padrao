@@ -111,7 +111,7 @@ Antes de escrever uma linha de código:
 3. **Domain Errors** — erros específicos do domínio (`UserNotFoundError`).
 4. **Domain Events** (opcional) — `UserCreated`, `OrderPlaced`.
 5. **Ports** — interface vazia, sem implementação.
-6. Cada arquivo vem com `*.spec.ts` (regra INC-012: zero skipped tests).
+6. Cada arquivo vem com `*.spec.ts` (regra: zero skipped tests).
 
 Use `templates/entity.ts.template`, `templates/value-object.ts.template`, `templates/repository-port.ts.template`.
 
@@ -168,13 +168,13 @@ Antes de declarar a feature pronta, rodar mentalmente cada item de [CHECKLIST.md
 |---|--------------|---------------------|
 | 1 | `domain/*.ts` importando `@nestjs/common` | Quebra inversão de dependência — domain vira refém do framework |
 | 2 | `domain/*.ts` importando `@prisma/client` | Domain não conhece DB |
-| 3 | `import type` em arquivo de DI NestJS | Apaga metadata do decorator → DI quebra (INC-003) |
+| 3 | `import type` em arquivo de DI NestJS | Apaga metadata do decorator → DI quebra |
 | 4 | Use case chamando `prisma.user.findMany()` direto | Bypassa a port — use case deixa de ser testável sem DB |
 | 5 | Controller com lógica de negócio | Camada de apresentação vira god object |
 | 6 | Domain Event emitido pelo Adapter (Prisma) | Acoplamento — domain events devem sair do aggregate |
 | 7 | Setter cru em entity (`user.name = x`) | Vaza invariantes — use case passa a controlar regras |
 | 8 | DTO HTTP duplicando schema Zod do `packages/contracts/` | Drift entre cliente e servidor |
-| 9 | Teste `.skip`, `.todo`, `--passWithNoTests` | Cobertura falsa (INC-012) |
+| 9 | Teste `.skip`, `.todo`, `--passWithNoTests` | Cobertura falsa |
 | 10 | Token DI como string ou classe concreta | Força acoplamento — usar `Symbol` em `<ctx>-context.tokens.ts` |
 
 **Detecção automática** (rodar antes de pedir review):
@@ -201,7 +201,7 @@ grep -rn "\.skip\|\.todo\|passWithNoTests" apps/api/src/contexts/<ctx>/
 | `infrastructure/persistence/` | Integration com Postgres | Vitest + `@ai-padrao/db` | Roundtrip Prisma → mapper → domain → mapper → Prisma |
 | `infrastructure/http/` | E2e (Nest + Supertest) | Vitest + Supertest | Cada rota: 2xx + 4xx + auth (quando aplicável) |
 
-**Regra absoluta:** zero `.skip` / `.todo` / `--passWithNoTests` (regra INC-012).
+**Regra absoluta:** zero `.skip` / `.todo` / `--passWithNoTests`.
 
 ---
 

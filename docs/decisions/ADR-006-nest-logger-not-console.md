@@ -2,7 +2,6 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-04
-- **Incident reference:** INC-009 (full context in `.harness/INCIDENTS.md`)
 
 ## Context
 
@@ -26,27 +25,22 @@ discouraged everywhere else (test setup files excepted).
 import { Logger } from "@nestjs/common";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
-  app.useLogger(app.get(Logger)); // pino bridge in prod
-  await app.listen(3000);
-  Logger.log("API listening on :3000", "Bootstrap");
+ const app = await NestFactory.create(AppModule, { bufferLogs: true });
+ app.useLogger(app.get(Logger)); // pino bridge in prod
+ await app.listen(3000);
+ Logger.log("API listening on :3000", "Bootstrap");
 }
 ```
 
 ## Consequences
 
 - **Easier:** Structured logs flow to the same sink as request logs;
-  redaction works; log-level filters apply.
+ redaction works; log-level filters apply.
 - **Harder:** `console.log` for debug-printing is no longer free —
-  developers reach for `Logger.debug` and forget to enable debug level.
+ developers reach for `Logger.debug` and forget to enable debug level.
 - **Trade-off:** Accept — PII risk and log-quality regressions are
-  worth the friction.
+ worth the friction.
 
 ## Enforcement
 
-- Auto-check **INC-009** in `.harness/check.sh` greps
-  `apps/api/src/main.ts` for `console\.(log|warn|error|info|debug)` and
-  fails on any match.
 - Skill: `nestjs-fastify-gotchas` Gotcha 3.
-- Codemod: `.harness/codemods/inc-009-nest-logger.py` rewrites
-  `console.log` → `Logger.log` in `main.ts`.

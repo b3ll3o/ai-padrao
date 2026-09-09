@@ -4,6 +4,37 @@ Archives of approved changes, in reverse chronological order. Each entry records
 the date the change was archived, the feature name, the architectural summary,
 the merged commits that shipped it, and the author of the archival work.
 
+## 2026-09-09 — harness-removal
+
+- **Feature:** `harness-removal`
+- **Author:** Claude Code (cleanup pass)
+- **Spec delta:** none — this is a removal, not a behavior change.
+
+### Summary
+
+Removed the `.harness/` self-improving agent loop from the project. The harness
+added significant complexity (capture/detect/digest pipelines, codemods,
+INC-XXX tracking, complexity gate, post-merge workflow) and is no longer
+considered worth its operational cost on a blueprint-scale project.
+
+### What changed
+
+- Deleted `.harness/` (capture/detect/digest scripts, pattern_match.py, redact.py, INCIDENTS.md, learnings.json, codemods/, graph/, loop/).
+- Deleted `.openspec/specs/harness/` (complexity-gate, post-merge-pull-workflow, inc-017, inc-024).
+- Deleted ADRs that existed only because of the harness: ADR-008 (capture scripts), ADR-009 (events gitignored), ADR-010 (daily digest), ADR-018 (documentation coverage skill).
+- Removed `harness:*` scripts and the `prebuild` hook from `package.json`.
+- Simplified `.githooks/pre-push` to `lint + typecheck + test` (removed docker compose up, postgres wait, e2e).
+- Simplified `.githooks/post-merge` to `pnpm install` on `pnpm-lock.yaml` change (removed harness:check, db:migrate, runtime tests).
+- Updated `.gitignore`, `AGENTS.md`, `CLAUDE.md`, `README.md`, `CONTRIBUTING.md`, `ARCHITECTURE.md`, `.openspec/AGENTS.md`, `.githooks/README.md`, `docs/decisions/README.md`, `.claude/skills/ddd-hexagonal/SKILL.md`, `.claude/skills/ddd-hexagonal/CHECKLIST.md`.
+
+### What is preserved
+
+The policies the harness enforced (no skipped tests, no `console.*` in main.ts,
+no Express response API under Fastify, no default well-known host ports,
+no `import type` for Nest DI) are still required. They live in
+`docs/decisions/ADR-*.md` and `AGENTS.md`. Reviewers and CI enforce them
+manually.
+
 ## 2026-08-04 — ddd-hexagonal-coverage
 
 - **Feature:** `ddd-hexagonal-coverage`

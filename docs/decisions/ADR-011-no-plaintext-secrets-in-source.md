@@ -2,7 +2,6 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-04
-- **Incident reference:** INC-016 (full context in `.harness/INCIDENTS.md`)
 
 ## Context
 
@@ -39,17 +38,14 @@ config loader, never interpolated into source.
 ## Consequences
 
 - **Easier:** Common secret leaks fail the build instead of the post-
-  mortem. The check is fast (single `grep -rE`).
+ mortem. The check is fast (single `grep -rE`).
 - **Harder:** A new token shape requires updating the regex list
-  before the new shape can be checked in.
+ before the new shape can be checked in.
 - **Trade-off:** Accept — secret-rotation cost is vastly higher than
-  the maintenance cost of a regex list.
+ the maintenance cost of a regex list.
 
 ## Enforcement
 
-- Auto-check **INC-016** in `.harness/check.sh` runs the regex grep
-  over `apps/` and `packages/` (with the documented exclusions) and
-  fails on any hit. Output shows the file and line for each match.
 - `AGENTS.md §No plaintext secrets` is the human-facing rule.
 - A documented follow-up (not yet an INC): expand detection to
-  Stripe (`sk_live_…`, `rk_live_…`) and SendGrid (`SG.…) shapes.
+ Stripe (`sk_live_…`, `rk_live_…`) and SendGrid (`SG.…) shapes.
