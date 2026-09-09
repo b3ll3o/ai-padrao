@@ -1,7 +1,7 @@
 /**
- * Parse the shorthand TTL strings used in config (e.g. "15m", "7d")
- * into milliseconds. Throws on unknown formats so misconfiguration
- * surfaces at boot rather than at first request.
+ * Faz o parse das strings de TTL resumidas usadas na config (ex.: "15m", "7d")
+ * para milissegundos. Lança erro em formatos desconhecidos para que a
+ * má configuração apareça no boot, e não na primeira request.
  */
 export function parseTtlToMs(ttl: string): number {
   const match = ttl.match(/^(\d+)([smhd])$/);

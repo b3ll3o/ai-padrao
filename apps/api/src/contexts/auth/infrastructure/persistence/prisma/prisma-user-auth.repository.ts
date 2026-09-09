@@ -1,4 +1,4 @@
-// Nest DI + emitDecoratorMetadata need the runtime value here; `import type` erases it.
+// O Nest DI + emitDecoratorMetadata precisam do valor em runtime aqui; `import type` o apaga.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../../../../../infra/prisma/prisma.service";
 import type {
@@ -8,11 +8,9 @@ import type {
 } from "../../../domain/ports/user-auth.repository.port";
 
 export class PrismaUserAuthRepository implements UserAuthRepositoryPort {
-   
   private readonly prisma: any;
 
   constructor(prisma: PrismaService) {
-     
     this.prisma = prisma as any;
   }
 
@@ -29,8 +27,8 @@ export class PrismaUserAuthRepository implements UserAuthRepositoryPort {
   }
 
   async create(input: CreateUserAuthInput): Promise<UserAuthRecord> {
-    // CREATE is logged to userHistory inside the same transaction so the
-    // audit trail is consistent with UPDATE / DELETE / RESTORE (ADR-014).
+    // O CREATE é registrado em userHistory dentro da mesma transação para que o
+    // audit trail fique consistente com UPDATE / DELETE / RESTORE (ADR-014).
     const result = await this.prisma.$transaction(async (tx: unknown) => {
       const t = tx as {
         user: {

@@ -1,5 +1,5 @@
-// Framework-free value object for user name. Mirrors the Zod contract
-// constraint: trimmed string, 1..120 characters.
+// Value Object framework-free para o nome de user. Espelha a constraint
+// do contrato Zod: string sem espaços nas pontas, 1..120 caracteres.
 
 export class Name {
   private constructor(readonly value: string) {}

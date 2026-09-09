@@ -26,7 +26,7 @@ function seedUser(
 }
 
 describe("RestoreUserUseCase", () => {
-  it("restores a soft-deleted user and clears deletedAt", async () => {
+  it("restaura um usuário soft-deleted e limpa o deletedAt", async () => {
     const repo = new InMemoryUserRepository([seedUser("u1", 1, deletedAt)]);
     const useCase = new RestoreUserUseCase(repo);
 
@@ -34,11 +34,11 @@ describe("RestoreUserUseCase", () => {
 
     expect(restored.id).toBe("u1");
     expect(restored.deletedAt).toBeNull();
-    // version increments from the prior state (1) to 2.
+    // a versão incrementa do estado anterior (1) para 2.
     expect(restored.version).toBe(2);
   });
 
-  it("writes a RESTORE entry to history with the actor id", async () => {
+  it("escreve uma entrada RESTORE no histórico com o id do ator", async () => {
     const initial = seedUser("u1", 1, deletedAt);
     const repo = new InMemoryUserRepository([initial]);
     repo.seedCreateHistory(initial);
@@ -54,7 +54,7 @@ describe("RestoreUserUseCase", () => {
     expect(restoreEntry?.changedBy).toBe("admin-42");
   });
 
-  it("throws UserNotDeletedError when the user is already active", async () => {
+  it("lança UserNotDeletedError quando o usuário já está ativo", async () => {
     const repo = new InMemoryUserRepository([seedUser("u1", 0, null)]);
     const useCase = new RestoreUserUseCase(repo);
 
@@ -63,7 +63,7 @@ describe("RestoreUserUseCase", () => {
     );
   });
 
-  it("throws UserNotFoundError for an unknown id", async () => {
+  it("lança UserNotFoundError para um id desconhecido", async () => {
     const repo = new InMemoryUserRepository();
     const useCase = new RestoreUserUseCase(repo);
 
@@ -72,7 +72,7 @@ describe("RestoreUserUseCase", () => {
     );
   });
 
-  it("does not mutate history when the user is already active (error short-circuits)", async () => {
+  it("não muta o histórico quando o usuário já está ativo (curto-circuito no erro)", async () => {
     const repo = new InMemoryUserRepository([seedUser("u1", 0, null)]);
     const useCase = new RestoreUserUseCase(repo);
 
@@ -80,12 +80,12 @@ describe("RestoreUserUseCase", () => {
       UserNotDeletedError,
     );
 
-    // No RESTORE entry should have been appended because the call threw.
+    // Nenhuma entrada RESTORE deve ter sido acrescentada porque a chamada lançou.
     const history = await repo.getHistory("u1");
     expect(history.find((h) => h.operation === "RESTORE")).toBeUndefined();
   });
 
-  it("tolerates a missing actorId (system-initiated restore)", async () => {
+  it("tolera um actorId ausente (restore iniciado pelo sistema)", async () => {
     const repo = new InMemoryUserRepository([seedUser("u1", 1, deletedAt)]);
     const useCase = new RestoreUserUseCase(repo);
 

@@ -2,12 +2,12 @@ import type { UserHistoryEntry } from "@ai-padrao/contracts";
 import type { UserRepositoryPort } from "../../domain/ports/user-repository.port";
 
 /**
- * Returns the full audit history of a user, ordered by `version` ascending.
- * The history captures every CREATE/UPDATE/DELETE/RESTORE that affected the
- * user (per ADR-014).
+ * Retorna o histórico completo de audit de um user, ordenado por `version`
+ * ascendente. O histórico captura cada CREATE/UPDATE/DELETE/RESTORE que
+ * afetou o user (conforme ADR-014).
  *
- * Intended to be invoked only by admins — the controller enforces role
- * gating via `RolesGuard`.
+ * Destina-se a ser invocado apenas por admins — o Controller aplica o
+ * gate de role via `RolesGuard`.
  */
 export class GetUserHistoryUseCase {
   constructor(private readonly users: UserRepositoryPort) {}

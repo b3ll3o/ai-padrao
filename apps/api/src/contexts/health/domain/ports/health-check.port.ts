@@ -1,22 +1,23 @@
 /**
- * Outbound port for infrastructure-level health probes. Implemented by
- * adapters (Prisma today, possibly Redis / S3 / etc. later). The HTTP
- * controller depends only on this port — never on Prisma directly.
+ * Port outbound para probes de health a nível de infraestrutura.
+ * Implementada por Adapters (Prisma hoje, possivelmente Redis / S3 / etc.
+ * no futuro). O Controller HTTP depende apenas desta Port — nunca do
+ * Prisma diretamente.
  *
- * `ping()` resolves on success and rejects on failure. The controller
- * translates rejection into the readiness response shape; it must not
- * leak the underlying error to the wire.
+ * `ping()` resolve em caso de sucesso e rejeita em caso de falha. O
+ * Controller traduz a rejeição no shape de response de readiness; ele não
+ * deve vazar o erro subjacente para o wire.
  *
  * @example
- *   // Mock for unit tests:
+ *   // Mock para testes unitários:
  *   const port: HealthCheckPort = { ping: async () => undefined };
  *
  * @remarks
- *   Kept framework-free on purpose — this file lives under `domain/`
- *   and MUST NOT import `@nestjs/*`, `@prisma/*`, or any infrastructure
- *   module. New health probes (Redis, queue, external API) belong in
- *   `infrastructure/persistence/` or `infrastructure/http/` and must
- *   implement this interface.
+ *   Mantido framework-free de propósito — este arquivo mora sob `domain/`
+ *   e NÃO DEVE importar `@nestjs/*`, `@prisma/*`, nem qualquer módulo de
+ *   infraestrutura. Novos probes de health (Redis, queue, API externa)
+ *   pertencem a `infrastructure/persistence/` ou `infrastructure/http/` e
+ *   devem implementar esta interface.
  */
 export interface HealthCheckPort {
   ping(): Promise<void>;

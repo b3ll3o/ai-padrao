@@ -1,17 +1,20 @@
 /**
- * Audit layer types shared by the audit-extension and downstream callers.
+ * Tipos da camada de audit compartilhados pela audit-extension e pelos
+ * chamadores downstream.
  *
- * Per ADR-014, every entry in `AUDITED_MODELS` becomes a domain entity that
- * gains: `deletedAt`, `version`, and a typed `<entity>_history` table.
+ * Conforme ADR-014, cada entrada em `AUDITED_MODELS` se torna uma entity
+ * de domínio que ganha: `deletedAt`, `version` e uma tabela
+ * `<entity>_history` tipada.
  */
 
 export type AuditOp = "CREATE" | "UPDATE" | "DELETE" | "RESTORE";
 
 /**
- * Tuple of model names (lower-cased Prisma client property names) that the
- * audit extension is allowed to instrument. Models not in this tuple are
- * untouched by the extension. Adding a new domain entity = appending its name
- * here AND adding a `<entity>_history` table to `schema.prisma`.
+ * Tuple de nomes de models (nomes de propriedades em minúsculas no Prisma
+ * client) que a extension de audit pode instrumentar. Models que não estão
+ * nesta tuple não são tocados pela extension. Adicionar uma nova entity de
+ * domínio = anexar seu nome aqui E adicionar uma tabela `<entity>_history`
+ * no `schema.prisma`.
  */
 export const AUDITED_MODELS = ["user"] as const;
 export type AuditedModel = (typeof AUDITED_MODELS)[number];
@@ -21,9 +24,9 @@ export interface AuditContext {
 }
 
 /**
- * Shape of a single history entry written to a `<entity>_history` table.
- * The `snapshot` is the JSON-serialized row state captured BEFORE the
- * mutation that produced this entry.
+ * Shape de uma única entrada de histórico escrita em uma tabela
+ * `<entity>_history`. O `snapshot` é o estado da linha serializado em
+ * JSON capturado ANTES da mutação que produziu esta entrada.
  */
 export interface HistorySnapshot {
   id: string;

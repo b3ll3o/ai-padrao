@@ -3,7 +3,7 @@ import type { RefreshTokenGeneratorPort } from "../../domain/ports/refresh-token
 let counter = 0;
 
 /**
- * Deterministic refresh token generator for tests.
+ * Gerador determinístico de refresh token para testes.
  */
 export class FakeRefreshTokenGenerator implements RefreshTokenGeneratorPort {
   constructor(private readonly prefix = "fake-rt") {

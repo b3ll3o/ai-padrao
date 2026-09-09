@@ -1,10 +1,5 @@
-import type {
-  ArgumentsHost} from "@nestjs/common";
-import {
-  BadRequestException,
-  HttpException,
-  Logger,
-} from "@nestjs/common";
+import type { ArgumentsHost } from "@nestjs/common";
+import { BadRequestException, HttpException, Logger } from "@nestjs/common";
 import { HttpExceptionFilter } from "./http-exception.filter";
 import { ZodError } from "zod";
 
@@ -23,7 +18,7 @@ describe("HttpExceptionFilter", () => {
     return { host, response, status, send, request };
   };
 
-  it("maps ZodError to 400 with flattened fieldErrors", () => {
+  it("mapeia ZodError para 400 com fieldErrors achatados", () => {
     const { host, response } = buildHost();
     const zod = new ZodError([
       {
@@ -43,7 +38,7 @@ describe("HttpExceptionFilter", () => {
     );
   });
 
-  it("maps Nest HttpException to its declared status (string response)", () => {
+  it("mapeia Nest HttpException para o status declarado (response em string)", () => {
     const { host, response } = buildHost();
     new HttpExceptionFilter().catch(
       new HttpException("plain error", 418),
@@ -57,19 +52,19 @@ describe("HttpExceptionFilter", () => {
     });
   });
 
-  it("maps Nest HttpException (BadRequestException) to 400 with object body", () => {
+  it("mapeia Nest HttpException (BadRequestException) para 400 com corpo objeto", () => {
     const { host, response } = buildHost();
     const bad = new BadRequestException("bad");
     new HttpExceptionFilter().catch(bad, host);
     expect(response.status).toHaveBeenCalledWith(400);
-    // BadRequestException's response includes statusCode/message/error from Nest.
+    // O response da BadRequestException inclui statusCode/message/error vindos do Nest.
     const sent = response.send.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(sent.path).toBe("/api/things");
     expect(sent.statusCode).toBe(400);
     expect(sent.message).toBe("bad");
   });
 
-  it("maps unknown exceptions to 500 with generic message and logs error", () => {
+  it("mapeia exceções desconhecidas para 500 com mensagem genérica e registra log do erro", () => {
     const errorSpy = jest
       .spyOn(Logger.prototype, "error")
       .mockImplementation(() => undefined);

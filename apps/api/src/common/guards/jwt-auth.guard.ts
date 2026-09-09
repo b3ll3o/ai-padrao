@@ -1,13 +1,13 @@
-import type { ExecutionContext } from '@nestjs/common';
-import { Injectable } from '@nestjs/common';
-// Nest DI needs the runtime value here; `import type` erases it from design:paramtypes.
+import type { ExecutionContext } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
+// Nest DI precisa do valor em tempo de execução aqui; `import type` o apaga de design:paramtypes.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { Reflector } from '@nestjs/core';
-import { AuthGuard } from '@nestjs/passport';
-import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { Reflector } from "@nestjs/core";
+import { AuthGuard } from "@nestjs/passport";
+import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
 
 @Injectable()
-export class JwtAuthGuard extends AuthGuard('jwt') {
+export class JwtAuthGuard extends AuthGuard("jwt") {
   constructor(private readonly reflector: Reflector) {
     super();
   }

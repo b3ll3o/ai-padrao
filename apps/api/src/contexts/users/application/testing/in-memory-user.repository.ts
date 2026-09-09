@@ -14,17 +14,17 @@ interface InternalUserRecord {
 }
 
 /**
- * In-memory implementation of UserRepositoryPort for tests and fakes.
+ * Implementação em memória do UserRepositoryPort para testes e fakes.
  *
- * Audit semantics mirror `PrismaUserRepository`:
- *  - `list` / `findById` / `findByEmail` / `update` skip soft-deleted users.
- *  - `softDelete` flips `deletedAt` and writes a history entry.
- *  - `restore` clears `deletedAt` and writes a history entry.
- *  - `findByIdIncludingDeleted` returns the row regardless of `deletedAt`.
- *  - `getHistory` returns history entries ordered by `version` asc.
+ * A semântica de audit espelha a `PrismaUserRepository`:
+ *  - `list` / `findById` / `findByEmail` / `update` ignoram users soft-deleted.
+ *  - `softDelete` altera `deletedAt` e escreve uma entrada de histórico.
+ *  - `restore` limpa `deletedAt` e escreve uma entrada de histórico.
+ *  - `findByIdIncludingDeleted` retorna a linha independentemente de `deletedAt`.
+ *  - `getHistory` retorna entradas de histórico ordenadas por `version` asc.
  *
- * History is kept per-user in a map so tests can assert on it without a
- * second collection.
+ * O histórico é mantido por user em um map para que os testes possam fazer
+ * asserts nele sem uma segunda coleção.
  */
 export class InMemoryUserRepository implements UserRepositoryPort {
   private readonly store = new Map<string, InternalUserRecord>();
@@ -93,7 +93,7 @@ export class InMemoryUserRepository implements UserRepositoryPort {
     if (patch.email !== undefined) {
       next = next.changeEmail(Email.create(patch.email));
     }
-    if (next === current) return current; // no-op rename/email keeps version & writes no history
+    if (next === current) return current; // rename/email no-op mantém version e não escreve histórico
     this.store.set(id, { user: next });
     this.appendHistory(id, "UPDATE", actorId, current, next.version);
     return next;
@@ -102,7 +102,7 @@ export class InMemoryUserRepository implements UserRepositoryPort {
   async softDelete(id: string, actorId?: string): Promise<void> {
     const record = this.store.get(id);
     if (!record) throw new UserNotFoundError(id);
-    if (record.user.deletedAt !== null) return; // already deleted; no history row
+    if (record.user.deletedAt !== null) return; // já está deleted; sem linha de histórico
     const now = new Date();
     const next = record.user.markDeleted(now);
     this.store.set(id, { user: next });
@@ -126,8 +126,9 @@ export class InMemoryUserRepository implements UserRepositoryPort {
   }
 
   /**
-   * Test-only convenience: seed an initial CREATE entry (so history
-   * exists before any mutations). Use this from test factories.
+   * Conveniência exclusiva para testes: semeia uma entrada inicial CREATE
+   * (para que o histórico exista antes de qualquer mutação). Use isso nas
+   * factories de teste.
    */
   seedCreateHistory(user: User): void {
     this.appendHistory(user.id, "CREATE", undefined, user, user.version);

@@ -26,9 +26,10 @@ interface UserProps {
 }
 
 /**
- * User entity — framework-free. Behavior is limited to what the domain
- * can guarantee: renaming, email changes, soft-delete (markDeleted), and
- * restore. All mutations return new immutable instances.
+ * Entity User — framework-free. O comportamento é limitado ao que o
+ * domínio pode garantir: renomeação, alterações de email, soft-delete
+ * (markDeleted) e restore. Todas as mutações retornam novas instâncias
+ * imutáveis.
  */
 export class User {
   private constructor(private readonly props: UserProps) {}
@@ -99,7 +100,7 @@ export class User {
     });
   }
 
-  /** Returns a new User marked as soft-deleted at `at`. No-op if already deleted. */
+  /** Retorna um novo User marcado como soft-deleted em `at`. No-op se já estiver deleted. */
   markDeleted(at: Date): User {
     if (this.props.deletedAt) {
       return this;
@@ -112,7 +113,7 @@ export class User {
     });
   }
 
-  /** Returns a new User with the soft-delete cleared. No-op if not deleted. */
+  /** Retorna um novo User com o soft-delete limpo. No-op se não estiver deleted. */
   restore(): User {
     if (!this.props.deletedAt) {
       return this;

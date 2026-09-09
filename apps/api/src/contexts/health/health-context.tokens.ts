@@ -1,15 +1,16 @@
 /**
- * DI tokens for the health bounded context. Using symbols keeps the
- * `HealthCheckPort` (a domain interface) resolvable through Nest DI
- * without forcing a runtime dependency on the domain module.
+ * Tokens de DI para o bounded context de health. Usar symbols mantém a
+ * `HealthCheckPort` (uma interface de domínio) resolvível através do
+ * Nest DI sem forçar uma dependência em tempo de execução no módulo de
+ * domínio.
  *
  * @example
- *   // Inject the port (typically inside the HTTP controller):
+ *   // Injeta a Port (tipicamente dentro do Controller HTTP):
  *   constructor(@Inject(HEALTH_CHECK_PORT) private readonly check: HealthCheckPort) {}
  *
  * @remarks
- *   Add new symbols here whenever a new outbound port is declared in
- *   `domain/ports/`. Convention: `<ENTITY>_<ROLE>_PORT` in
- *   UPPER_SNAKE_CASE; description string is for debugging only.
+ *   Adicione novos symbols aqui sempre que uma nova Port outbound for
+ *   declarada em `domain/ports/`. Convenção: `<ENTITY>_<ROLE>_PORT` em
+ *   UPPER_SNAKE_CASE; a string de descrição serve apenas para debug.
  */
 export const HEALTH_CHECK_PORT = Symbol("HealthCheckPort");

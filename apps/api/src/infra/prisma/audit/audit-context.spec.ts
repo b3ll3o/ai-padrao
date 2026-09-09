@@ -2,15 +2,15 @@ import { auditContext } from "./audit-context";
 import type { AuditContext } from "./audit.types";
 
 describe("auditContext (AsyncLocalStorage)", () => {
-  it("returns undefined for actorId when no context is active", () => {
-    // Outside any `run`, the storage returns undefined — defensive
-    // default for code paths that haven't been wrapped yet (CLI scripts,
-    // background jobs, etc.).
+  it("retorna undefined para actorId quando nenhum contexto está ativo", () => {
+    // Fora de qualquer `run`, o storage retorna undefined — padrão defensivo
+    // para caminhos de código que ainda não foram envolvidos (scripts CLI,
+    // jobs em background, etc.).
     const ctx = auditContext.getStore();
     expect(ctx).toBeUndefined();
   });
 
-  it("propagates a context across async boundaries and restores the previous value", async () => {
+  it("propaga um contexto através de boundaries assíncronas e restaura o valor anterior", async () => {
     const outer: AuditContext = { actorId: "outer-actor" };
     const inner: AuditContext = { actorId: "inner-actor" };
 
@@ -25,11 +25,11 @@ describe("auditContext (AsyncLocalStorage)", () => {
         seen.push(auditContext.getStore()?.actorId);
       });
 
-      // After the inner run finishes, the outer context is restored.
+      // Depois que o run interno termina, o contexto externo é restaurado.
       seen.push(auditContext.getStore()?.actorId);
     });
 
-    // After the outer run finishes, no context is active again.
+    // Depois que o run externo termina, nenhum contexto está ativo novamente.
     expect(auditContext.getStore()).toBeUndefined();
     expect(seen).toEqual([
       "outer-actor",

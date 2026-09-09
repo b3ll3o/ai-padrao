@@ -3,14 +3,14 @@ import type { PrismaService } from "../../../../../infra/prisma/prisma.service";
 
 describe("PrismaUserAuthRepository", () => {
   const buildRepo = () => {
-    // Outer accessors — never called by `create()` since the
-    // production code routes writes through $transaction.
+    // Accessors externos — nunca chamados por `create()` porque o código
+    // de produção roteia as escritas via $transaction.
     const user = {
       create: jest.fn(),
       findUnique: jest.fn(),
     };
-    // Inner transaction client — has the SAME shape; production code
-    // does `tx.user.create(...)` / `tx.userHistory.create(...)`.
+    // Cliente interno da transação — possui o MESMO formato; o código de
+    // produção faz `tx.user.create(...)` / `tx.userHistory.create(...)`.
     const txUser = {
       create: jest.fn(),
     };
@@ -19,7 +19,7 @@ describe("PrismaUserAuthRepository", () => {
 
     const prisma = {
       user,
-       
+
       $transaction: jest.fn(async (cb: any) => cb(tx)) as any,
     } as unknown as PrismaService;
 
@@ -27,7 +27,7 @@ describe("PrismaUserAuthRepository", () => {
     return { repo, user, txUser, txUserHistory, tx, prisma };
   };
 
-  it("findByEmail trims+lowercases before querying and maps to record", async () => {
+  it("findByEmail faz trim+lowercase antes de consultar e mapeia para record", async () => {
     const { repo, user } = buildRepo();
     user.findUnique.mockResolvedValue({
       id: "u1",
@@ -49,13 +49,13 @@ describe("PrismaUserAuthRepository", () => {
     });
   });
 
-  it("findByEmail returns null when prisma returns null", async () => {
+  it("findByEmail retorna null quando o prisma retorna null", async () => {
     const { repo, user } = buildRepo();
     user.findUnique.mockResolvedValue(null);
     expect(await repo.findByEmail("missing@example.com")).toBeNull();
   });
 
-  it("findById maps a row by id to a record", async () => {
+  it("findById mapeia uma linha pelo id para um record", async () => {
     const { repo, user } = buildRepo();
     user.findUnique.mockResolvedValue({
       id: "u2",
@@ -75,13 +75,13 @@ describe("PrismaUserAuthRepository", () => {
     });
   });
 
-  it("findById returns null when prisma returns null", async () => {
+  it("findById retorna null quando o prisma retorna null", async () => {
     const { repo, user } = buildRepo();
     user.findUnique.mockResolvedValue(null);
     expect(await repo.findById("missing")).toBeNull();
   });
 
-  it("create forwards input fields, runs in $transaction and writes CREATE history", async () => {
+  it("create encaminha os campos de entrada, executa em $transaction e grava histórico CREATE", async () => {
     const { repo, txUser, txUserHistory, prisma } = buildRepo();
     txUser.create.mockResolvedValue({
       id: "u3",
@@ -99,7 +99,6 @@ describe("PrismaUserAuthRepository", () => {
       passwordHash: "new-hash",
     });
 
-     
     expect((prisma as any).$transaction).toHaveBeenCalledTimes(1);
     expect(txUser.create).toHaveBeenCalledWith({
       data: {

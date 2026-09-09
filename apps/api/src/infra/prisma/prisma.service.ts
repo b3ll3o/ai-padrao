@@ -4,43 +4,44 @@ import { PrismaClient } from "@prisma/client";
 import { auditExtension } from "./audit/audit-extension";
 
 /**
- * Thin NestJS wrapper around {@link PrismaClient} that activates the
- * `auditExtension` on construction.
+ * Wrapper fino de NestJS em torno do {@link PrismaClient} que ativa a
+ * `auditExtension` na construção.
  *
- * The extension transparently:
- *  - injects `deletedAt: null` into every read of an audited entity
- *    (see `AUDITED_MODELS`) so soft-deleted rows are invisible to
- *    application code that goes through this service,
- *  - leaves write operations untouched (audit history + version bumping
- *    is the responsibility of the repository layer, which performs the
- *    read / modify / log sequence atomically inside `prisma.$transaction`).
+ * A extension, transparentemente:
+ *  - injeta `deletedAt: null` em cada leitura de uma entity auditada
+ *    (veja `AUDITED_MODELS`), de modo que linhas soft-deleted sejam
+ *    invisíveis para o código da Application que passa por este service,
+ *  - deixa as operações de escrita intocadas (histórico de audit +
+ *    incremento de version é responsabilidade da camada de Repository,
+ *    que executa a sequência read / modify / log atomicamente dentro de
+ *    `prisma.$transaction`).
  *
- * Implementation notes:
- *  - We `extends PrismaClient` so existing call sites
- *    (`this.user.findUnique(...)`, `this.$transaction(...)`) keep compiling
- *    without changes.
- *  - At construction time we build the *extended* client and copy its
- *    model accessors (`user`, `userHistory`, ...) onto `this`.
- *  - The lifecycle hooks (`$connect`, `$disconnect`, `$transaction`) are
- *    rebound to the extended instance so Prisma's internal state lives on
- *    the right `this`.
+ * Notas de implementação:
+ *  - Usamos `extends PrismaClient` para que os call sites existentes
+ *    (`this.user.findUnique(...)`, `this.$transaction(...)`) continuem
+ *    compilando sem mudanças.
+ *  - No momento da construção, montamos o client *extendido* e copiamos
+ *    seus acessores de model (`user`, `userHistory`, ...) para `this`.
+ *  - Os hooks de lifecycle (`$connect`, `$disconnect`, `$transaction`) são
+ *    religados à instância estendida para que o estado interno do Prisma
+ *    viva no `this` correto.
  */
 @Injectable()
 export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
-   
   private readonly extended: any;
 
   constructor() {
     super();
-     
+
     this.extended = (this as unknown as PrismaClient).$extends(auditExtension);
-    // Copy model accessors and any other own properties of the extended
-    // proxy onto `this`. Object.assign only iterates own enumerable props,
-    // which is what we want — we DO NOT want to overwrite lifecycle hooks
-    // from the prototype (those need explicit re-binding below).
+    // Copia os acessores de model e quaisquer outras propriedades próprias
+    // do proxy estendido para `this`. Object.assign itera apenas pelas
+    // próprias propriedades enumeráveis, que é o que queremos — NÃO
+    // queremos sobrescrever os hooks de lifecycle do prototype (esses
+    // precisam de re-bind explícito abaixo).
     Object.assign(this, this.extended);
     Object.defineProperty(this, "$connect", {
       value: this.extended.$connect.bind(this.extended),

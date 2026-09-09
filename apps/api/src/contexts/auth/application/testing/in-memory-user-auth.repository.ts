@@ -11,7 +11,7 @@ function nextId(prefix: string): string {
 }
 
 /**
- * In-memory fake of UserAuthRepositoryPort for use cases + specs.
+ * Fake in-memory de UserAuthRepositoryPort para use cases + specs.
  */
 export class InMemoryUserAuthRepository implements UserAuthRepositoryPort {
   private readonly byId = new Map<string, UserAuthRecord>();
@@ -45,7 +45,7 @@ export class InMemoryUserAuthRepository implements UserAuthRepositoryPort {
     return user;
   }
 
-  /** Test helper: insert a record with a fixed id so other fakes can target it. */
+  /** Helper de teste: insere um registro com id fixo para que outros fakes possam apontar para ele. */
   seed(record: UserAuthRecord): void {
     this.byId.set(record.id, record);
   }

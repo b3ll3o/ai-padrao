@@ -1,4 +1,4 @@
-// Nest DI + emitDecoratorMetadata need the runtime value here; `import type` erases it.
+// O Nest DI + emitDecoratorMetadata precisam do valor em runtime aqui; `import type` o apaga.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../../../../../infra/prisma/prisma.service";
 import type {
@@ -7,7 +7,6 @@ import type {
 } from "../../../domain/ports/refresh-token-store.port";
 
 export class PrismaRefreshTokenStore implements RefreshTokenStorePort {
-   
   constructor(private readonly prisma: PrismaService) {}
 
   async findByHash(tokenHash: string): Promise<RefreshTokenRecord | null> {

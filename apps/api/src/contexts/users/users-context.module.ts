@@ -1,4 +1,4 @@
-// Nest DI + emitDecoratorMetadata need the runtime value here; `import type` erases it.
+// Nest DI + emitDecoratorMetadata precisam do valor em tempo de execução aqui; `import type` o apaga.
 
 import { Module } from "@nestjs/common";
 import { PrismaService } from "../../infra/prisma/prisma.service";
@@ -14,13 +14,14 @@ import { UsersHttpController } from "./infrastructure/http/users-http.controller
 import { USER_REPOSITORY_PORT } from "./users-context.tokens";
 
 /**
- * Composition root for the users bounded context. Wires the persistence
- * adapter into the port token and instantiates the use cases + HTTP
- * adapter from there. Application code only depends on the port.
+ * Composition root do bounded context de users. Liga o Adapter de
+ * persistência no token da Port e instancia os Use Cases + o Adapter HTTP
+ * a partir dele. O código da Application depende apenas da Port.
  *
- * Audit commands (`softDelete`, `restore`, `update`) require an
- * `actorId`. The HTTP layer passes it from the JWT principal; CLI /
- * background workers that bypass the controller must pass it explicitly.
+ * Comandos de audit (`softDelete`, `restore`, `update`) exigem um
+ * `actorId`. A camada HTTP o passa a partir do principal do JWT; CLI /
+ * workers em background que ignoram o Controller devem passá-lo
+ * explicitamente.
  */
 @Module({
   controllers: [UsersHttpController],

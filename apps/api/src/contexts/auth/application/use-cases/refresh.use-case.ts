@@ -36,7 +36,7 @@ export class RefreshUseCase {
     await this.store.revoke(stored.id);
     const user = await this.users.findById(stored.userId);
     if (!user) {
-      // Token points at a user that no longer exists; treat as invalid.
+      // O token aponta para um usuário que não existe mais; trate como inválido.
       throw new InvalidCredentialsError();
     }
     return this.issueTokens(user.id, user.email, user.name, user.role, config);

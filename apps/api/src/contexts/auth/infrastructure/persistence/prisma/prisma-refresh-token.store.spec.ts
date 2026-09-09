@@ -18,7 +18,7 @@ describe("PrismaRefreshTokenStore", () => {
     return { store, refreshToken };
   };
 
-  it("findByHash returns null when no row exists", async () => {
+  it("findByHash retorna null quando não há linha", async () => {
     const { store, refreshToken } = buildStore();
     refreshToken.findUnique.mockResolvedValue(null);
     expect(await store.findByHash("no-such-hash")).toBeNull();
@@ -27,7 +27,7 @@ describe("PrismaRefreshTokenStore", () => {
     });
   });
 
-  it("findByHash maps a row to a RefreshTokenRecord", async () => {
+  it("findByHash mapeia uma linha para RefreshTokenRecord", async () => {
     const { store, refreshToken } = buildStore();
     const expiresAt = new Date("2030-01-01T00:00:00Z");
     refreshToken.findUnique.mockResolvedValue({
@@ -47,7 +47,7 @@ describe("PrismaRefreshTokenStore", () => {
     });
   });
 
-  it("findByHash preserves revokedAt from a revoked record", async () => {
+  it("findByHash preserva o revokedAt de um registro revogado", async () => {
     const { store, refreshToken } = buildStore();
     const revokedAt = new Date("2025-06-01T00:00:00Z");
     refreshToken.findUnique.mockResolvedValue({
@@ -61,7 +61,7 @@ describe("PrismaRefreshTokenStore", () => {
     expect(result?.revokedAt).toBe(revokedAt);
   });
 
-  it("revoke sets revokedAt to a fresh Date for the matching id", async () => {
+  it("revoke define revokedAt como uma nova Date para o id correspondente", async () => {
     const { store, refreshToken } = buildStore();
     refreshToken.update.mockResolvedValue(undefined);
     const before = new Date();
@@ -80,7 +80,7 @@ describe("PrismaRefreshTokenStore", () => {
     expect(call.data.revokedAt.getTime()).toBeLessThanOrEqual(after.getTime());
   });
 
-  it("revokeActiveByHash scopes to revokedAt:null only", async () => {
+  it("revokeActiveByHash restringe o escopo a revokedAt:null apenas", async () => {
     const { store, refreshToken } = buildStore();
     refreshToken.updateMany.mockResolvedValue({ count: 1 });
     const before = new Date();
@@ -97,7 +97,7 @@ describe("PrismaRefreshTokenStore", () => {
     expect(call.data.revokedAt.getTime()).toBeLessThanOrEqual(after.getTime());
   });
 
-  it("persist inserts a refresh-token row", async () => {
+  it("persist insere uma linha de refresh-token", async () => {
     const { store, refreshToken } = buildStore();
     refreshToken.create.mockResolvedValue(undefined);
     const expiresAt = new Date("2030-01-01T00:00:00Z");

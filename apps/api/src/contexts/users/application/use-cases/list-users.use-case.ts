@@ -8,11 +8,12 @@ export class ListUsersUseCase {
   constructor(private readonly users: UserRepositoryPort) {}
 
   async execute(query: UserListQuery): Promise<UserListResult> {
-    // Re-parse the query through the Zod schema so defaults (`page: 1`,
-    // `pageSize: 20`) apply even when the global `ZodValidationPipe`
-    // hasn't transformed the @Query() argument. This keeps the use case
-    // runnable from non-HTTP entry points (CLI, queues, tests) where
-    // there is no pipe to apply the defaults.
+    // Re-faz o parse da query através do schema do Zod para que os defaults
+    // (`page: 1`, `pageSize: 20`) sejam aplicados mesmo quando o
+    // `ZodValidationPipe` global ainda não transformou o argumento @Query().
+    // Isso mantém o Use Case executável a partir de pontos de entrada
+    // não-HTTP (CLI, filas, testes) onde não há Pipe para aplicar os
+    // defaults.
     const parsed = UserListQuerySchema.parse(query ?? {});
     return this.users.list(parsed);
   }

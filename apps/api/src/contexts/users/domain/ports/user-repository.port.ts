@@ -9,16 +9,16 @@ export interface UserListResult {
 }
 
 /**
- * Outbound port for user persistence. Implemented by infrastructure
- * adapters (Prisma, in-memory test fake, etc.). Application use cases
- * depend only on this port.
+ * Port outbound para persistência de user. Implementada por Adapters de
+ * infraestrutura (Prisma, fake de teste em memória, etc.). Os Use Cases
+ * da Application dependem apenas dessa Port.
  *
- * Audit semantics (per ADR-014):
- * - `list`, `findById`, `findByEmail`, `update` skip soft-deleted rows.
- * - `softDelete` flips `deletedAt` and writes a history entry.
- * - `restore` clears `deletedAt` and writes a history entry.
- * - `findByIdIncludingDeleted` returns the row regardless of `deletedAt`.
- * - `getHistory` returns history entries ordered by `version` asc.
+ * Semântica de audit (conforme ADR-014):
+ * - `list`, `findById`, `findByEmail`, `update` ignoram linhas soft-deleted.
+ * - `softDelete` altera `deletedAt` e escreve uma entrada de histórico.
+ * - `restore` limpa `deletedAt` e escreve uma entrada de histórico.
+ * - `findByIdIncludingDeleted` retorna a linha independentemente de `deletedAt`.
+ * - `getHistory` retorna entradas de histórico ordenadas por `version` asc.
  */
 export interface UserRepositoryPort {
   list(query: UserListQuery): Promise<UserListResult>;

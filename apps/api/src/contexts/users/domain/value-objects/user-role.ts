@@ -1,6 +1,6 @@
-// Framework-free role enum. Values mirror @ai-padrao/contracts UserRoleSchema
-// (and Prisma's UserRole enum) so adapters can convert without leaking the
-// framework enum into the domain.
+// Enum de role framework-free. Os valores espelham o UserRoleSchema de
+// @ai-padrao/contracts (e o enum UserRole do Prisma), para que os
+// Adapters possam converter sem vazar o enum do framework no domínio.
 
 export type RoleLiteral = "USER" | "ADMIN";
 

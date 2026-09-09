@@ -1,8 +1,8 @@
 import type { PasswordHasherPort } from "../../domain/ports/password-hasher.port";
 
 /**
- * Deterministic fake hasher. Good enough for unit tests — not for
- * production. Production wiring uses the argon2-backed adapter.
+ * Hasher fake determinístico. Suficiente para testes unit — não serve
+ * para produção. A wiring de produção usa o adapter baseado em argon2.
  */
 export class FakePasswordHasher implements PasswordHasherPort {
   private readonly records = new Map<string, string>();

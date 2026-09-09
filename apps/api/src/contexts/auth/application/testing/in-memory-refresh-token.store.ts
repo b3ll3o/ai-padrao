@@ -10,7 +10,7 @@ function nextId(): string {
 }
 
 /**
- * In-memory fake of RefreshTokenStorePort for use cases + specs.
+ * Fake in-memory de RefreshTokenStorePort para use cases + specs.
  */
 export class InMemoryRefreshTokenStore implements RefreshTokenStorePort {
   private readonly byId = new Map<string, RefreshTokenRecord>();

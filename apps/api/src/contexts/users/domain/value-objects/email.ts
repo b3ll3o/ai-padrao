@@ -1,5 +1,6 @@
-// Framework-free value object for user email. Mirrors the Zod contract
-// regex in packages/contracts so we do not depend on Zod inside domain.
+// Value Object framework-free para o email de user. Espelha o regex do
+// contrato Zod em packages/contracts para que não dependamos do Zod dentro
+// do domínio.
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

@@ -1,5 +1,5 @@
 import type { UserHistoryEntry, UserListQuery } from "@ai-padrao/contracts";
-// Nest DI needs the runtime value here; `import type` erases it from design:paramtypes.
+// Nest DI precisa do valor em tempo de execução aqui; `import type` o apaga de design:paramtypes.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../../../../../infra/prisma/prisma.service";
 import { INCLUDE_DELETED_FLAG } from "../../../../../infra/prisma/audit/audit-extension";
@@ -35,26 +35,24 @@ interface AuditEntryInput {
 }
 
 /**
- * Prisma-backed implementation of {@link UserRepositoryPort}.
+ * Implementação baseada em Prisma do {@link UserRepositoryPort}.
  *
- * Lives in `infrastructure/persistence/prisma` so domain/application stay
- * framework-free.
+ * Mora em `infrastructure/persistence/prisma` para que domain/application
+ * permaneçam framework-free.
  *
- * Audit semantics (per ADR-014):
- *  - Soft-deleted rows are transparent to `findById`, `findByEmail`,
- *    and `list` reads — the `auditExtension` injects `deletedAt: null`.
- *  - `findByIdIncludingDeleted` opts out of that filter via the
- *    `INCLUDE_DELETED_FLAG` sentinel.
- *  - Every write that mutates the row (`update`, `softDelete`, `restore`)
- *    runs inside `prisma.$transaction`: read prior state, persist the
- *    mutation with `version: { increment: 1 }`, then write a row to
- *    `userHistory` with the snapshot + the operation that was applied.
+ * Semântica de audit (conforme ADR-014):
+ *  - Linhas soft-deleted são transparentes para `findById`, `findByEmail`
+ *    e `list` — o `auditExtension` injeta `deletedAt: null`.
+ *  - `findByIdIncludingDeleted` desativa esse filtro via o sentinel
+ *    `INCLUDE_DELETED_FLAG`.
+ *  - Toda escrita que muta a linha (`update`, `softDelete`, `restore`)
+ *    roda dentro de `prisma.$transaction`: lê o estado anterior, persiste
+ *    a mutação com `version: { increment: 1 }`, e então escreve uma linha
+ *    em `userHistory` com o snapshot + a operação aplicada.
  */
 export class PrismaUserRepository implements UserRepositoryPort {
-   
   private readonly INCLUDE_DELETED: any = { [INCLUDE_DELETED_FLAG]: true };
 
-   
   constructor(private readonly prisma: PrismaService) {}
 
   async list(query: UserListQuery): Promise<UserListResult> {
@@ -227,8 +225,8 @@ export class PrismaUserRepository implements UserRepositoryPort {
       : never,
     entry: AuditEntryInput,
   ): Promise<void> {
-    // The transaction client exposes the typed `userHistory` model just
-    // like the top-level client does.
+    // O client da transaction expõe o model `userHistory` tipado da
+    // mesma forma que o client top-level.
     await (tx as unknown as PrismaService).userHistory.create({
       data: entry as never,
     });

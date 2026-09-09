@@ -5,14 +5,14 @@ import { AUDITED_MODELS } from "./audit.types";
 const auditLog = new Logger("AuditExtension");
 
 /**
- * Sentinel arg key used to opt a single Prisma read OUT of the
- * `deletedAt: null` filter. The repository layer passes this via
- * `findUnique({ where: { id, [INCLUDE_DELETED_FLAG]: true } })` for
+ * Chave sentinel no arg usada para OPTAR uma única leitura do Prisma
+ * FORA do filtro `deletedAt: null`. A camada de Repository passa isso
+ * via `findUnique({ where: { id, [INCLUDE_DELETED_FLAG]: true } })` para
  * `findByIdIncludingDeleted`.
  *
- * The string is prefixed to make grep / audit easy; Prisma forwards
- * unknown keys through `where` without erroring, and the extension
- * strips it before the inner query runs.
+ * A string tem prefixo para facilitar grep / audit; o Prisma encaminha
+ * chaves desconhecidas pelo `where` sem erro, e a extension a remove
+ * antes da query interna rodar.
  */
 export const INCLUDE_DELETED_FLAG = "__auditIncludeDeleted";
 
@@ -25,31 +25,31 @@ interface WhereWithFlag extends Record<string, unknown> {
 }
 
 /**
- * Pure transformation applied to every read on an audited model. Exported
- * for unit-testing and for the audit.spec — keeping the logic out of the
- * Prisma extension machinery lets us assert behaviour without standing
- * up a database.
+ * Transformação pura aplicada a cada leitura em um model auditado.
+ * Exportada para teste unitário e para o audit.spec — manter a lógica
+ * fora da maquinaria da extension do Prisma nos permite fazer assert do
+ * comportamento sem subir um banco.
  *
- * Behaviour:
- *  - If `args.where` already has a `deletedAt` filter, leave it alone.
- *  - If `args.where[INCLUDE_DELETED_FLAG]` is `true`, strip the sentinel
- *    from `where` and return the rest unchanged.
- *  - Otherwise, set `args.where.deletedAt = null`.
- *  - Non-object args are returned unchanged (defensive).
+ * Comportamento:
+ *  - Se `args.where` já tem um filtro `deletedAt`, deixa como está.
+ *  - Se `args.where[INCLUDE_DELETED_FLAG]` é `true`, remove o sentinel
+ *    de `where` e retorna o restante inalterado.
+ *  - Caso contrário, define `args.where.deletedAt = null`.
+ *  - Args que não são objeto são retornados inalterados (defensivo).
  */
 export function applyDeletedFilter(args: unknown): unknown {
   if (!args || typeof args !== "object") return args;
   const a = args as ArgsWithFlag;
   const existingWhere = (a.where ?? {}) as WhereWithFlag;
   if (existingWhere.__auditIncludeDeleted === true) {
-    // Strip the sentinel from `where` by destructuring-and-discarding.
-    // The field name starts with `_` to satisfy the project's
-    // `no-unused-vars` rule without an eslint-disable directive.
+    // Remove o sentinel de `where` via destructuring-and-discarding.
+    // O nome do campo começa com `_` para satisfazer a regra
+    // `no-unused-vars` do projeto sem um eslint-disable directive.
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { __auditIncludeDeleted: _auditIncludeDeleted, ...rest } =
       existingWhere;
-    // Logging the opt-out makes the read-visible-to-deleted-rows
-    // pattern greppable in production logs. Use Nest Logger per ADR-006.
+    // Logar o opt-out torna o padrão read-visible-to-deleted-rows
+    // greppable nos logs de produção. Use Nest Logger conforme ADR-006.
     auditLog.debug(
       `audit read opted out of soft-delete filter: ${JSON.stringify(rest)}`,
     );
@@ -62,12 +62,13 @@ export function applyDeletedFilter(args: unknown): unknown {
 }
 
 /**
- * Shape of the `params` argument Prisma passes to each `query.<model>.<op>`
- * handler. We only use `args` (the user-provided query args) and `query`
- * (the inner handler that actually executes the query against the
- * database). Marked `unknown` for the inner-query return because we don't
- * model Prisma's typed results here — `applyDeletedFilter` is a pure
- * transform, the actual result type is the call site's responsibility.
+ * Shape do argumento `params` que o Prisma passa para cada handler
+ * `query.<model>.<op>`. Usamos apenas `args` (os args de query fornecidos
+ * pelo usuário) e `query` (o handler interno que de fato executa a query
+ * no banco). Marcado como `unknown` no retorno da inner-query porque não
+ * modelamos aqui os tipos de resultado do Prisma — `applyDeletedFilter` é
+ * uma transformação pura, o tipo real do resultado é responsabilidade do
+ * call site.
  */
 export interface AuditReadParams {
   args: unknown;
@@ -76,17 +77,18 @@ export interface AuditReadParams {
 }
 
 /**
- * Shared body of every `query.<model>.<readOp>` handler. Centralised so
- * there's a single function the unit tests can drive — the eight read
- * handlers below all delegate here. If the audit logic ever needs a
- * per-op override (e.g. `findUnique` should also enforce uniqueness
- * constraints), this is the seam.
+ * Corpo compartilhado de cada handler `query.<model>.<readOp>`. Centralizado
+ * para que exista uma única função que os testes unitários possam
+ * acionar — os oito handlers de leitura abaixo delegam todos aqui. Se a
+ * lógica de audit algum dia precisar de um override por op (ex.:
+ * `findUnique` também deve aplicar constraints de unicidade), essa é a
+ * costura.
  */
 export function wrapAuditRead(params: AuditReadParams): Promise<unknown> {
-  // Read params from Prisma can be object-or-null depending on the op;
-  // logging the shape helps diagnose mis-wired audit reads in prod.
-  // Use Nest `Logger` per ADR-006 and stay at debug level so the hot
-  // path doesn't emit noise in production.
+  // Params de read do Prisma podem ser object-or-null dependendo da op;
+  // logar o shape ajuda a diagnosticar audit reads mal fiados em prod.
+  // Use `Logger` do Nest conforme ADR-006 e fique em nível debug para que
+  // o hot path não emita ruído em produção.
   const argsSummary =
     params.args && typeof params.args === "object"
       ? Object.keys(params.args).join(",")
@@ -96,15 +98,16 @@ export function wrapAuditRead(params: AuditReadParams): Promise<unknown> {
 }
 
 /**
- * Named handlers exported as a flat object so each is unit-testable in
- * isolation. The Prisma `$extends` machinery below wraps the same object
- * reference — wiring is `query.user = auditUserReadHandlers`.
+ * Handlers nomeados exportados como um objeto plano para que cada um
+ * seja testável unitariamente em isolamento. A maquinaria do `$extends`
+ * do Prisma abaixo envolve a mesma referência de objeto — o wiring é
+ * `query.user = auditUserReadHandlers`.
  *
- * Lifting these out of the inline object literal means we can call
- * `auditUserReadHandlers.findUnique({ args, query })` from a Jest spec
- * without standing up a real `PrismaClient`. Every branch in this
- * module is reachable from tests via either `applyDeletedFilter` (the
- * pure transform) or one of these handlers (the binding to Prisma).
+ * Extraí-los do object literal inline significa que podemos chamar
+ * `auditUserReadHandlers.findUnique({ args, query })` de um spec Jest
+ * sem precisar subir um `PrismaClient` real. Cada branch deste módulo
+ * é alcançável a partir dos testes via `applyDeletedFilter` (a
+ * transformação pura) ou um desses handlers (a ligação com o Prisma).
  */
 
 export const auditUserReadHandlers: Record<
@@ -129,23 +132,25 @@ export const auditUserReadHandlers: Record<
 };
 
 /**
- * The Prisma `$extends` definition injected by `PrismaService`.
+ * Definição do `$extends` do Prisma injetada pelo `PrismaService`.
  *
- * Behaviour:
- *  - Every read on every model in `AUDITED_MODELS` (`findUnique`,
+ * Comportamento:
+ *  - Cada leitura em cada model em `AUDITED_MODELS` (`findUnique`,
  *    `findUniqueOrThrow`, `findFirst`, `findFirstOrThrow`, `findMany`,
- *    `count`, `aggregate`, `groupBy`) is rewritten through `applyDeletedFilter`
- *    so soft-deleted rows are hidden unless the caller passed
- *    `INCLUDE_DELETED_FLAG`.
- *  - Writes (`create`, `createMany`, `update`, `updateMany`, `upsert`,
- *    `delete`, `deleteMany`) are intentionally NOT wrapped — the
- *    repository layer captures history + version bumps inside its own
- *    `prisma.$transaction` for atomicity. Going around the repository
- *    port is a deliberate project-level prohibition (see ADR-014).
+ *    `count`, `aggregate`, `groupBy`) é reescrita através de
+ *    `applyDeletedFilter` para que linhas soft-deleted fiquem ocultas a
+ *    menos que o chamador tenha passado `INCLUDE_DELETED_FLAG`.
+ *  - Escritas (`create`, `createMany`, `update`, `updateMany`, `upsert`,
+ *    `delete`, `deleteMany`) intencionalmente NÃO são envolvidas — a
+ *    camada de Repository captura histórico + incrementos de version
+ *    dentro de seu próprio `prisma.$transaction` para atomicidade.
+ *    Contornar a Port do Repository é uma proibição deliberada em nível
+ *    de projeto (veja ADR-014).
  *
- * Adding a new audited entity = (1) append its Prisma client model name
- * to `AUDITED_MODELS`, (2) add a `<entity>_history` table to
- * `schema.prisma`, (3) implement the audit transaction in the repository.
+ * Adicionar uma nova entity auditada = (1) anexar o nome do model do
+ * Prisma client em `AUDITED_MODELS`, (2) adicionar uma tabela
+ * `<entity>_history` no `schema.prisma`, (3) implementar a transaction de
+ * audit no Repository.
  */
 export const auditExtension = Prisma.defineExtension({
   name: "domain-audit-foundation",
@@ -154,7 +159,7 @@ export const auditExtension = Prisma.defineExtension({
   },
 });
 
-// Ensure `AUDITED_MODELS` is referenced so adding a model to the tuple
-// without updating this switch is a build-time reminder (the constant is
-// still exported above for tests).
+// Garante que `AUDITED_MODELS` é referenciado para que adicionar um model
+// à tuple sem atualizar este switch seja um lembrete em build time (a
+// constante ainda é exportada acima para os testes).
 void AUDITED_MODELS;

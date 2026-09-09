@@ -20,8 +20,8 @@ import { JwtAuthGuard } from "../../../../common/guards/jwt-auth.guard";
 import { CurrentUser } from "../../../../common/decorators/current-user.decorator";
 import { UserNotDeletedError } from "../../domain/errors/user-not-deleted.error";
 import { UserNotFoundError } from "../../domain/errors/user-not-found.error";
-// Nest DI needs the runtime value here; `import type` would erase it
-// from design:paramtypes and the controller would crash on instantiation.
+// Nest DI precisa do valor em tempo de execução aqui; `import type` o
+// apagaria de design:paramtypes e o Controller quebraria na instanciação.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { FindUserUseCase } from "../../application/use-cases/find-user.use-case";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -40,9 +40,9 @@ import {
 import type { UpdateUserDto, UserListQueryDto } from "./dto/users.dto";
 
 /**
- * Minimal shape of `req.user` set by JwtAuthGuard (see `jwt.strategy.ts`).
- * Kept local instead of imported to avoid a fragile cross-cutting
- * dependency on the auth context.
+ * Shape mínima de `req.user` definido pelo JwtAuthGuard (veja
+ * `jwt.strategy.ts`). Mantido local em vez de importado para evitar uma
+ * dependência cross-cutting frágil no contexto de auth.
  */
 export interface AuthenticatedActor {
   id: string;
@@ -117,7 +117,7 @@ export class UsersHttpController {
     }
   }
 
-  /** Admin-only: bring a soft-deleted user back to the active state. */
+  /** Apenas admin: traz um user soft-deleted de volta ao estado ativo. */
   @Patch(":id/restore")
   async restore(
     @Param("id") id: string,
@@ -138,7 +138,7 @@ export class UsersHttpController {
     }
   }
 
-  /** Admin-only: full audit history of a user, ordered by `version` asc. */
+  /** Apenas admin: histórico completo de audit de um user, ordenado por `version` asc. */
   @Get(":id/history")
   async history(
     @Param("id") id: string,

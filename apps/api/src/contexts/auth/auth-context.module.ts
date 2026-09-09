@@ -1,5 +1,5 @@
-// Provider class names below are consumed at runtime by Nest DI;
-// see ADR-002 for the typing constraint.
+// Os nomes das classes de Provider abaixo são consumidos em runtime pelo Nest DI;
+// veja a ADR-002 para a restrição de tipagem.
 import { APP_GUARD } from "@nestjs/core";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule, JwtService } from "@nestjs/jwt";

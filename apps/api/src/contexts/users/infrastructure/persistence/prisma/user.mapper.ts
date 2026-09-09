@@ -2,12 +2,13 @@ import type { UserRole as PrismaUserRole } from "@prisma/client";
 import { User } from "../../../domain/entities/user";
 
 /**
- * Minimal row shape the mapper needs. Keeping it local — instead of
- * importing the full Prisma `User` type — means callers can pass a
- * partial select without fighting the generated types.
+ * Shape mínima da linha que o Mapper precisa. Mantê-la local — em vez de
+ * importar o tipo `User` completo do Prisma — significa que os chamadores
+ * podem passar um select parcial sem brigar com os tipos gerados.
  *
- * `deletedAt` / `version` were added per ADR-014 (domain-audit-foundation);
- * both are required for the soft-delete + version contract.
+ * `deletedAt` / `version` foram adicionados conforme ADR-014
+ * (domain-audit-foundation); ambos são exigidos pelo contrato de
+ * soft-delete + version.
  */
 export interface PrismaUserRow {
   id: string;
@@ -21,9 +22,10 @@ export interface PrismaUserRow {
 }
 
 /**
- * Conversion between the Prisma row shape (infrastructure concern) and
- * the framework-free User entity (domain). Keeping this isolated means
- * no Prisma types leak into the domain or application layers.
+ * Conversão entre o shape de linha do Prisma (concern de infraestrutura)
+ * e a Entity User framework-free (domínio). Manter isso isolado significa
+ * que nenhum tipo do Prisma vaza para as camadas de domínio ou
+ * Application.
  */
 export class UserMapper {
   static toDomain(row: PrismaUserRow): User {

@@ -24,7 +24,7 @@ function seedUser(
 }
 
 describe("GetUserHistoryUseCase", () => {
-  it("returns an empty array when the user has no recorded history", async () => {
+  it("retorna um array vazio quando o usuário não tem histórico registrado", async () => {
     const repo = new InMemoryUserRepository([seedUser("u1")]);
     const useCase = new GetUserHistoryUseCase(repo);
 
@@ -33,7 +33,7 @@ describe("GetUserHistoryUseCase", () => {
     expect(result).toEqual([]);
   });
 
-  it("returns an empty array for an unknown user id", async () => {
+  it("retorna um array vazio para um id de usuário desconhecido", async () => {
     const repo = new InMemoryUserRepository();
     const useCase = new GetUserHistoryUseCase(repo);
 
@@ -42,7 +42,7 @@ describe("GetUserHistoryUseCase", () => {
     expect(result).toEqual([]);
   });
 
-  it("returns history entries ordered by version ascending after mutations", async () => {
+  it("retorna entradas de histórico ordenadas pela versão crescente após mutações", async () => {
     const initial = seedUser("u1", 0);
     const repo = new InMemoryUserRepository([initial]);
     repo.seedCreateHistory(initial);
@@ -55,14 +55,14 @@ describe("GetUserHistoryUseCase", () => {
 
     const operations = history.map((h: UserHistoryEntry) => h.operation);
     expect(operations).toEqual(["CREATE", "UPDATE", "DELETE", "RESTORE"]);
-    // Versions are monotonic and ascending.
+    // As versões são monotônicas e crescentes.
     const versions = history.map((h) => h.version);
     expect(versions).toEqual([...versions].sort((a, b) => a - b));
     expect(operations[0]).toBe("CREATE");
     expect(operations.at(-1)).toBe("RESTORE");
   });
 
-  it("records the actor on every mutating entry", async () => {
+  it("registra o ator em cada entrada de mutação", async () => {
     const initial = seedUser("u1", 0);
     const repo = new InMemoryUserRepository([initial]);
     repo.seedCreateHistory(initial);
@@ -72,7 +72,7 @@ describe("GetUserHistoryUseCase", () => {
 
     const history = await useCase.execute("u1");
 
-    // CREATE was seeded without an actor; UPDATE/DELETE must carry it.
+    // O CREATE foi semeado sem ator; UPDATE/DELETE devem carregá-lo.
     expect(history[0]?.changedBy).toBeNull();
     expect(history.slice(1).map((h) => h.changedBy)).toEqual([
       "admin-42",
@@ -80,7 +80,7 @@ describe("GetUserHistoryUseCase", () => {
     ]);
   });
 
-  it("does not touch the entity it returns — history entries are snapshots", async () => {
+  it("não altera a entidade que retorna — entradas de histórico são snapshots", async () => {
     const initial = seedUser("u1", 0);
     const repo = new InMemoryUserRepository([initial]);
     repo.seedCreateHistory(initial);
@@ -94,13 +94,13 @@ describe("GetUserHistoryUseCase", () => {
     expect(firstRead[1]?.snapshot).toMatchObject({
       name: initial.toJSON().name,
     });
-    // The snapshot captured the prior state, not the post-update state.
+    // O snapshot capturou o estado anterior, não o estado pós-update.
     expect(firstRead[1]?.snapshot).toMatchObject({
       name: "User u1",
     });
   });
 
-  it("ignores unknown user ids without throwing", async () => {
+  it("ignora ids de usuário desconhecidos sem lançar exceção", async () => {
     const repo = new InMemoryUserRepository([seedUser("u1")]);
     const useCase = new GetUserHistoryUseCase(repo);
 

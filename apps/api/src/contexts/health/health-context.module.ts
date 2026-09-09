@@ -1,4 +1,4 @@
-// Nest DI + emitDecoratorMetadata need the runtime value here; `import type` erases it.
+// Nest DI + emitDecoratorMetadata precisam do valor em tempo de execução aqui; `import type` o apaga.
 
 import { Module } from "@nestjs/common";
 import { PrismaService } from "../../infra/prisma/prisma.service";
@@ -6,40 +6,40 @@ import { HealthHttpController } from "./infrastructure/http/health-http.controll
 import { PrismaDbHealthCheck } from "./infrastructure/persistence/prisma/prisma-db-health-check";
 import { HEALTH_CHECK_PORT } from "./health-context.tokens";
 
-// No `application/use-cases/` folder is created on purpose — the
-// pragmatic-DDD rule (`apps/api/AGENTS.md` §"Required architecture")
-// forbids adding abstractions that only rename framework or database
-// operations. Health is infrastructure-only and stays under
-// `infrastructure/`. See `README.md` for the rationale.
+// Nenhuma pasta `application/use-cases/` é criada de propósito — a regra
+// de DDD pragmático (`apps/api/AGENTS.md` §"Required architecture")
+// proíbe a adição de abstrações que apenas renomeiam operações de
+// framework ou de banco. Health é exclusivamente de infraestrutura e
+// permanece sob `infrastructure/`. Veja `README.md` para a justificativa.
 
 @Module({
- controllers: [HealthHttpController],
- providers: [
- {
- provide: PrismaDbHealthCheck,
- inject: [PrismaService],
- useFactory: (prisma: PrismaService) => new PrismaDbHealthCheck(prisma),
- },
- {
- provide: HEALTH_CHECK_PORT,
- useExisting: PrismaDbHealthCheck,
- },
- ],
+  controllers: [HealthHttpController],
+  providers: [
+    {
+      provide: PrismaDbHealthCheck,
+      inject: [PrismaService],
+      useFactory: (prisma: PrismaService) => new PrismaDbHealthCheck(prisma),
+    },
+    {
+      provide: HEALTH_CHECK_PORT,
+      useExisting: PrismaDbHealthCheck,
+    },
+  ],
 })
 /**
- * Composition root for the health bounded context. The liveness probe
- * has no dependencies; the readiness probe delegates to the
- * `HealthCheckPort`, which the Prisma adapter satisfies in production.
- * Tests inject fakes by binding a different value to `HEALTH_CHECK_PORT`.
+ * Composition root do bounded context de health. O probe de liveness não
+ * tem dependências; o probe de readiness delega para a `HealthCheckPort`,
+ * que o Adapter do Prisma satisfaz em produção. Testes injetam fakes
+ * vinculando um valor diferente a `HEALTH_CHECK_PORT`.
  *
  * @example
- * // Production wiring — Prisma is the only dependency:
+ * // Wiring de produção — Prisma é a única dependência:
  * HealthContextModule;
  *
  * @remarks
- * The `useFactory` + `useExisting` pattern (instead of `useClass`)
- * sidesteps the ADR-002 metadata issue: Nest reads
- * `design:paramtypes` at decoration time and `import type` would
- * erase it. Keep both providers here whenever a new port is added.
+ * O padrão `useFactory` + `useExisting` (em vez de `useClass`) contorna
+ * o problema de metadados do ADR-002: Nest lê `design:paramtypes` no
+ * momento da decoração e `import type` o apagaria. Mantenha ambos os
+ * providers aqui sempre que uma nova Port for adicionada.
  */
 export class HealthContextModule {}

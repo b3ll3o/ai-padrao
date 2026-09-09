@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-// Nest DI needs the runtime value here; `import type` erases it from design:paramtypes.
+// O Nest DI precisa do valor em runtime aqui; `import type` o apaga de design:paramtypes.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";

@@ -1,36 +1,36 @@
 import { parseTtlToMs } from "./parse-ttl";
 
 describe("parseTtlToMs", () => {
-  it("parses seconds", () => {
+  it("interpreta segundos", () => {
     expect(parseTtlToMs("30s")).toBe(30_000);
   });
 
-  it("parses minutes", () => {
+  it("interpreta minutos", () => {
     expect(parseTtlToMs("15m")).toBe(15 * 60_000);
   });
 
-  it("parses hours", () => {
+  it("interpreta horas", () => {
     expect(parseTtlToMs("2h")).toBe(2 * 3_600_000);
   });
 
-  it("parses days", () => {
+  it("interpreta dias", () => {
     expect(parseTtlToMs("1d")).toBe(86_400_000);
   });
 
-  it("throws on missing unit", () => {
+  it("lança quando falta a unidade", () => {
     expect(() => parseTtlToMs("15")).toThrow("Invalid TTL: 15");
   });
 
-  it("throws on unknown unit", () => {
+  it("lança quando a unidade é desconhecida", () => {
     expect(() => parseTtlToMs("5y")).toThrow("Invalid TTL: 5y");
   });
 
-  it("throws on empty string", () => {
+  it("lança com string vazia", () => {
     expect(() => parseTtlToMs("")).toThrow("Invalid TTL: ");
   });
 
-  it("throws on negative numbers", () => {
-    // Match regex requires digits, so negatives fall through.
+  it("lança com números negativos", () => {
+    // A regex exige dígitos, então os negativos não passam no match.
     expect(() => parseTtlToMs("-5m")).toThrow("Invalid TTL: -5m");
   });
 });

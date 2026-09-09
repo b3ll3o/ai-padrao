@@ -6,13 +6,13 @@ import { UserNotDeletedError } from "../../../domain/errors/user-not-deleted.err
 import { UserNotFoundError } from "../../../domain/errors/user-not-found.error";
 
 /**
- * Build a PrismaUserRepository backed by a hand-rolled mock client.
- * `$transaction` is mocked by accepting a callback and providing a tx
- * object with the same model accessors as the outer client (mirroring
- * real Prisma behaviour for the unit tests).
+ * Constrói um PrismaUserRepository apoiado por um cliente mock escrito à mão.
+ * `$transaction` é mockado aceitando um callback e fornecendo um objeto tx
+ * com os mesmos accessors de model que o cliente externo (espelhando o
+ * comportamento real do Prisma para os testes unitários).
  */
 function buildRepo() {
-  // Outer accessors — read paths use these.
+  // Accessors externos — os caminhos de leitura os utilizam.
   const user = {
     findMany: jest.fn(),
     count: jest.fn(),
@@ -23,9 +23,9 @@ function buildRepo() {
   };
   const userHistory = { create: jest.fn(), findMany: jest.fn() };
 
-  // Independent inner tx accessors — production code calls txUser.update /
-  // txUserHistory.create inside $transaction. Keeping them separate
-  // (rather than aliasing) lets the test assert each side properly.
+  // Accessors internos independentes da tx — o código de produção chama
+  // txUser.update / txUserHistory.create dentro de $transaction. Mantê-los
+  // separados (em vez de aliasar) permite que o teste valide cada lado.
   const txUser = {
     findUnique: jest.fn(),
     findFirst: jest.fn(),
@@ -41,7 +41,7 @@ function buildRepo() {
   const prisma = {
     user,
     userHistory,
-     
+
     $transaction: jest.fn(async (cb: any) => cb(tx)) as any,
   } as unknown as PrismaService;
 
@@ -75,7 +75,7 @@ function userRow(
 
 describe("PrismaUserRepository", () => {
   describe("list()", () => {
-    it("returns mapped Users with pagination + filter metadata", async () => {
+    it("retorna Users mapeados com metadados de paginação + filtro", async () => {
       const { repo, user } = buildRepo();
       const rows = [userRow(), userRow({ id: "u2", email: "b@b.com" })];
       user.findMany.mockResolvedValue(rows);
@@ -100,7 +100,7 @@ describe("PrismaUserRepository", () => {
       expect(result.items[0]).toBeInstanceOf(User);
     });
 
-    it("forwards q as case-insensitive OR on email+name", async () => {
+    it("encaminha q como OR case-insensitive em email+name", async () => {
       const { repo, user } = buildRepo();
       user.findMany.mockResolvedValue([]);
       user.count.mockResolvedValue(0);
@@ -119,13 +119,13 @@ describe("PrismaUserRepository", () => {
   });
 
   describe("findById", () => {
-    it("returns null when no row matches", async () => {
+    it("retorna null quando nenhuma linha corresponde", async () => {
       const { repo, user } = buildRepo();
       user.findUnique.mockResolvedValue(null);
       expect(await repo.findById("missing")).toBeNull();
     });
 
-    it("maps a found row to a User", async () => {
+    it("mapeia uma linha encontrada para um User", async () => {
       const { repo, user } = buildRepo();
       user.findUnique.mockResolvedValue(userRow({ id: "u1" }));
       const result = await repo.findById("u1");
@@ -135,7 +135,7 @@ describe("PrismaUserRepository", () => {
   });
 
   describe("findByIdIncludingDeleted", () => {
-    it("returns even deleted rows", async () => {
+    it("retorna mesmo linhas deletadas", async () => {
       const { repo, user } = buildRepo();
       user.findUnique.mockResolvedValue(
         userRow({ deletedAt: new Date("2024-06-01") }),
@@ -144,7 +144,7 @@ describe("PrismaUserRepository", () => {
       expect(result?.deletedAt).toEqual(new Date("2024-06-01"));
     });
 
-    it("returns null when the row is missing", async () => {
+    it("retorna null quando a linha não existe", async () => {
       const { repo, user } = buildRepo();
       user.findUnique.mockResolvedValue(null);
       expect(await repo.findByIdIncludingDeleted("missing")).toBeNull();
@@ -152,7 +152,7 @@ describe("PrismaUserRepository", () => {
   });
 
   describe("findByEmail", () => {
-    it("normalizes the email and returns the mapped User", async () => {
+    it("normaliza o email e retorna o User mapeado", async () => {
       const { repo, user } = buildRepo();
       user.findUnique.mockResolvedValue(userRow({ email: "a@a.com" }));
       const result = await repo.findByEmail("  A@A.COM ");
@@ -163,7 +163,7 @@ describe("PrismaUserRepository", () => {
       expect(result?.email.value).toBe("a@a.com");
     });
 
-    it("returns null when nothing matches", async () => {
+    it("retorna null quando nada corresponde", async () => {
       const { repo, user } = buildRepo();
       user.findUnique.mockResolvedValue(null);
       expect(await repo.findByEmail("nope@nope.com")).toBeNull();
@@ -171,7 +171,7 @@ describe("PrismaUserRepository", () => {
   });
 
   describe("update()", () => {
-    it("runs inside $transaction and writes an UPDATE history entry", async () => {
+    it("executa dentro de $transaction e grava uma entrada de histórico UPDATE", async () => {
       const { repo, prisma, user, userHistory, txUser, txUserHistory } =
         buildRepo();
       txUser.findUnique.mockResolvedValue(userRow({ version: 2 }));
@@ -180,11 +180,11 @@ describe("PrismaUserRepository", () => {
 
       const result = await repo.update("u1", { name: "Alice2" }, "admin-1");
 
-      // Verify $transaction was used
-       
+      // Verifica que $transaction foi usado
+
       expect((prisma as any).$transaction).toHaveBeenCalledTimes(1);
 
-      // Verify the update incremented version and forwarded the patch
+      // Verifica que o update incrementou a versão e encaminhou o patch
       expect(user.update).not.toHaveBeenCalled();
       expect(txUser.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -193,7 +193,7 @@ describe("PrismaUserRepository", () => {
         }),
       );
 
-      // Verify history capture happened with the prior snapshot and new version
+      // Verifica que a captura de histórico aconteceu com o snapshot anterior e a nova versão
       expect(userHistory.create).not.toHaveBeenCalled();
       expect(txUserHistory.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
@@ -208,7 +208,7 @@ describe("PrismaUserRepository", () => {
       expect(result.version).toBe(3);
     });
 
-    it("uses null changedBy when actorId is omitted", async () => {
+    it("usa changedBy como null quando actorId é omitido", async () => {
       const { repo, txUser, txUserHistory } = buildRepo();
       txUser.findUnique.mockResolvedValue(userRow({ version: 2 }));
       txUser.update.mockResolvedValue(userRow({ version: 3, name: "Alice2" }));
@@ -219,7 +219,7 @@ describe("PrismaUserRepository", () => {
       });
     });
 
-    it("forwards only the email patch when name is undefined", async () => {
+    it("encaminha apenas o patch de email quando name é undefined", async () => {
       const { repo, txUser, txUserHistory } = buildRepo();
       txUser.findUnique.mockResolvedValue(userRow({ version: 0 }));
       txUser.update.mockResolvedValue(userRow({ version: 1 }));
@@ -232,7 +232,7 @@ describe("PrismaUserRepository", () => {
       );
     });
 
-    it("forwards only the name patch when email is undefined", async () => {
+    it("encaminha apenas o patch de name quando email é undefined", async () => {
       const { repo, txUser, txUserHistory } = buildRepo();
       txUser.findUnique.mockResolvedValue(userRow({ version: 0 }));
       txUser.update.mockResolvedValue(userRow({ version: 1 }));
@@ -245,7 +245,7 @@ describe("PrismaUserRepository", () => {
       );
     });
 
-    it("sends an empty patch (only version bump) when both fields are undefined", async () => {
+    it("envia um patch vazio (apenas incremento de versão) quando ambos os campos são undefined", async () => {
       const { repo, txUser, txUserHistory } = buildRepo();
       txUser.findUnique.mockResolvedValue(userRow({ version: 0 }));
       txUser.update.mockResolvedValue(userRow({ version: 1 }));
@@ -258,7 +258,7 @@ describe("PrismaUserRepository", () => {
       );
     });
 
-    it("throws UserNotFoundError when prior row is missing", async () => {
+    it("lança UserNotFoundError quando a linha anterior não existe", async () => {
       const { repo, txUser } = buildRepo();
       txUser.findUnique.mockResolvedValue(null);
       await expect(
@@ -268,7 +268,7 @@ describe("PrismaUserRepository", () => {
   });
 
   describe("softDelete()", () => {
-    it("flips deletedAt, bumps version, and writes a DELETE history entry", async () => {
+    it("inverte deletedAt, incrementa versão e grava entrada de histórico DELETE", async () => {
       const { repo, prisma, txUser, txUserHistory } = buildRepo();
       txUser.findUnique.mockResolvedValue(userRow({ version: 4 }));
       txUser.update.mockResolvedValue(
@@ -278,7 +278,6 @@ describe("PrismaUserRepository", () => {
 
       await repo.softDelete("u1", "admin-1");
 
-       
       expect((prisma as any).$transaction).toHaveBeenCalledTimes(1);
       expect(txUser.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -299,7 +298,7 @@ describe("PrismaUserRepository", () => {
       });
     });
 
-    it("uses null changedBy when actorId is omitted", async () => {
+    it("usa changedBy como null quando actorId é omitido", async () => {
       const { repo, txUser, txUserHistory } = buildRepo();
       txUser.findUnique.mockResolvedValue(userRow());
       txUser.update.mockResolvedValue(userRow({ deletedAt: new Date() }));
@@ -310,7 +309,7 @@ describe("PrismaUserRepository", () => {
       });
     });
 
-    it("throws UserNotFoundError when prior row is missing", async () => {
+    it("lança UserNotFoundError quando a linha anterior não existe", async () => {
       const { repo, txUser } = buildRepo();
       txUser.findUnique.mockResolvedValue(null);
       await expect(repo.softDelete("missing")).rejects.toBeInstanceOf(
@@ -320,7 +319,7 @@ describe("PrismaUserRepository", () => {
   });
 
   describe("restore()", () => {
-    it("clears deletedAt, bumps version, and writes a RESTORE history entry", async () => {
+    it("limpa deletedAt, incrementa versão e grava entrada de histórico RESTORE", async () => {
       const { repo, prisma, txUser, txUserHistory } = buildRepo();
       txUser.findUnique.mockResolvedValue(
         userRow({ version: 5, deletedAt: new Date("2024-07-01") }),
@@ -330,7 +329,6 @@ describe("PrismaUserRepository", () => {
 
       const result = await repo.restore("u1", "admin-1");
 
-       
       expect((prisma as any).$transaction).toHaveBeenCalledTimes(1);
       expect(txUser.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -353,7 +351,7 @@ describe("PrismaUserRepository", () => {
       expect(result.version).toBe(6);
     });
 
-    it("throws UserNotDeletedError if the user is already active", async () => {
+    it("lança UserNotDeletedError se o usuário já está ativo", async () => {
       const { repo, txUser } = buildRepo();
       txUser.findUnique.mockResolvedValue(userRow({ deletedAt: null }));
       await expect(repo.restore("u1")).rejects.toBeInstanceOf(
@@ -361,7 +359,7 @@ describe("PrismaUserRepository", () => {
       );
     });
 
-    it("throws UserNotFoundError when prior row is missing", async () => {
+    it("lança UserNotFoundError quando a linha anterior não existe", async () => {
       const { repo, txUser } = buildRepo();
       txUser.findUnique.mockResolvedValue(null);
       await expect(repo.restore("missing")).rejects.toBeInstanceOf(
@@ -369,7 +367,7 @@ describe("PrismaUserRepository", () => {
       );
     });
 
-    it("uses null changedBy when actorId is omitted", async () => {
+    it("usa changedBy como null quando actorId é omitido", async () => {
       const { repo, txUser, txUserHistory } = buildRepo();
       txUser.findUnique.mockResolvedValue(
         userRow({ deletedAt: new Date("2024-07-01") }),
@@ -384,7 +382,7 @@ describe("PrismaUserRepository", () => {
   });
 
   describe("getHistory()", () => {
-    it("returns rows ordered by version ascending and maps them to DTOs", async () => {
+    it("retorna linhas ordenadas pela versão crescente e mapeia para DTOs", async () => {
       const { repo, userHistory } = buildRepo();
       const rows = [
         {

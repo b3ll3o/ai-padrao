@@ -30,7 +30,7 @@ describe("LoggingInterceptor", () => {
     return handler;
   };
 
-  it("uses incoming x-request-id header when present", async () => {
+  it("usa o header x-request-id recebido quando presente", async () => {
     const { ctx, req } = buildCtx({ "x-request-id": "incoming-id" });
     const result = await firstValueFrom(
       new LoggingInterceptor().intercept(ctx, buildHandler()),
@@ -41,7 +41,7 @@ describe("LoggingInterceptor", () => {
     );
   });
 
-  it("emits a uuid when no header present, writes it to res.header and req.requestId", async () => {
+  it("emite um uuid quando não há header, escreve em res.header e req.requestId", async () => {
     const { ctx, req, res, header } = buildCtx({});
     await firstValueFrom(
       new LoggingInterceptor().intercept(ctx, buildHandler()),
@@ -53,7 +53,7 @@ describe("LoggingInterceptor", () => {
     expect(res.statusCode).toBe(200);
   });
 
-  it("preserves statusCode on the response at completion", async () => {
+  it("preserva o statusCode na response ao concluir", async () => {
     const { ctx, res } = buildCtx({}, 201);
     await firstValueFrom(
       new LoggingInterceptor().intercept(ctx, buildHandler()),
