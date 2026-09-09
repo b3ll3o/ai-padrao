@@ -90,6 +90,6 @@ To restore a backup:
 
 ```bash
 ssh deploy@HOST
-sudo /opt/ai-padrao/repo/infra/scripts/restore-postgres.sh \
+/opt/ai-padrao/repo/infra/scripts/restore-postgres.sh \
   /opt/ai-padrao/infra/data/backups/db-YYYYMMDD-HHMM.sql.gz
 ```

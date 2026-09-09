@@ -214,7 +214,10 @@ CRON
 warn_dns() {
   local domain="$1"
   local resolved
-  resolved=$(getent ahosts "$domain" 2>/dev/null | awk 'NR==1{print $1}')
+  # Filter to IPv4 only — getent ahosts returns both A and AAAA records and
+  # the order is implementation-defined. We compare against ifconfig.me
+  # which is IPv4-only, so an AAAA record would always appear mismatched.
+  resolved=$(getent ahosts "$domain" 2>/dev/null | awk 'NR==1 && $1 !~ /:/ {print $1}')
   local public_ip
   public_ip=$(curl -fsS -m 5 https://ifconfig.me || echo "unknown")
   if [[ -z "$resolved" || "$resolved" != "$public_ip" ]]; then
