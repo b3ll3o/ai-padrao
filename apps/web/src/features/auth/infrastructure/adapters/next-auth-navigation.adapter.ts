@@ -2,10 +2,11 @@ import { redirect } from "next/navigation";
 import type { AuthNavigationPort } from "../../domain/ports/auth-navigation.port";
 
 /**
- * Owns `next/navigation`. `redirect()` throws, satisfying the `never` contract.
+ * Dono de `next/navigation`. `redirect()` lança, satisfazendo o contrato
+ * `never`.
  *
- * The destinations are written as inline literals because `typedRoutes` only
- * accepts statically analysable route expressions.
+ * Os destinos são escritos como literais inline porque `typedRoutes` só aceita
+ * expressões de rota analisáveis estaticamente.
  */
 export class NextAuthNavigationAdapter implements AuthNavigationPort {
   dashboard(): never {

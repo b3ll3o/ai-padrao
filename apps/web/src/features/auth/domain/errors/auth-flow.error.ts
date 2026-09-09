@@ -1,8 +1,8 @@
 /**
- * Raised by `AuthApiPort` implementations when the auth API answers with a
- * non-OK response. `apiMessage` carries the `message` field of the error body
- * when the API supplied one, so the application layer can surface it verbatim
- * and fall back to its own code when it is absent.
+ * Lançado pelas implementações de `AuthApiPort` quando a auth API responde com
+ * uma resposta não-OK. `apiMessage` carrega o campo `message` do corpo do erro
+ * quando a API forneceu um, para que a camada de aplicação possa exibi-lo
+ * literalmente e recorrer ao seu próprio código quando ele estiver ausente.
  */
 export class AuthFlowError extends Error {
   readonly apiMessage?: string;

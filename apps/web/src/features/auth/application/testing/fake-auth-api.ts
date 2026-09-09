@@ -7,8 +7,8 @@ import type {
 import type { AuthFlowError } from "../../domain/errors/auth-flow.error";
 
 /**
- * Deterministic `AuthApiPort` double. Each operation either resolves the
- * configured tokens or rejects with the configured failure.
+ * Duplo determinístico de `AuthApiPort`. Cada operação ou resolve os
+ * tokens configurados ou rejeita com a falha configurada.
  */
 export class FakeAuthApi implements AuthApiPort {
   loginResult: AuthTokens | AuthFlowError | Error = {

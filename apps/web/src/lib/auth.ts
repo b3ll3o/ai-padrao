@@ -9,8 +9,8 @@ import { NextAuthNavigationAdapter } from "@/features/auth/infrastructure/adapte
 import { env } from "./env.server";
 
 /**
- * Composition root for the server-side auth flows: builds the adapters and
- * hands them to the use cases. Everything below the ports stays framework-free.
+ * Composition root para os auth flows server-side: constrói os adapters e os
+ * entrega aos use cases. Tudo abaixo das ports permanece livre de framework.
  */
 function buildAuthDependencies() {
   return {

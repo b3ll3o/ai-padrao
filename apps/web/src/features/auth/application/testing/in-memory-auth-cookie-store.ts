@@ -2,8 +2,8 @@ import type { AuthCookieStorePort } from "../../domain/ports/auth-cookie-store.p
 import type { AuthTokens } from "../../domain/ports/auth-api.port";
 
 /**
- * In-memory `AuthCookieStorePort`. Mirrors the production contract by skipping
- * empty token values instead of storing them.
+ * `AuthCookieStorePort` em memória. Espelha o contrato de produção ignorando
+ * valores de token vazios em vez de armazená-los.
  */
 export class InMemoryAuthCookieStore implements AuthCookieStorePort {
   accessToken: string | undefined;

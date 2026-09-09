@@ -7,10 +7,11 @@ import type {
 } from "../../domain/ports/auth-api.port";
 
 /**
- * Owns `fetch`. The only place in the auth feature that speaks HTTP.
+ * Dono de `fetch`. O único lugar na feature de auth que fala HTTP.
  *
- * `fetchFn` defaults to a thunk rather than to `fetch` itself so the global is
- * resolved per call (and never invoked with the adapter as its receiver).
+ * `fetchFn` tem como default uma thunk em vez do próprio `fetch`, para que o
+ * global seja resolvido a cada chamada (e nunca invocado com o adapter como
+ * seu receiver).
  */
 export class FetchAuthApiAdapter implements AuthApiPort {
   constructor(
@@ -44,7 +45,7 @@ export class FetchAuthApiAdapter implements AuthApiPort {
   }
 
   async logout(refreshToken: string): Promise<void> {
-    // Revocation is best-effort; the caller clears local cookies regardless.
+    // A revogação é de melhor esforço; o chamador limpa os cookies locais independentemente.
     await this.fetchFn(`${this.baseUrl}/api/auth/logout`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

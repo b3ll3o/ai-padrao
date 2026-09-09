@@ -8,14 +8,14 @@ import {
 
 export interface BrowserAuthCookieOptions {
   /**
-   * Whether to append the `Secure` attribute. A thunk, not a boolean, so the
-   * page protocol is read at write time — this module is imported during SSR,
-   * where `window` does not exist.
+   * Se deve acrescentar o atributo `Secure`. É uma thunk, não um boolean, para
+   * que o protocolo da página seja lido no momento da escrita — este módulo é
+   * importado durante SSR, onde `window` não existe.
    */
   isSecure?: () => boolean;
 }
 
-/** Owns `document.cookie`. Client-side counterpart of the server cookie store. */
+/** Dono de `document.cookie`. Contrapartida client-side do cookie store do servidor. */
 export class BrowserAuthCookieStoreAdapter implements AuthCookieStorePort {
   private readonly isSecure: () => boolean;
 

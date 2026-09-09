@@ -1,7 +1,8 @@
 /**
- * Terminal navigation out of an auth flow. Every method returns `never`:
- * implementations MUST NOT return normally, mirroring Next.js `redirect()`,
- * which throws. Callers may therefore treat a call as the end of the flow.
+ * Navegação terminal a partir de um auth flow. Cada método retorna `never`:
+ * as implementações NÃO DEVEM retornar normalmente, espelhando o `redirect()`
+ * do Next.js, que lança. Os chamadores podem portanto tratar uma chamada como
+ * o fim do fluxo.
  */
 export interface AuthNavigationPort {
   dashboard(): never;

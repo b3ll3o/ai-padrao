@@ -6,8 +6,8 @@ export interface RecordedNavigation {
 }
 
 /**
- * Thrown by `FakeAuthNavigation` so the double honours the `never` contract of
- * `AuthNavigationPort` the same way Next.js `redirect()` does.
+ * Lançado por `FakeAuthNavigation` para que o duplo honre o contrato `never` de
+ * `AuthNavigationPort` da mesma forma que o `redirect()` do Next.js.
  */
 export class NavigationSignal extends Error {
   constructor(readonly navigation: RecordedNavigation) {
@@ -42,8 +42,8 @@ export class FakeAuthNavigation implements AuthNavigationPort {
 }
 
 /**
- * Runs a flow that is expected to end in navigation and returns what it
- * navigated to, so tests never have to hand-roll try/catch.
+ * Executa um fluxo que deve terminar em navegação e retorna para onde ele
+ * navegou, para que os testes nunca precisem montar try/catch manualmente.
  */
 export async function captureNavigation(
   run: () => Promise<unknown>,

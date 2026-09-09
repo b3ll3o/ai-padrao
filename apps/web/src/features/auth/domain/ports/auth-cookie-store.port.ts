@@ -1,14 +1,14 @@
 import type { AuthTokens } from "./auth-api.port";
 
 /**
- * Reads and writes the auth token cookies.
+ * Lê e escreve os cookies de tokens de auth.
  *
- * Every method is async because the server implementation sits on top of
- * Next.js `cookies()`, which is asynchronous in Next 15. Browser
- * implementations resolve immediately.
+ * Cada método é async porque a implementação do servidor é construída sobre
+ * o `cookies()` do Next.js, que é assíncrono no Next 15. As implementações
+ * de browser resolvem imediatamente.
  *
- * Implementations MUST skip empty token values so a partial refresh response
- * never overwrites a good cookie with an empty one.
+ * As implementações DEVEM ignorar valores de token vazios para que uma resposta
+ * de refresh parcial nunca sobrescreva um cookie válido com um vazio.
  */
 export interface AuthCookieStorePort {
   getAccessToken(): Promise<string | undefined>;

@@ -7,8 +7,9 @@ import { FetchAuthApiAdapter } from "@/features/auth/infrastructure/adapters/fet
 import { env } from "./env.client";
 
 /**
- * Composition root for the browser HTTP client. Token reads and refresh
- * rotation go through the auth ports; this module only wires them into ky.
+ * Composition root para o HTTP client do browser. Leituras de token e
+ * rotação de refresh passam pelas auth ports; este módulo apenas as conecta
+ * ao ky.
  */
 const cookieStore = new BrowserAuthCookieStoreAdapter();
 const refreshSession = new RefreshSessionUseCase(
@@ -16,7 +17,7 @@ const refreshSession = new RefreshSessionUseCase(
   cookieStore,
 );
 
-/** In-flight refresh, so concurrent 401s trigger exactly one rotation. */
+/** Refresh em andamento, para que 401s concorrentes disparem exatamente uma rotação. */
 let refreshing: Promise<string | null> | null = null;
 
 export const apiClient: KyInstance = ky.create({

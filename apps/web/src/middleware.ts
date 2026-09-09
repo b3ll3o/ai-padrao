@@ -3,8 +3,8 @@ import { decideRouteAccess } from "@/features/auth/application/route-access.poli
 import { REFRESH_COOKIE } from "@/features/auth/infrastructure/adapters/auth-cookie.config";
 
 /**
- * Composition root for the auth guard: reads the request, delegates the
- * decision to the framework-neutral policy, and translates it to a response.
+ * Composition root para o auth guard: lê a request, delega a decisão à
+ * política framework-neutral e a traduz em uma response.
  */
 export function middleware(request: NextRequest): NextResponse {
   const decision = decideRouteAccess({

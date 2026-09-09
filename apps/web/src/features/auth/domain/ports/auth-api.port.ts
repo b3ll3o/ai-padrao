@@ -15,13 +15,13 @@ export interface RegisterCredentials {
 }
 
 /**
- * Transport-agnostic view of the auth API. Implementations own the concrete
- * HTTP client and translate non-OK responses into `AuthFlowError`.
+ * Visão agnóstica de transporte da auth API. As implementações possuem o
+ * HTTP client concreto e traduzem respostas não-OK em `AuthFlowError`.
  */
 export interface AuthApiPort {
   login(input: LoginCredentials): Promise<AuthTokens>;
   register(input: RegisterCredentials): Promise<AuthTokens>;
-  /** Resolves `null` when the refresh token is no longer accepted. */
+  /** Resolve `null` quando o refresh token não é mais aceito. */
   refresh(refreshToken: string): Promise<AuthTokens | null>;
   logout(refreshToken: string): Promise<void>;
 }

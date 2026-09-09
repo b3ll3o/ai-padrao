@@ -8,11 +8,11 @@ import {
 } from "./auth-cookie.config";
 
 export interface NextAuthCookieOptions {
-  /** Set the `Secure` attribute — driven by the configured web origin scheme. */
+  /** Define o atributo `Secure` — dirigido pelo esquema da web origin configurada. */
   secure: boolean;
 }
 
-/** Owns `next/headers`. Server-side cookie IO for the auth feature. */
+/** Dono de `next/headers`. IO server-side de cookies para a feature de auth. */
 export class NextAuthCookieStoreAdapter implements AuthCookieStorePort {
   constructor(private readonly options: NextAuthCookieOptions) {}
 

@@ -13,7 +13,7 @@ export class LogoutUseCase {
     const refreshToken = await this.cookies.getRefreshToken();
 
     if (refreshToken) {
-      // Best-effort: even if revoke fails, clear local cookies so the user is logged out.
+      // Melhor esforço: mesmo que a revogação falhe, limpa os cookies locais para que o usuário seja deslogado.
       await this.api.logout(refreshToken).catch(() => undefined);
     }
 
