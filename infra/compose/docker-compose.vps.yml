@@ -11,9 +11,11 @@ services:
     environment:
       NODE_ENV: production
       CORS_ORIGINS: ${WEB_ORIGIN}
-    # No `volumes:` block — overrides REPLACE the base `volumes:` list, so by
-    # omitting it we drop the bind-mounts of ./apps/api/src and ./apps/api/prisma
-    # from the base file. The api image is fully baked at build time in prod.
+    # NOTE: bind-mount removal is NOT achieved by omitting `volumes:`.
+    # Docker Compose merges volumes lists by mount-path; entries from
+    # the base file are kept. A separate refactor (Task 4b in the plan)
+    # moves dev-specific bind-mounts into docker-compose.override.yml
+    # so the base can run production-clean without them.
 
   web:
     env_file:
@@ -21,8 +23,8 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${WEB_ORIGIN}
-    # Same rule as api: no `volumes:` block here drops the src bind-mounts.
-    # .next/standalone output is already baked into the image at build time.
+    # Same caveat as api: bind-mounts from the base are still active
+    # in the merged config until Task 4b restructures the dev/prod split.
 
   caddy:
     build: /opt/ai-padrao/repo/infra/caddy
