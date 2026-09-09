@@ -22,7 +22,10 @@ echo "==> Smoke test against https://${DOMAIN}"
 fail() { echo "FAIL: $1" >&2; exit 1; }
 
 wait_for_https() {
-  local url="$1" tries=30
+  local url="$1" tries=12
+  # 12 retries × 5s = 60s wait budget per endpoint. Long enough for Caddy to
+  # issue the first Let's Encrypt cert (HTTP-01 + rate-limit cooldown); short
+  # enough that the GitHub Actions deploy job (~15 min) can afford it.
   for ((i = 1; i <= tries; i++)); do
     if curl -fsSI -m 5 "$url" >/dev/null 2>&1; then
       return 0
@@ -42,8 +45,9 @@ body=$(curl -fsSL -m 30 "https://${DOMAIN}/")
 echo "$body" | grep -qi '<title' || fail "web root missing <title> tag"
 
 # 3. API health endpoint
-echo "3/5 API health (https://${DOMAIN}/api/v1/health)"
-curl -fsS -m 10 "https://${DOMAIN}/api/v1/health" >/dev/null \
+# Route is /api/health (no /v1 — API uses setGlobalPrefix('api') + @Controller('health')).
+echo "3/5 API health (https://${DOMAIN}/api/health)"
+curl -fsS -m 10 "https://${DOMAIN}/api/health" >/dev/null \
   || fail "api /health did not return 2xx"
 
 # 4. MailHog UI (conditional)
