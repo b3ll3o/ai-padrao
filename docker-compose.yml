@@ -21,7 +21,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile.dev
+      dockerfile: apps/api/Dockerfile
     container_name: ai-padrao-api
     env_file: .env
     environment:
@@ -34,23 +34,13 @@ services:
         required: false
     ports:
       - "3001:3001"
-    volumes:
-      - ./apps/api/src:/app/apps/api/src
-      # Bind-mount the prisma directory so `schema.prisma` and
-      # `migrations/` stay in sync with the host. Without this, the
-      # image-baked copy of `migrations/` can drift from the live DB
-      # after a fresh migration lands on disk but before the container
-      # is rebuilt — `prisma migrate dev` then reports a false-positive
-      # drift. Matches the hot-reload pattern already used for src/.
-      - ./apps/api/prisma:/app/apps/api/prisma
-      - ./packages:/app/packages
-      - api_node_modules:/app/apps/api/node_modules
-      - api_root_node_modules:/app/node_modules
+    # No bind-mounts: this image runs the compiled output from /app/apps/api/dist.
+    # Local-dev hot-reload mounts live in docker-compose.override.yml.
 
   web:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile.dev
+      dockerfile: apps/web/Dockerfile
     container_name: ai-padrao-web
     env_file: .env
     environment:
@@ -59,11 +49,9 @@ services:
       - api
     ports:
       - "3000:3000"
-    volumes:
-      - ./apps/web/src:/app/apps/web/src
-      - ./packages:/app/packages
-      - web_node_modules:/app/apps/web/node_modules
-      - web_root_node_modules:/app/node_modules
+    # No bind-mounts: this image serves the built Next.js output from
+    # /app/apps/web/.next. Local-dev hot-reload mounts live in
+    # docker-compose.override.yml.
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.110.0
@@ -91,9 +79,3 @@ services:
 
 volumes:
   pgdata:
-  # Per-service volumes: a shared /app/node_modules volume would be populated by
-  # whichever container mounted it last, leaving the other with the wrong tree.
-  api_node_modules:
-  web_node_modules:
-  api_root_node_modules:
-  web_root_node_modules:

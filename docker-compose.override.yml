@@ -1,0 +1,43 @@
+# Local-dev override. Auto-loaded by `docker compose up -d` / `pnpm up`.
+# Production deploys use `docker compose -f docker-compose.yml -f
+# infra/compose/docker-compose.vps.yml up -d` which EXPLICITLY lists
+# files and therefore does NOT auto-load this override (Compose only
+# auto-loads it when no -f flag is used).
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.dev
+    command: ["pnpm", "--filter", "@ai-padrao/api", "run", "start:dev"]
+    volumes:
+      # Bind-mount the prisma directory so `schema.prisma` and
+      # `migrations/` stay in sync with the host. Without this, the
+      # image-baked copy of `migrations/` can drift from the live DB
+      # after a fresh migration lands on disk but before the container
+      # is rebuilt — `prisma migrate dev` then reports a false-positive
+      # drift. Matches the hot-reload pattern already used for src/.
+      - ./apps/api/src:/app/apps/api/src
+      - ./apps/api/prisma:/app/apps/api/prisma
+      - ./packages:/app/packages
+      - api_node_modules:/app/apps/api/node_modules
+      - api_root_node_modules:/app/node_modules
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.dev
+    command: ["pnpm", "--filter", "@ai-padrao/web", "run", "dev"]
+    volumes:
+      - ./apps/web/src:/app/apps/web/src
+      - ./packages:/app/packages
+      - web_node_modules:/app/apps/web/node_modules
+      - web_root_node_modules:/app/node_modules
+
+volumes:
+  # Per-service volumes: a shared /app/node_modules volume would be populated by
+  # whichever container mounted it last, leaving the other with the wrong tree.
+  api_node_modules:
+  web_node_modules:
+  api_root_node_modules:
+  web_root_node_modules:
