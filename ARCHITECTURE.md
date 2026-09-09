@@ -1,11 +1,11 @@
-# Architecture
+# Arquitetura
 
-The big-picture view of `ai-padrao`. For the day-to-day "how do I…"
-questions see [`CONTRIBUTING.md`](CONTRIBUTING.md); for the rules AI
-assistants must follow see [`AGENTS.md`](AGENTS.md). For the _why_ of
-specific decisions see [`docs/decisions/`](docs/decisions/).
+Visão macro do `ai-padrao`. Para o dia-a-dia "como eu…", veja
+[`CONTRIBUTING.md`](CONTRIBUTING.md); para as regras que assistentes
+de IA devem seguir veja [`AGENTS.md`](AGENTS.md). Para o _porquê_ de
+decisões específicas veja [`docs/decisions/`](docs/decisions/).
 
-## 1. System diagram
+## 1. Diagrama do sistema
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
@@ -23,192 +23,194 @@ specific decisions see [`docs/decisions/`](docs/decisions/).
 │       │          │ :18025   │    │   :4317    │                │
 │       │          └──────────┘    └─────┬──────┘                │
 │       │                                │                       │
-│       │         (mailhog receives      │ OTLP export           │
-│       │          dev-only emails)      ▼                       │
+│       │         (mailhog recebe        │ export OTLP           │
+│       │         e-mails só de dev)     ▼                       │
 │       │                          ┌──────────┐                  │
 │       └──────────────────────────┤   OTel   │                  │
-│                                  │ backend  │ (any vendor)     │
+│                                  │ backend  │ (qualquer vendor)│
 │                                  └──────────┘                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-Local dev runs everything in `docker-compose.yml`. Production drops
-the mailhog and otel-collector containers and points the api/web at
-managed equivalents.
+O dev local roda tudo em `docker-compose.yml`. Produção tira os
+containers `mailhog` e `otel-collector` e aponta api/web para
+equivalentes gerenciados.
 
-## 2. Monorepo shape
+## 2. Forma do monorepo
 
 ```text
 apps/
-  api/           NestJS 11 + Fastify adapter. Only app that uses Prisma.
-  web/           Next.js 15 App Router. Imports types from packages/contracts.
+  api/            NestJS 11 + Fastify adapter. Único app que usa Prisma.
+  web/            Next.js 15 App Router. Importa tipos de packages/contracts.
 packages/
-  contracts/     Zod schemas. Source of truth for request/response shapes.
-                 Touch BEFORE schema.prisma.
-  db/            Prisma client wrapper, migrations, seed helpers.
-  ui/            shadcn/ui components + Tailwind 4 primitives.
-  config-*/      Shared TS / ESLint / Prettier configs.
+  contracts/      Schemas Zod. Fonte da verdade dos shapes de request/response.
+                  Toque ANTES de schema.prisma.
+  db/             Wrapper do cliente Prisma, migrations, helpers de seed.
+  ui/             Componentes shadcn/ui + primitivos Tailwind 4.
+  config-*/       Configs compartilhadas de TS / ESLint / Prettier.
 docs/
-  decisions/     ADRs (Nygard format). Each one a real decision.
-  superpowers/   Brainstorming and planning artifacts.
-.openspec/       SDD workflow (proposal → approval → build → archive).
-infra/           Dockerfiles, observability collector config.
+  decisions/      ADRs (formato Nygard). Cada um é uma decisão real.
+  superpowers/    Artefatos de brainstorming e planejamento.
+.openspec/        Fluxo SDD (proposal → aprovação → build → archive).
+infra/            Dockerfiles, config do OTel Collector.
 ```
 
-The `apps/web` and `apps/api` are siblings. They MUST NOT import each
-other; their shared surface is `packages/contracts` (Zod) and HTTP.
-This keeps the deploy story symmetric — either app can be swapped
-without touching the other.
+`apps/web` e `apps/api` são irmãos. NÃO PODEM importar um ao outro; a
+superfície compartilhada é `packages/contracts` (Zod) e HTTP. Isso
+mantém a história de deploy simétrica — qualquer app pode ser trocado
+sem tocar o outro.
 
-## 3. Request flow (web → api)
+## 3. Fluxo de requisição (web → api)
 
 ```text
 Browser
-  │  httpOnly cookie: ai-padrao-refresh=<opaque>
+  │  cookie httpOnly: ai-padrao-refresh=<opaco>
   │
   ▼
 Next.js (apps/web)
   │  Server Component / Route Handler
-  │  imports typed client from packages/contracts
-  │  Authorization: Bearer <access JWT, in-memory only>
+  │  importa cliente tipado de packages/contracts
+  │  Authorization: Bearer <JWT access, apenas em memória>
   ▼
-NestJS (apps/api) — Fastify adapter
+NestJS (apps/api) — adapter Fastify
   │  Helmet → CORS → RateLimit → JwtAuthGuard (global via APP_GUARD)
-  │  ValidationPipe (Zod via nestjs-zod, schema from packages/contracts)
+  │  ValidationPipe (Zod via nestjs-zod, schema de packages/contracts)
   │  Controller → Service → Prisma
   ▼
 PostgreSQL 16
-  │  Prisma 6 client (apps/api only)
+  │  cliente Prisma 6 (apenas apps/api)
   ▼
-Response (typed by Zod, same schema on both sides)
+Resposta (tipada por Zod, mesmo schema nos dois lados)
 ```
 
-Public endpoints (`/api/health`, `/api/auth/*`) carry the `@Public()`
-decorator to opt out of the global JWT guard. See
+Endpoints públicos (`/api/health`, `/api/auth/*`) carregam o
+decorator `@Public()` para sair do guard JWT global. Veja
 [ADR-003](docs/decisions/ADR-003-public-decorator-on-health-auth.md).
 
-## 4. Auth flow
+## 4. Fluxo de auth
 
 ```text
 login / register
    │
-   ▼  (Argon2id verify)
-issue access JWT (15 min) ──── returned in response body
-issue refresh token (opaque) ──── set as httpOnly cookie, rotated on use
+   ▼  (verifica Argon2id)
+emite JWT access (15 min) ────── devolvido no corpo da resposta
+emite refresh token (opaco) ── setado como cookie httpOnly, rotacionado a cada uso
    │
    ▼
-subsequent requests
+requisições seguintes
    │
-   ├── Authorization: Bearer <access JWT>           ← short-lived
+   ├── Authorization: Bearer <JWT access>             ← curta duração
    │
-   ├── on 401, POST /api/auth/refresh                ← uses httpOnly cookie
-   │     ├── rotate refresh (one-time use, recorded in DB)
-   │     ├── issue new access JWT
-   │     └── set new httpOnly cookie
+   ├── ao receber 401, POST /api/auth/refresh         ← usa cookie httpOnly
+   │     ├── rotaciona refresh (uso único, registrado no DB)
+   │     ├── emite novo JWT access
+   │     └── seta novo cookie httpOnly
    │
-   └── logout: POST /api/auth/logout                  ← clears cookie + DB revoke
+   └── logout: POST /api/auth/logout                  ← limpa cookie + revoga no DB
 ```
 
-Tokens NEVER live in `localStorage`. The refresh token is opaque and
-DB-tracked; rotation invalidates the previous token immediately. See
-the api's auth module for the canonical implementation and
-[`AGENTS.md`](AGENTS.md) for the rule.
+Tokens NUNCA moram em `localStorage`. O refresh token é opaco e
+rastreado no DB; a rotação invalida o token anterior imediatamente.
+Veja o módulo auth da api para a implementação canônica e
+[`AGENTS.md`](AGENTS.md) para a regra.
 
-## 5. Module map — apps/api
+## 5. Mapa de módulos — apps/api
 
 ```text
 src/
-  main.ts                     bootstrap (Nest Logger only, see ADR-006)
-  app.module.ts               root composition
+  main.ts                     bootstrap (Nest Logger apenas, veja ADR-006)
+  app.module.ts               composition root
   common/
-    decorators/                @Public(), @CurrentUser(), @Roles()
-    filters/                   exception → HTTP response mapping
-    interceptors/              logging (Pino), request-id
-    guards/                    JwtAuthGuard (global), RolesGuard (opt-in)
+    decorators/               @Public(), @CurrentUser(), @Roles()
+    filters/                  mapeamento exception → resposta HTTP
+    interceptors/             logging (Pino), request-id
+    guards/                   JwtAuthGuard (global), RolesGuard (opt-in)
   modules/
-    auth/                      login, register, refresh, logout
-    health/                    GET /api/health (@Public, no deps)
-    users/                     CRUD + roles
-    audit/                     append-only audit log
-    notifications/             email dispatch (uses mailhog in dev)
-  prisma/
-    prisma.module.ts           PrismaService (DI)
-    prisma.service.ts
+    auth/                     login, register, refresh, logout
+    health/                   GET /api/health (@Public, sem deps)
+    users/                    CRUD + roles
+    audit/                    audit log append-only
+    notifications/            envio de e-mail (usa mailhog em dev)
 prisma/
-  schema.prisma                source of truth, owned here
-  migrations/                  generated, committed
-  seed.ts                      admin user
+  schema.prisma               fonte da verdade, owned aqui
+  migrations/                 geradas, commitadas
+  seed.ts                     usuário admin
 ```
 
-Each module exports ONE service. Cross-module imports happen via the
-service, never via the database. New modules land under
-`src/modules/<feature>/` with the four-file skeleton
+Cada módulo exporta UM service. Imports cross-module acontecem via o
+service, nunca via banco. Novos módulos entram em
+`src/modules/<feature>/` com o esqueleto de quatro arquivos
 (`*.module.ts`, `*.controller.ts`, `*.service.ts`, `dto/`).
 
-## 6. Data model (Postgres via Prisma)
+## 6. Modelo de dados (Postgres via Prisma)
 
-Core tables (see `apps/api/prisma/schema.prisma` for the source of
-truth):
+Tabelas núcleo (veja `apps/api/prisma/schema.prisma` para a fonte
+da verdade):
 
-- `User` — id, email (unique), passwordHash (Argon2id), role, createdAt.
-- `RefreshToken` — id, userId, tokenHash, expiresAt, revokedAt. Append-only;
-  rotation revokes the old row.
-- `AuditLog` — id, userId, action, targetType, targetId, payload (JSONB),
-  createdAt. No updates or deletes — append-only.
+- `User` — id, email (único), passwordHash (Argon2id), role,
+  createdAt.
+- `RefreshToken` — id, userId, tokenHash, expiresAt, revokedAt.
+  Append-only; rotação revoga a linha antiga.
+- `AuditLog` — id, userId, action, targetType, targetId, payload
+  (JSONB), createdAt. Sem update ou delete — append-only.
 
-The schema is owned by `apps/api`. `packages/contracts` re-exports the
-Zod shapes that wrap the same fields. When the schema changes, the
-contracts change FIRST, then `schema.prisma` — see the coordination
-rule in [`AGENTS.md`](AGENTS.md).
+O schema é owned por `apps/api`. `packages/contracts` re-exporta
+os shapes Zod que envolvem os mesmos campos. Quando o schema muda,
+os contracts mudam PRIMEIRO, depois `schema.prisma` — veja a regra
+de coordenação em [`AGENTS.md`](AGENTS.md).
 
-## 7. Observability
+## 7. Observabilidade
 
-OpenTelemetry SDK is initialized in `apps/api/src/main.ts` and in
-`apps/web/instrumentation.ts`. Every HTTP request carries a
-correlation id (request-id interceptor); every Prisma call is traced;
-every log line carries the same trace + span ids.
+O SDK do OpenTelemetry é inicializado em `apps/api/src/main.ts` e em
+`apps/web/instrumentation.ts`. Cada requisição HTTP carrega um id
+de correlação (interceptor request-id); cada chamada Prisma é
+traced; cada linha de log carrega os mesmos ids de trace + span.
 
-In dev, traces export to the `otel-collector` container via OTLP
-(gRPC :4317). The collector fans out to whatever backend the team
-uses (Jaeger, Tempo, Honeycomb). Sampling rate is configured per
-environment via `OTEL_TRACES_SAMPLER_ARG`.
+Em dev, os traces exportam para o container `otel-collector` via
+OTLP (gRPC :4317). O collector faz fan-out para o backend que o
+time usa (Jaeger, Tempo, Honeycomb). A taxa de sampling é
+configurada por ambiente via `OTEL_TRACES_SAMPLER_ARG`.
 
-Pino is the log transport. `console.*` is forbidden in
-`apps/api/src/main.ts` (ADR-006). Every other module uses the Nest
-`Logger`.
+Pino é o transporte de log. `console.*` é proibido em
+`apps/api/src/main.ts` (ADR-006). Todo outro módulo usa o
+`Logger` do Nest.
 
-## 8. Why this shape
+## 8. Por que esta forma
 
-The architecture encodes 11 decisions, each linked to a real defect:
+A arquitetura codifica 11 decisões, cada uma ligada a um defeito
+real:
 
-- [ADR-001](docs/decisions/ADR-001-fastify-reply-api.md) — Fastify
-  reply API (Nest + Fastify interop was breaking at runtime).
-- [ADR-002](docs/decisions/ADR-002-no-import-type-for-nest-di.md) —
-  No `import type` for Nest DI (`emitDecoratorMetadata`).
-- [ADR-003](docs/decisions/ADR-003-public-decorator-on-health-auth.md) —
-  `@Public()` decorator on infra endpoints.
-- [ADR-004](docs/decisions/ADR-004-dockerfile-copy-schema-before-generate.md) —
-  Dockerfile copy-order for Prisma.
+- [ADR-001](docs/decisions/ADR-001-fastify-reply-api.md) — API
+  de reply do Fastify (interoper Nest + Fastify quebrava em
+  runtime).
+- [ADR-002](docs/decisions/ADR-002-no-import-type-for-nest-di.md)
+  — Sem `import type` para DI do Nest (`emitDecoratorMetadata`).
+- [ADR-003](docs/decisions/ADR-003-public-decorator-on-health-auth.md)
+  — Decorator `@Public()` em endpoints de infra.
+- [ADR-004](docs/decisions/ADR-004-dockerfile-copy-schema-before-generate.md)
+  — Ordem de copy no Dockerfile para Prisma.
 - [ADR-005](docs/decisions/ADR-005-non-default-ports.md) —
-  Off-default host ports for compose.
+  Host ports fora do padrão no compose.
 - [ADR-006](docs/decisions/ADR-006-nest-logger-not-console.md) —
-  Nest `Logger`, not `console.*`.
-- [ADR-007](docs/decisions/ADR-007-no-skipped-tests.md) — Zero
-  skipped tests.
-- [ADR-011](docs/decisions/ADR-011-no-plaintext-secrets-in-source.md) —
-  No plaintext tokens in tracked source.
+  `Logger` do Nest, não `console.*`.
+- [ADR-007](docs/decisions/ADR-007-no-skipped-tests.md) —
+  Tolerância zero a testes pulados.
+- [ADR-011](docs/decisions/ADR-011-no-plaintext-secrets-in-source.md)
+  — Sem tokens em texto puro no source versionado.
 
-Read the index at [`docs/decisions/README.md`](docs/decisions/README.md)
-before opening a change to any of these areas.
+Leia o índice em [`docs/decisions/README.md`](docs/decisions/README.md)
+antes de abrir uma mudança em qualquer uma dessas áreas.
 
-## 9. Where to extend
+## 9. Onde estender
 
-- **New API endpoint:** open `.openspec/changes/<feature>/`,
-  add Zod schema in `packages/contracts`, then controller in
-  `apps/api/src/modules/<feature>/`.
-- **New UI page:** add components in `packages/ui` first, then
-  the route in `apps/web/app/<route>/page.tsx`.
-- **New DB column:** update `packages/contracts` Zod, then
-  `apps/api/prisma/schema.prisma`, then run `pnpm db:migrate`.
-- **New ADR:** write `docs/decisions/ADR-NNN-<slug>.md` and add to
-  the index table.
+- **Novo endpoint da API:** abra `.openspec/changes/<feature>/`,
+  adicione o schema Zod em `packages/contracts`, depois o
+  controller em `apps/api/src/modules/<feature>/`.
+- **Nova página de UI:** adicione componentes em `packages/ui`
+  primeiro, depois a rota em
+  `apps/web/app/<rota>/page.tsx`.
+- **Nova coluna no banco:** atualize o Zod em `packages/contracts`,
+  depois `apps/api/prisma/schema.prisma`, depois rode
+  `pnpm db:migrate`.
+- **Novo ADR:** escreva `docs/decisions/ADR-NNN-<slug>.md` e
+  adicione ao índice.

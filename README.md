@@ -1,113 +1,140 @@
 # ai-padrao
 
-Monorepo blueprint: **Next.js 15 + NestJS 11 + PostgreSQL 16**, fully Dockerized, SDD-driven.
+Blueprint de monorepo: **Next.js 15 + NestJS 11 + PostgreSQL 16**, totalmente dockerizado, orientado por SDD.
 
-## Quickstart (5 minutes)
+## Quickstart (5 minutos)
 
-Requires Docker, Docker Compose, and Node 22+.
+Requer Docker, Docker Compose e Node 22+.
 
 ```bash
 git clone <repo-url> my-project
 cd my-project
 corepack enable
 pnpm install
-pnpm postmerge:install   # opt-in: enables .githooks/post-merge
+pnpm postmerge:install   # opt-in: habilita .githooks/post-merge
 cp .env.example .env
 pnpm up
 pnpm db:migrate
 pnpm db:seed
 ```
 
-`pnpm postmerge:install` is a one-time command that sets
-`git config core.hooksPath .githooks` for the local clone. After every
-`git pull` (or merge), the hook runs the validation steps implied by the
-files that changed — `pnpm install` if `pnpm-lock.yaml` moved, for
-example. See [`.githooks/README.md`](.githooks/README.md) for the full
-design. Opt out with `git config --local --unset core.hooksPath`.
+`pnpm postmerge:install` é um comando único que define `git config
+core.hooksPath .githooks` para o clone local. A cada `git pull` (ou
+merge), o hook roda os passos de validação implícitos nos arquivos
+alterados — por exemplo, `pnpm install` quando `pnpm-lock.yaml` mudou.
+Veja [`.githooks/README.md`](.githooks/README.md) para o desenho
+completo. Desative com `git config --local --unset core.hooksPath`.
 
-Open:
+Abra:
 
-| Service    | URL                          |
-| ---------- | ---------------------------- |
-| Web app    | <http://localhost:3000>      |
-| API        | <http://localhost:3001>      |
-| Swagger UI | <http://localhost:3001/docs> |
-| MailHog UI | <http://localhost:18025>     |
+| Serviço     | URL                          |
+| ----------- | ---------------------------- |
+| App web     | <http://localhost:3000>      |
+| API         | <http://localhost:3001>      |
+| Swagger UI  | <http://localhost:3001/docs> |
+| MailHog UI  | <http://localhost:18025>     |
 
-Default seed user: `admin@ai-padrao.local` / `admin123`.
+Usuário seed padrão: `admin@ai-padrao.local` / `admin123`.
 
 ## Stack
 
-| Layer         | Choice                                                                       |
-| ------------- | ---------------------------------------------------------------------------- |
-| Monorepo      | pnpm 9 + Turborepo 2 workspaces                                              |
-| Backend       | NestJS 11 on Fastify + Prisma 6 + Zod (`nestjs-zod`)                         |
-| Frontend      | Next.js 15 (App Router) + Tailwind 4 + shadcn/ui                             |
-| Auth          | JWT (15m access) + rotated refresh in httpOnly cookie + Argon2id             |
-| Database      | PostgreSQL 16                                                                |
-| Observability | OpenTelemetry SDK + OTLP Collector                                           |
-| Email (dev)   | MailHog (host ports `11025` / `18025` to avoid sibling collisions)           |
-| Container     | 5-service `docker-compose.yml` (postgres, api, web, mailhog, otel-collector) |
-| Editor        | Visual Studio Code (workspace config in `.vscode/`)                          |
+| Camada          | Escolha                                                                      |
+| --------------- | ---------------------------------------------------------------------------- |
+| Monorepo        | pnpm 9 + Turborepo 2 workspaces                                              |
+| Backend         | NestJS 11 sobre Fastify + Prisma 6 + Zod (`nestjs-zod`)                      |
+| Frontend        | Next.js 15 (App Router) + Tailwind 4 + shadcn/ui                             |
+| Auth            | JWT (15m access) + refresh rotacionado em cookie httpOnly + Argon2id          |
+| Banco           | PostgreSQL 16                                                                |
+| Observabilidade | SDK OpenTelemetry + OTel Collector                                           |
+| E-mail (dev)    | MailHog (portas do host `11025` / `18025` para evitar colisão entre projetos) |
+| Container       | `docker-compose.yml` com 5 serviços (postgres, api, web, mailhog, otel-collector) |
+| Editor          | Visual Studio Code (configuração do workspace em `.vscode/`)                 |
 
-## Architecture
+## Arquitetura
 
-See [`docs/superpowers/specs/`](docs/superpowers/specs/) for the full design spec.
+Veja [`docs/superpowers/specs/`](docs/superpowers/specs/) para o
+desenho completo.
 
-| App / Package            | Purpose                          |
-| ------------------------ | -------------------------------- |
-| `apps/api`               | NestJS 11 + Fastify REST API     |
-| `apps/web`               | Next.js 15 (App Router) frontend |
-| `packages/db`            | Prisma client re-export          |
-| `packages/contracts`     | Zod schemas shared front + back  |
-| `packages/ui`            | shadcn/ui components             |
-| `packages/config-eslint` | Shared flat ESLint 9 configs     |
+| App / Pacote              | Propósito                          |
+| ------------------------- | ---------------------------------- |
+| `apps/api`                | API REST NestJS 11 + Fastify       |
+| `apps/web`                | Frontend Next.js 15 (App Router)   |
+| `packages/db`             | Re-export do cliente Prisma        |
+| `packages/contracts`      | Schemas Zod compartilhados front + back |
+| `packages/ui`             | Componentes shadcn/ui              |
+| `packages/config-eslint`  | Configs ESLint 9 (flat) compartilhados |
 
-## Spec-Driven Development (mandatory)
+## Spec-Driven Development (obrigatório)
 
-Every new feature MUST follow the **SDD (Specification-Driven Development)** workflow via OpenSpec. Before writing code, create `.openspec/changes/<feature-name>/` with `proposal.md`, `tasks.md`, `design.md`, and a spec delta under `specs/<area>/spec.md`. Wait for human approval, then implement.
+Toda nova feature DEVE seguir o fluxo **SDD (Specification-Driven
+Development)** via OpenSpec. Antes de escrever código, crie
+`.openspec/changes/<feature-name>/` com `proposal.md`, `tasks.md`,
+`design.md` e um delta de spec em `specs/<area>/spec.md`. Aguarde a
+aprovação humana e só então implemente.
 
-Full workflow + templates: [`AGENTS.md`](AGENTS.md) and [`.openspec/AGENTS.md`](.openspec/AGENTS.md).
+Fluxo completo + templates: [`AGENTS.md`](AGENTS.md) e
+[`.openspec/AGENTS.md`](.openspec/AGENTS.md).
 
-## Project policies (zero-tolerance)
+## Políticas do projeto (tolerância zero)
 
-The repo enforces several "zero-tolerance" policies. They are documented in [AGENTS.md](AGENTS.md) and enforced by code review + CI:
+O repositório aplica várias políticas de "tolerância zero". Elas estão
+documentadas em [AGENTS.md](AGENTS.md) e são aplicadas por code review
++ CI:
 
-- ❌ **No skipped tests** — `it.skip`, `xit`, `xdescribe`, `xtest`, `it.todo`, `--passWithNoTests`, and conditional `describe/it` are all forbidden. Tests are real or they don't exist.
-- ❌ No `console.*` in `apps/api/src/main.ts` — use the Nest `Logger`.
-- ❌ No Express-only response API (`res.setHeader`, `res.cookie`) under Fastify.
-- ❌ Default well-known host ports (1025, 8025, 3000, 5432, etc.) in `docker-compose.yml` — they collide with sibling projects.
-- ❌ `import type` for class references in NestJS DI'd files (controllers, services, guards, strategies, interceptors, decorators).
+- ❌ **Sem testes pulados** — `it.skip`, `xit`, `xdescribe`, `xtest`,
+  `it.todo`, `--passWithNoTests` e `describe`/`it` condicionais são
+  proibidos. Teste é real ou não existe.
+- ❌ Sem `console.*` em `apps/api/src/main.ts` — use o `Logger` do Nest.
+- ❌ Sem API estilo Express (`res.setHeader`, `res.cookie`) sob Fastify.
+- ❌ Sem portas "well-known" padrão (1025, 8025, 3000, 5432, etc.) em
+  `docker-compose.yml` — colidem com projetos vizinhos.
+- ❌ `import type` em arquivos com DI do NestJS (controllers, services,
+  guards, strategies, interceptors, decorators).
 
-Every change that touches these areas MUST be reviewed against the matching ADR before merge.
+Toda mudança que tocar essas áreas DEVE ser revisada contra o ADR
+correspondente antes do merge.
 
 ## Scripts
 
-| Command           | What it does                                |
-| ----------------- | ------------------------------------------- |
-| `pnpm up`         | Start all Docker services                   |
-| `pnpm down`       | Stop all services                           |
-| `pnpm logs`       | Tail logs from all services                 |
-| `pnpm db:migrate` | Apply Prisma migrations (in api container)  |
-| `pnpm db:seed`    | Run seed script                             |
-| `pnpm db:reset`   | Reset DB + re-run migrations + seed         |
-| `pnpm build`      | Build all packages                          |
-| `pnpm dev`        | Run all dev servers                         |
-| `pnpm test`       | Run unit + e2e tests across packages        |
-| `pnpm lint`       | Lint all packages                           |
-| `pnpm typecheck`  | TypeScript checks across packages           |
-| `pnpm clean`      | Wipe dist, `.next`, `.turbo`, `node_modules` |
+| Comando           | O que faz                                |
+| ----------------- | ---------------------------------------- |
+| `pnpm up`         | Sobe todos os serviços Docker            |
+| `pnpm down`       | Para todos os serviços                   |
+| `pnpm logs`       | Tail dos logs de todos os serviços       |
+| `pnpm db:migrate` | Aplica migrations Prisma (no container da api) |
+| `pnpm db:seed`    | Roda o script de seed                    |
+| `pnpm db:reset`   | Reseta o banco + roda migrations + seed  |
+| `pnpm build`      | Build de todos os pacotes                |
+| `pnpm dev`        | Roda todos os servidores de dev          |
+| `pnpm test`       | Roda testes unit + e2e nos pacotes       |
+| `pnpm lint`       | Lint em todos os pacotes                 |
+| `pnpm typecheck`  | Checagem de TypeScript nos pacotes       |
+| `pnpm clean`      | Apaga dist, `.next`, `.turbo`, `node_modules` |
 
-## Conventions
+## Convenções
 
-- **Commits:** [Conventional Commits](https://www.conventionalcommits.org/) with `commitlint` + `husky` + `lint-staged`. Allowed scopes (per [`.commitlintrc.json`](.commitlintrc.json)): `root`, `api`, `web`, `contracts`, `db`, `ui`, `config`, `docker`, `sdd`, `deps`.
-- **Branches:** Trunk-based; default branch is `main`.
-- **Editor:** VSCode. Workspace settings in [`.vscode/settings.json`](.vscode/settings.json) (format-on-save, ESLint flat config, monorepo-aware); recommended extensions in [`.vscode/extensions.json`](.vscode/extensions.json).
-- **AI-assistant rules:** Single source of truth is [`AGENTS.md`](AGENTS.md). Claude Code, Gemini CLI, Codex, and any other AI assistant working in this repo all read the same file.
+- **Commits:** [Conventional Commits](https://www.conventionalcommits.org/)
+  com `commitlint`. Escopos permitidos (conforme
+  [`.commitlintrc.json`](.commitlintrc.json)): `root`, `api`, `web`,
+  `contracts`, `db`, `ui`, `config`, `docker`, `sdd`, `deps`.
+  Validação de formato roda no hook `commit-msg`.
+- **Branches:** Trunk-based; branch padrão é `main`.
+- **Editor:** VSCode. Configurações do workspace em
+  [`.vscode/settings.json`](.vscode/settings.json) (format-on-save,
+  ESLint flat config, awareness do monorepo); extensões recomendadas
+  em [`.vscode/extensions.json`](.vscode/extensions.json).
+- **Regras para IA:** A fonte da verdade única é
+  [`AGENTS.md`](AGENTS.md) (e o livro completo em
+  [`.agents/REGRAS.md`](.agents/REGRAS.md)). Claude Code, Gemini CLI,
+  Codex e qualquer outra assistente de IA leem os mesmos arquivos.
 
-## Further reading
+## Para saber mais
 
-- [`AGENTS.md`](AGENTS.md) — the SDD workflow, forbidden actions, and editor config.
-- [`docs/decisions/README.md`](docs/decisions/README.md) — the ADR index.
-- [`docs/superpowers/specs/2026-08-04-ai-padrao-blueprint-design.md`](docs/superpowers/specs/2026-08-04-ai-padrao-blueprint-design.md) — the design spec that started it all.
-- [`docs/superpowers/plans/2026-08-04-ai-padrao-blueprint.md`](docs/superpowers/plans/2026-08-04-ai-padrao-blueprint.md) — the implementation plan.
+- [`AGENTS.md`](AGENTS.md) — fluxo SDD, ações proibidas e config do editor.
+- [`.agents/REGRAS.md`](.agents/REGRAS.md) — livro de regras completo do
+  monorepo (idioma pt-br, sem testes pulados, sem secrets).
+- [`docs/decisions/README.md`](docs/decisions/README.md) — índice de ADRs.
+- [`docs/superpowers/specs/2026-08-04-ai-padrao-blueprint-design.md`](docs/superpowers/specs/2026-08-04-ai-padrao-blueprint-design.md) —
+  a spec de design que originou o projeto.
+- [`docs/superpowers/plans/2026-08-04-ai-padrao-blueprint.md`](docs/superpowers/plans/2026-08-04-ai-padrao-blueprint.md) —
+  o plano de implementação.

@@ -1,20 +1,21 @@
-# Contributing to ai-padrao
+# Contribuindo com ai-padrao
 
-Thanks for working on `ai-padrao`. This guide covers the day-to-day
-mechanics — environment, workflow, and the rules the build enforces.
-For the _why_, see [`AGENTS.md`](AGENTS.md) and the
-[decision records](docs/decisions/README.md).
+Obrigado por trabalhar em `ai-padrao`. Este guia cobre o cotidiano —
+ambiente, fluxo e regras que o build aplica. Para o _porquê_, veja
+[`AGENTS.md`](AGENTS.md) e os
+[registros de decisão](docs/decisions/README.md).
 
-## 1. Dev environment
+## 1. Ambiente de dev
 
-Requires:
+Requer:
 
-- Node 22+ (`.nvmrc` / `engines.node` in `package.json`)
-- pnpm 9 (`corepack enable` activates the pinned version)
-- Docker + Docker Compose (for `postgres`, `mailhog`, `otel-collector`)
-- Visual Studio Code (recommended; workspace config in `.vscode/`)
+- Node 22+ (`.nvmrc` / `engines.node` em `package.json`)
+- pnpm 9 (`corepack enable` ativa a versão fixada)
+- Docker + Docker Compose (para `postgres`, `mailhog`, `otel-collector`)
+- Visual Studio Code (recomendado; configuração do workspace em
+  `.vscode/`)
 
-Bootstrap a fresh clone:
+Bootstrap de um clone novo:
 
 ```bash
 git clone <repo-url> my-project
@@ -22,81 +23,84 @@ cd my-project
 corepack enable
 pnpm install
 cp .env.example .env
-pnpm up           # start postgres + mailhog + otel-collector
+pnpm up           # sobe postgres + mailhog + otel-collector
 pnpm db:migrate
-pnpm db:seed      # creates admin@ai-padrao.local / admin123
-pnpm dev          # turbo runs api + web concurrently
+pnpm db:seed      # cria admin@ai-padrao.local / admin123
+pnpm dev          # turbo roda api + web em paralelo com hot-reload
 ```
 
-If `pnpm install` complains about peer deps, see ADR-001 in the
-[decisions index](docs/decisions/README.md) before adding overrides.
+Se o `pnpm install` reclamar de peer deps, veja ADR-001 no
+[índice de decisões](docs/decisions/README.md) antes de adicionar
+overrides.
 
-## 2. Workflow (trunk-based, single PR per change)
+## 2. Fluxo (trunk-based, um PR por mudança)
 
-1. Branch from `main`. Branch names are free-form, but prefer
-   `feat/<short-slug>` or `fix/<short-slug>` for symmetry with the
-   commit scope.
-2. Make focused commits. One commit per task in `tasks.md` (see §3).
-3. Open a PR. The PR description should reference the
-   `.openspec/changes/<feature>/` folder that drove the change.
-4. CI must be green before merge. CI runs `pnpm test`, `pnpm lint`,
-   `pnpm typecheck`.
-5. Squash or rebase-merge; keep `main` linear.
+1. Crie branch a partir de `main`. Nomes são livres, mas prefira
+   `feat/<slug-curto>` ou `fix/<slug-curto>` por simetria com o
+   escopo do commit.
+2. Commits focados. Um commit por tarefa do `tasks.md` (veja §3).
+3. Abra um PR. A descrição do PR deve referenciar a pasta
+   `.openspec/changes/<feature>/` que guiou a mudança.
+4. CI precisa estar verde antes do merge. CI roda `pnpm test`,
+   `pnpm lint`, `pnpm typecheck`.
+5. Squash ou rebase-merge; mantenha `main` linear.
 
-## 3. Behavior changes require OpenSpec (SDD)
+## 3. Mudanças de comportamento exigem OpenSpec (SDD)
 
-Any change to user-visible behavior, public contracts (API surface,
-DB schema, shared types), or business rules MUST go through OpenSpec
-**before** code lands. See `.openspec/AGENTS.md` for the full
-procedure.
+Qualquer mudança de comportamento visível ao usuário, contratos
+públicos (superfície da API, schema do banco, tipos compartilhados)
+ou regras de negócio PRECISA passar pelo OpenSpec **antes** do código
+entrar. Veja [`.openspec/AGENTS.md`](.openspec/AGENTS.md) para o
+procedimento completo.
 
-The minimum:
+O mínimo:
 
 ```bash
 mkdir -p .openspec/changes/<feature-name>/specs/<area>
-# Write proposal.md, tasks.md, design.md, specs/<area>/spec.md
-# Wait for human approval on the proposal
-# Execute tasks.md, one commit per task
-# After merge, archive per §5 of .openspec/AGENTS.md
+# Escreva proposal.md, tasks.md, design.md, specs/<area>/spec.md
+# Aguarde aprovação humana na proposal
+# Execute tasks.md, um commit por tarefa
+# Após merge, arquive conforme §5 de .openspec/AGENTS.md
 ```
 
-Skip OpenSpec only for:
+Pule o OpenSpec somente para:
 
-- Cosmetic changes (typos, formatting, refactors with no behavior impact)
-- Dependency version bumps without API change
-- Documentation-only updates
+- Mudanças cosméticas (typos, formatação, refactors sem impacto de
+  comportamento)
+- Bumps de versão de dependência sem mudança de API
+- Atualizações só de documentação
 
-Even those still use Conventional Commits (§5).
+Mesmo assim, use Conventional Commits (§5).
 
-## 4. Testing policy — no skipped tests, ever
+## 4. Política de teste — sem testes pulados, nunca
 
-Code reviewers and CI MUST scan every tracked `.ts/.tsx/.js/.jsx`
-for `.skip`, `.todo`, `xit`, `xdescribe`, `--passWithNoTests`, and
-vitest/jest `passWithNoTests` config. The check fails the build on
-the first hit.
+Code reviewers e CI DEVEM varrer todo `.ts/.tsx/.js/.jsx` versionado
+em busca de `.skip`, `.todo`, `xit`, `xdescribe`, `--passWithNoTests`
+e `passWithNoTests` (vitest/jest). O check falha o build no primeiro
+acerto.
 
-If a test is flaky, fix the flake. If a test is wrong, delete it and
-write the correct one. If you genuinely cannot keep the test green
-today, reference the incident in your PR and propose an ADR —
-**do not** commit a `.skip`.
+Se o teste é flaky, conserte a flakiness. Se o teste está errado,
+delete-o e escreva o correto. Se você genuinamente não consegue
+manter o teste verde hoje, faça referência ao incidente no PR e
+proponha um ADR — **não** comite um `.skip`.
 
 ```bash
-pnpm test                                 # run all unit + e2e
-pnpm --filter @ai-padrao/api test path/to/spec.ts   # single test
+pnpm test                                 # roda todos os unit + e2e
+pnpm --filter @ai-padrao/api test path/to/spec.ts   # roda um teste
 ```
 
-## 5. Commits — Conventional Commits with scope
+## 5. Commits — Conventional Commits com escopo
 
-Format: `<type>(<scope>): <subject>` where `type` is one of `feat`,
+Formato: `<type>(<scope>): <subject>` onde `type` é um de `feat`,
 `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `ci`, `perf`,
-`build`, `revert`. Scope comes from the allowlist in
+`build`, `revert`. O escopo vem do allowlist em
 [`.commitlintrc.json`](.commitlintrc.json):
 
 `root`, `api`, `web`, `contracts`, `db`, `ui`, `config`, `docker`,
 `sdd`, `deps`.
 
-Subject is short, lowercase, no trailing period. Body explains the
-_why_; trailers reference tasks:
+Subject curto, lowercase, sem ponto final. O corpo explica o _porquê_;
+trailers referenciam tarefas:
 
 ```
 feat(api): add POST /auth/refresh endpoint
@@ -108,50 +112,55 @@ httpOnly cookie.
 Refs: .openspec/changes/refresh-token-rotation/
 ```
 
-Husky + lint-staged run Prettier and ESLint on commit. Husky also
-runs `commitlint` via the `commit-msg` hook.
+O hook `commit-msg` em `.githooks/` valida o formato via `commitlint`.
 
-## 6. Code style
+## 6. Estilo de código
 
-- **Prettier** is the source of truth for formatting (single quotes,
-  2-space indent, trailing commas). The config lives in
-  `packages/config-prettier`. Do not fight it.
-- **ESLint 9 (flat config)** enforces code quality. Shared configs
-  live in `packages/config-eslint`. The api package adds NestJS-
-  specific rules; the web package adds React/Next.js rules.
-- **TypeScript** strict mode is on everywhere. No `any` outside
-  generated code; no `@ts-ignore` without an inline justification.
-- **Module boundaries:** `apps/web` must NOT import from `apps/api`
-  or `@prisma/client`. Only `apps/api` may use Prisma. The shared
-  types live in `packages/contracts`.
+- **Prettier** é a fonte da verdade para formatação (aspas simples,
+  indent de 2 espaços, vírgula trailing). A config mora em
+  `packages/config-prettier`. Não brigue com ela.
+- **ESLint 9 (flat config)** aplica qualidade de código. As configs
+  compartilhadas moram em `packages/config-eslint`. O pacote da api
+  adiciona regras específicas do NestJS; o pacote do web adiciona
+  regras do React/Next.js.
+- **TypeScript** strict em tudo. Sem `any` fora de código gerado;
+  sem `@ts-ignore` sem justificativa inline.
+- **Limites de módulo:** `apps/web` NÃO PODE importar de `apps/api`
+  nem de `@prisma/client`. Apenas `apps/api` pode usar Prisma. Os
+  tipos compartilhados moram em `packages/contracts`.
 
-## 7. Adding dependencies
+## 7. Adicionando dependências
 
-- New top-level dev dep at the root: add to `package.json`
-  `devDependencies` and explain in the PR body.
-- Runtime dep: add to the specific package's `dependencies`. Never
-  add it at the root.
-- For UI primitives, prefer extending `packages/ui` over adding to
-  the web app directly.
+- Nova dev dep no topo: adicione em `devDependencies` do
+  `package.json` raiz e explique no corpo do PR.
+- Dep de runtime: adicione em `dependencies` do pacote específico.
+  Nunca adicione na raiz.
+- Para primitivos de UI, prefira estender `packages/ui` em vez de
+  adicionar no app web diretamente.
 
-## 8. Reporting issues
+## 8. Reportando problemas
 
-Open a GitHub issue with:
+Abra uma issue no GitHub com:
 
-- Reproduction steps (commands, env vars, OS)
-- Expected vs actual behavior
-- The relevant log excerpt (`pnpm logs` output for backend issues)
+- Passos para reproduzir (comandos, env vars, SO)
+- Esperado vs observado
+- Trecho de log relevante (saída de `pnpm logs` para issues de
+  backend)
 
-If the issue is a recurring defect, propose an ADR change through
-`.openspec/changes/<adr-amendment>/` so the rule is updated before
-the fix.
+Se a issue é um defeito recorrente, proponha mudança de ADR via
+`.openspec/changes/<adr-amendment>/` para que a regra seja
+atualizada antes do fix.
 
-## 9. Where to get help
+## 9. Onde buscar ajuda
 
-- AI-assistant rules (Claude Code, Gemini CLI, Codex): [`.agents/AGENTS.md`](.agents/AGENTS.md) (also at root as a symlink)
-- Claude Code orientation: [`.agents/CLAUDE.md`](.agents/CLAUDE.md)
-- Decision records: [`docs/decisions/README.md`](docs/decisions/README.md)
-- OpenSpec workflow: [`.openspec/AGENTS.md`](.openspec/AGENTS.md) (symlink into `.agents/sdd/AGENTS.md`)
-- Project status and quickstart: [`README.md`](README.md)
+- Regras para IA (Claude Code, Gemini CLI, Codex):
+  [`.agents/AGENTS.md`](.agents/AGENTS.md) (também na raiz via
+  symlink).
+- Livro completo de regras: [`.agents/REGRAS.md`](.agents/REGRAS.md).
+- Orientação do Claude Code: [`.agents/CLAUDE.md`](.agents/CLAUDE.md).
+- Registros de decisão: [`docs/decisions/README.md`](docs/decisions/README.md).
+- Fluxo OpenSpec: [`.openspec/AGENTS.md`](.openspec/AGENTS.md)
+  (symlink para `.agents/sdd/AGENTS.md`).
+- Status do projeto e quickstart: [`README.md`](README.md).
 
-For human help, mention `@<maintainer>` in the issue or PR.
+Para ajuda humana, mencione `@<mantenedor>` na issue ou PR.
