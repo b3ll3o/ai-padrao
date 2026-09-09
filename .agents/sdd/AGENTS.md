@@ -8,6 +8,14 @@
 Este arquivo é a referência canônica para o workflow SDD aplicado
 neste repo. Agentes de IA e humanos seguem o mesmo guia.
 
+> **SDA — Subagent-Driven Architecture.** SDD define **o quê** vai
+> ser entregue. Depois que uma change OpenSpec é aprovada, a
+> execução das tasks segue o pattern SDA: um subagente fresco por
+> task, revisão entre tasks. Veja [`REGRAS.md §2`](../REGRAS.md#2-sda--subagent-driven-architecture-complemento-ao-sdd)
+> para o formato do handoff e os limites de SDA. SDA **não**
+> substitui o SDD — ele assume que este guia foi seguido até o
+> passo 3 (aprovação humana).
+
 ## Quando usar OpenSpec
 
 **Use OpenSpec para:**

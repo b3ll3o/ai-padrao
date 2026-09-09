@@ -9,13 +9,15 @@ assistente de IA que atue neste repositório. (O time usa Visual Studio
 Code como editor de referência; as configurações do workspace ficam em
 `.vscode/`.)
 
-Para IA, o **primeiro passo** é ler os dois arquivos abaixo — eles são a
+Para IA, o **primeiro passo** é ler os três arquivos abaixo — eles são a
 fonte da verdade para o que pode e o que não pode ser feito aqui:
 
 1. **[`.agents/REGRAS.md`](REGRAS.md)** — livro de regras completo do
-   monorepo (SDD, idioma pt-br, sem testes pulados, sem secrets, etc.).
+   monorepo (SDD, **SDA**, idioma pt-br, sem testes pulados, sem secrets, etc.).
 2. **[`.agents/sdd/AGENTS.md`](sdd/AGENTS.md)** — procedimento SDD /
    OpenSpec (especificação → aprovação → tarefas → archive).
+3. **§2 SDA** em REGRAS.md — como executar as tasks após a aprovação
+   (subagente fresco por task, revisão entre tasks).
 
 As regras locais abaixo complementam (e nunca enfraquecem) o livro raiz:
 
@@ -67,12 +69,17 @@ ls .agents/skills/*/SKILL.md
 Se você só puder ler três seções do [`.agents/REGRAS.md`](REGRAS.md), leia
 nesta ordem:
 
-1. [§3 Ações proibidas](REGRAS.md#3-acoes-proibidas) — lista do que
+1. [§4 Ações proibidas](REGRAS.md#4-acoes-proibidas) — lista do que
    **não fazer**, em qualquer situação.
-2. [§4 Idioma padrão](REGRAS.md#4-idioma-padrao-pt-br) — toda prosa do
+2. [§5 Idioma padrão](REGRAS.md#5-idioma-padrao-pt-br) — toda prosa do
    projeto é pt-br; exceções técnicas listadas.
-3. [§7 Sem testes pulados](REGRAS.md#7-sem-testes-pulados) — tolerância
+3. [§8 Sem testes pulados](REGRAS.md#8-sem-testes-pulados) — tolerância
    zero a `.skip`/`xit`/etc.
+
+Para implementar uma change OpenSpec aprovada (ou um plano
+`docs/superpowers/plans/<plan>.md`), leia também:
+[§2 SDA — Subagent-Driven Architecture](REGRAS.md#2-sda--subagent-driven-architecture-complemento-ao-sdd)
+— define o formato do handoff task-por-task.
 
 Em caso de dúvida sobre uma ação específica, abra
 [`REGRAS.md`](REGRAS.md) antes de agir.

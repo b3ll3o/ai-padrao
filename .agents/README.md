@@ -14,11 +14,31 @@ mora aqui.
 
 | Caminho | Propósito | Lido por |
 | --- | --- | --- |
-| [`AGENTS.md`](AGENTS.md) | Portão de entrada — links para o livro de regras e o fluxo SDD. | Todos os agentes. O `AGENTS.md` da raiz é um symlink para ferramentas que procuram lá. |
-| [`REGRAS.md`](REGRAS.md) | Livro completo de regras do monorepo (SDD, idioma pt-br, sem testes pulados, sem secrets, glossário). | Todos os agentes e humanos. |
+| [`AGENTS.md`](AGENTS.md) | Portão de entrada — links para o livro de regras, o fluxo SDD e o método de execução SDA. | Todos os agentes. O `AGENTS.md` da raiz é um symlink para ferramentas que procuram lá. |
+| [`REGRAS.md`](REGRAS.md) | Livro completo de regras do monorepo (SDD, **SDA**, idioma pt-br, sem testes pulados, sem secrets, glossário). | Todos os agentes e humanos. |
 | [`CLAUDE.md`](CLAUDE.md) | Orientação específica do Claude Code — identidade, arquitetura, ADRs, config de editor/IA, expectativas de fluxo. | Claude Code (e qualquer agente que queira dicas específicas). |
 | [`skills/`](skills/) | Skills — expertise invocável para tarefas específicas. Cada skill é uma pasta com `SKILL.md` (frontmatter + corpo) e subpastas opcionais `templates/`, `scripts/`, `references/`, `assets/`. | Claude Code descobre via `.agents/skills/` por padrão neste repo (veja "Tool discovery" abaixo). |
 | [`sdd/AGENTS.md`](sdd/AGENTS.md) | Regras do fluxo SDD — templates de proposal/tasks/design/spec, procedimento de archive, ciclo de vida da change. | Agentes com awareness de OpenSpec; `.openspec/AGENTS.md` é um symlink para ferramentas que ainda esperam encontrá-lo lá. |
+
+## Fluxo de trabalho em duas camadas
+
+A árvore `.agents/` materializa dois patterns complementares que
+trabalham juntos:
+
+- **SDD (Specification-Driven Development)** — governa o **quê** vai
+  ser entregue. Toda mudança de comportamento começa com uma change
+  OpenSpec (`proposal.md` → `tasks.md` → `design.md` → delta de
+  spec) que precisa de aprovação humana antes de qualquer código.
+  Veja [`sdd/AGENTS.md`](sdd/AGENTS.md) e [`REGRAS.md §1`](REGRAS.md#1-sdd-e-obrigatorio).
+- **SDA (Subagent-Driven Architecture)** — governa o **como** as
+  tasks são executadas depois da aprovação. Cada task do
+  `tasks.md` vira um despacho para um subagente fresco, com
+  contexto isolado e diff revisável entre tasks. Veja
+  [`REGRAS.md §2`](REGRAS.md#2-sda--subagent-driven-architecture-complemento-ao-sdd).
+
+SDD vem primeiro (a spec precisa existir e ser aprovada). SDA vem
+depois (a execução segue o handoff task-por-task). Eles não se
+substituem — `tasks.md` é o contrato que liga os dois.
 
 ## Por que este layout
 

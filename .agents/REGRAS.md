@@ -10,13 +10,14 @@
 ## Índice
 
 1. [SDD é obrigatório](#1-sdd-e-obrigatorio)
-2. [O que NÃO exige SDD](#2-o-que-nao-exige-sdd)
-3. [Ações proibidas](#3-acoes-proibidas)
-4. [Idioma padrão: pt-br](#4-idioma-padrao-pt-br)
-5. [Stack técnico](#5-stack-tecnico)
-6. [Arquitetura (DDD + Hexagonal) e cobertura](#6-arquitetura-ddd--hexagonal-e-cobertura)
-7. [Sem testes pulados](#7-sem-testes-pulados)
-8. [Sem secrets em texto puro](#8-sem-secrets-em-texto-puro)
+2. [SDA — Subagent-Driven Architecture (complemento ao SDD)](#2-sda--subagent-driven-architecture-complemento-ao-sdd)
+3. [O que NÃO exige SDD](#3-o-que-nao-exige-sdd)
+4. [Ações proibidas](#4-acoes-proibidas)
+5. [Idioma padrão: pt-br](#5-idioma-padrao-pt-br)
+6. [Stack técnico](#6-stack-tecnico)
+7. [Arquitetura (DDD + Hexagonal) e cobertura](#7-arquitetura-ddd--hexagonal-e-cobertura)
+8. [Sem testes pulados](#8-sem-testes-pulados)
+9. [Sem secrets em texto puro](#9-sem-secrets-em-texto-puro)
 
 ---
 
@@ -32,7 +33,101 @@ Antes de escrever qualquer código, é necessário:
 
 Fluxo completo e templates: [`.agents/sdd/AGENTS.md`](sdd/AGENTS.md) (o caminho `.openspec/AGENTS.md` é um symlink para esta pasta, para ferramentas que ainda esperam encontrá-lo lá).
 
-## 2. O que NÃO exige SDD
+## 2. SDA — Subagent-Driven Architecture (complemento ao SDD)
+
+SDD define **o quê** entregar (proposal, tasks, design, spec) e em
+**que ordem**. SDA define **como** executar as tasks após a aprovação
+humana da proposta: despachando um subagente fresco por task, revisando
+o resultado entre tasks, e iterando rápido.
+
+SDA **não substitui** o SDD. SDA assume que uma change OpenSpec já
+existe, foi aprovada, e está pronta para ser implementada. Em
+particular:
+
+- SDA **não** é uma porta de entrada para mudanças sem spec —
+  §1 (SDD é obrigatório) ainda prevalece.
+- SDA **não** elimina a aprovação humana — uma task só começa depois
+  do proposal/tasks.md aprovado.
+- SDA **não** delega a responsabilidade de decisões arquiteturais
+  para o subagente — ADRs e REGRAS.md seguem sendo a fonte da
+  verdade.
+
+### Por que SDA
+
+- **Contexto isolado por task.** Cada subagente começa com o
+  contexto completo da task (proposal, ADR relevante, REGRAS.md,
+  arquivos-alvo) e termina com um diff delimitado. O contexto da
+  task anterior não polui a próxima.
+- **Revisão humana entre tasks.** O humano (ou o orquestrador)
+  revisa o diff, valida a cobertura e a conformidade com o
+  `REGRAS.md`, e só então despacha a próxima task.
+- **Paralelismo seguro.** Tasks independentes (ex.: "criar port" +
+  "criar mapper") podem rodar em paralelo via worktrees isolados.
+  Tasks com dependência (ex.: "criar use case" depende de "criar
+  port") seguem sequenciais.
+- **Recuperação barata.** Se uma task falha (testes quebram,
+  regras violadas), o subagente seguinte não herda a alucinação —
+  recebe o diff corrigido como input.
+
+### Quando aplicar SDA
+
+- Implementação de uma change OpenSpec aprovada
+  (`.openspec/changes/<feature>/`).
+- Execução de um plano `docs/superpowers/plans/<plan>.md`
+  task-por-task (cada `- [ ]` vira um despacho).
+- Trabalhos de auditoria/cobertura/auditoria de código que seguem
+  um checklist em `CHECKLIST.md` (ex.: `ddd-hexagonal/CHECKLIST.md`).
+
+### Quando NÃO aplicar SDA
+
+- Mudanças cosméticas isoladas (typo, formatação) — uma edição
+  inline é mais barata que um despacho.
+- Trabalho de discovery onde ainda não há tasks — abrir uma change
+  SDD primeiro.
+- Mudanças onde um humano precisa raciocinar por longos minutos
+  antes de escrever código (design de schema novo, debate
+  arquitetural) — não force SDA onde o trabalho é genuinamente
+  sequencial e conversacional.
+
+### Convenções SDA no ai-padrao
+
+- Cada despacho inclui: (a) o número da task do `tasks.md` ou do
+  plan, (b) o caminho exato dos arquivos a ler como contexto, (c)
+  a referência ao ADR ou seção de REGRAS.md que governa a
+  mudança, (d) a Definition of Done da task.
+- Cada commit de task referencia o número no corpo
+  (`Refs: tasks.md #3`) para que revisores mapeiem commits →
+  checklist.
+- Tasks que tocam múltiplos escopos usam commits separados, um por
+  escopo (Conventional Commits allowlist em `.commitlintrc.json`).
+- Subagentes **não** recebem permissão para commitar ou puchar —
+  commit é sempre do orquestrador (humano ou sessão principal)
+  após revisar o diff.
+
+### Handoff para SDA
+
+O handoff para um subagente segue o formato abaixo. Subagentes
+devem retornar **o diff** (não a história da conversa) para que o
+orquestrador possa revisar atomicamente.
+
+```text
+Task: <tasks.md #N — título curto>
+Context:
+  - Proposal: .openspec/changes/<feature>/proposal.md
+  - Tasks:    .openspec/changes/<feature>/tasks.md
+  - ADR:      docs/decisions/ADR-XXX-<slug>.md (se aplicável)
+  - Rules:    .agents/REGRAS.md §<N>
+Files to read:
+  - <paths exatos>
+DoD: <Definition of Done literal do tasks.md>
+Forbidden: <lista de ações proibidas específicas desta task>
+```
+
+Referência viva: [`docs/superpowers/plans/2026-08-04-ai-padrao-blueprint.md`](../../docs/superpowers/plans/2026-08-04-ai-padrao-blueprint.md) §
+"Execution Handoff" define SDA como a opção recomendada de
+execução desde o plano original do projeto.
+
+## 3. O que NÃO exige SDD
 
 - Mudanças cosméticas (typos, formatação, refactors sem mudança de comportamento)
 - Bumps de versão de dependência sem impacto em API
@@ -40,16 +135,16 @@ Fluxo completo e templates: [`.agents/sdd/AGENTS.md`](sdd/AGENTS.md) (o caminho 
 
 Mesmo assim, estes commits DEVEM seguir o formato [Conventional Commits](https://www.conventionalcommits.org/).
 
-## 3. Ações proibidas
+## 4. Ações proibidas
 
 - ❌ Abrir PR que altera comportamento sem um `.openspec/changes/<feature>/` correspondente.
 - ❌ Começar a codificar antes do `proposal.md` ser aprovado.
 - ❌ Usar `localStorage` para tokens (auth usa cookies httpOnly).
 - ❌ Importar Prisma diretamente em `apps/web` (apenas `apps/api` pode usar Prisma).
 - ❌ Modificar `apps/api/prisma/schema.prisma` sem coordenar com os contratos em `packages/contracts`.
-- ❌ **Pular, desabilitar ou stubar um teste.** O repositório tem tolerância zero a testes pulados — veja [§7](#7-sem-testes-pulados).
+- ❌ **Pular, desabilitar ou stubar um teste.** O repositório tem tolerância zero a testes pulados — veja [§8](#8-sem-testes-pulados).
 
-## 4. Idioma padrão: pt-br
+## 5. Idioma padrão: pt-br
 
 O idioma padrão deste projeto é **português brasileiro (pt-br)**. Esta regra vale
 para toda documentação, comentários de código e mensagens voltadas para humanos.
@@ -119,7 +214,7 @@ Em PR de tradução, rodar `grep -RIn "TODO\|FIXME\|i18n miss"` para achar
 strings de log e erro que ainda não foram revisadas. Builds de docs
 (incluindo este arquivo) devem ficar em pt-br antes do merge.
 
-## 5. Stack técnico
+## 6. Stack técnico
 
 - Monorepo: pnpm 9 + Turborepo 2
 - Backend: NestJS 11 (Fastify) + Prisma 6 + Zod (`nestjs-zod`)
@@ -127,7 +222,7 @@ strings de log e erro que ainda não foram revisadas. Builds de docs
 - Auth: JWT access (15m) + refresh rotacionado em cookie httpOnly, senhas em Argon2id
 - Observabilidade: SDK OpenTelemetry + OTel Collector (OTLP)
 
-## 6. Arquitetura (DDD + Hexagonal) e cobertura
+## 7. Arquitetura (DDD + Hexagonal) e cobertura
 
 Ambos os apps DEVEM seguir Domain-Driven Design (DDD) e arquitetura
 hexagonal. Organize capacidades de negócio como contextos delimitados (bounded
@@ -151,7 +246,7 @@ cobertura, nem escreva testes sem sentido para satisfazer o gate.
 Esses arquivos de regras locais estendem este livro de regras raiz e NÃO
 DEVEM enfraquecer as exigências de SDD, segurança ou não-pular-testes.
 
-## 7. Sem testes pulados
+## 8. Sem testes pulados
 
 **Tolerância zero.** O repositório NÃO PODE conter teste pulado, desabilitado
 ou stubado. Concretamente, nenhum dos padrões abaixo é permitido em arquivo
@@ -198,7 +293,7 @@ Code reviewers e CI DEVEM varrer todo `*.spec.ts`, `*.test.ts`,
 `*.spec.tsx`, `*.test.tsx` e `package.json` em busca dos padrões acima e
 falhar o build quando qualquer um for encontrado.
 
-## 8. Sem secrets em texto puro
+## 9. Sem secrets em texto puro
 
 `~/.claude/settings.json` desta máquina carrega um `ANTHROPIC_AUTH_TOKEN`
 (`sk-cp-…`) e um `GITHUB_PERSONAL_ACCESS_TOKEN` (`github_pat_…`) em texto
