@@ -1,14 +1,14 @@
-// Template: NestJS Module (DI wiring for the bounded context)
-// Reference (live example): apps/api/src/contexts/users/users-context.module.ts
+// Template: NestJS Module (wiring de DI para o bounded context)
+// Referência (exemplo vivo): apps/api/src/contexts/users/users-context.module.ts
 //
 // Convenção ai-padrao:
 // - Importa PrismaModule do caminho local `apps/api/src/infra/prisma/prisma.module`
 //   (NÃO de @ai-padrao/db — esse pacote só re-exporta @prisma/client).
 // - Cada port tem dois providers:
 //   1. `useFactory` que injeta PrismaService e instancia o adapter concreto
-//      (sidestep ADR-002 metadata issues com `useClass`).
+//      (evita os problemas de metadata do ADR-002 com `useClass`).
 //   2. `useExisting` que aponta o token DI para o adapter instanciado.
-// - Exports use cases que outros módulos podem consumir.
+// - Exporta use cases que outros módulos podem consumir.
 
 import { Module } from "@nestjs/common";
 import { PrismaModule } from "../../infra/prisma/prisma.module";

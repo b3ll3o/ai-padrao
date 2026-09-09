@@ -1,17 +1,17 @@
 // Template: Prisma Mapper (Prisma Record <-> Domain Entity)
-// Reference (live example): apps/api/src/contexts/users/infrastructure/persistence/prisma/user.mapper.ts
+// Referência (exemplo vivo): apps/api/src/contexts/users/infrastructure/persistence/prisma/user.mapper.ts
 //
 // Convenção ai-padrao:
-// - Static methods only, no instance state
-// - Bidirectional: toDomain(prisma) and toPrisma(entity)
-// - Mapper NÃO importa o port — só o entity
-// - Roundtrip test obrigatório: toDomain(toPrisma(x)) deep-equals x
+// - Apenas métodos estáticos, sem estado de instância
+// - Bidirecional: toDomain(prisma) e toPrisma(entity)
+// - Mapper NÃO importa a port — só a entity
+// - Teste de roundtrip obrigatório: toDomain(toPrisma(x)) deep-equals x
 
 import { <Entity> } from "../../../domain/entities/<entity>";
 
 type <Entity>Record = {
   id: string;
-  // ...all primitive fields from schema.prisma
+  // ...todos os primitive fields de schema.prisma
   createdAt: Date;
   updatedAt: Date;
   version: number;
@@ -21,7 +21,7 @@ export class <Entity>Mapper {
   static toDomain(record: <Entity>Record): <Entity> {
     return <Entity>.build({
       id: record.id,
-      // ...map fields, converting strings to ValueObjects
+      // ...mapeia fields, convertendo strings para ValueObjects
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       version: record.version,
@@ -31,7 +31,7 @@ export class <Entity>Mapper {
   static toPrisma(entity: <Entity>): <Entity>Record {
     return {
       id: entity.id,
-      // ...map fields, converting ValueObjects back to primitives
+      // ...mapeia fields, convertendo ValueObjects de volta para primitives
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
       version: entity.version,

@@ -1,5 +1,5 @@
-// Template: Use Case unit tests (Vitest, with in-memory repo)
-// Reference (live example): apps/api/src/contexts/users/application/use-cases/find-user.use-case.spec.ts
+// Template: Testes unit de Use Case (Vitest, com in-memory repo)
+// Referência (exemplo vivo): apps/api/src/contexts/users/application/use-cases/find-user.use-case.spec.ts
 //
 // Convenção ai-padrao:
 // - Usa InMemory<Entity>Repository (não mock — fake)
@@ -20,8 +20,8 @@ describe("<Verb><Entity>UseCase", () => {
     sut = new <Verb><Entity>UseCase(repository);
   });
 
-  it("returns entity when found", async () => {
-    const entity = <Entity>.build({ /* valid */ });
+  it("retorna a entity quando encontrada", async () => {
+    const entity = <Entity>.build({ /* válido */ });
     await repository.save(entity);
 
     const result = await sut.execute(entity.id);
@@ -29,7 +29,7 @@ describe("<Verb><Entity>UseCase", () => {
     expect(result.id).toBe(entity.id);
   });
 
-  it("throws <Entity>NotFoundError when not found", async () => {
+  it("lança <Entity>NotFoundError quando não encontra", async () => {
     await expect(sut.execute("missing-id")).rejects.toThrow("<Entity>NotFoundError");
   });
 });

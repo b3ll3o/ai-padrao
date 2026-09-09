@@ -1,9 +1,9 @@
-// Template: Application Use Case (orchestrates domain + port)
-// Reference (live example): apps/api/src/contexts/users/application/use-cases/find-user.use-case.ts
+// Template: Application Use Case (orquestra domain + port)
+// Referência (exemplo vivo): apps/api/src/contexts/users/application/use-cases/find-user.use-case.ts
 //
 // Convenção ai-padrao:
 // - Recebe a PORT via construtor (não a classe concreta)
-// - SEM `@Injectable()` — use case é puro, framework-free
+// - SEM `@Injectable()` — use case é puro, livre de framework
 // - Retorna DTO ou entity; nunca retorna o PrismaRecord
 // - Cada método público é um caso de uso
 

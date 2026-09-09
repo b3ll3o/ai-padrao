@@ -1,5 +1,5 @@
 // Template: HTTP Controller (NestJS, Fastify)
-// Reference (live example): apps/api/src/contexts/users/infrastructure/http/users-http.controller.ts
+// Referência (exemplo vivo): apps/api/src/contexts/users/infrastructure/http/users-http.controller.ts
 //
 // Convenção ai-padrao:
 // - Recebe use cases via construtor (NÃO services)
@@ -24,7 +24,7 @@ export class <Entities>HttpController {
 
   @Post()
   async create(@Body() dto: z.infer<typeof <Create><Entity>Dto>) {
-    // delegate to a Create<Entity>UseCase
+    // delega para um Create<Entity>UseCase
     // ...
   }
 }

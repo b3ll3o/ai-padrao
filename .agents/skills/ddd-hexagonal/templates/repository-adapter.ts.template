@@ -1,11 +1,11 @@
-// Template: Prisma Repository Adapter (implements RepositoryPort)
-// Reference (live example): apps/api/src/contexts/users/infrastructure/persistence/prisma/prisma-user.repository.ts
+// Template: Prisma Repository Adapter (implementa RepositoryPort)
+// Referência (exemplo vivo): apps/api/src/contexts/users/infrastructure/persistence/prisma/prisma-user.repository.ts
 //
 // Convenção ai-padrao:
 // - Implementa a port via `implements <Entity>RepositoryPort`
 // - Recebe PrismaService via construtor (NÃO PrismaClient puro) —
-//   PrismaService ativa a audit extension (soft-delete filter em reads).
-//   Production contexts MUST use PrismaService. Tests can mock it.
+//   PrismaService ativa a audit extension (filtro de soft-delete em reads).
+//   Contexts de produção MUST usar PrismaService. Testes podem mocká-lo.
 // - Toda query passa pelo mapper antes de retornar para application/
 // - Emite erros de domínio (`<Entity>NotFoundError`), nunca strings cruas
 

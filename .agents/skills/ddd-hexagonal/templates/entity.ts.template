@@ -1,8 +1,8 @@
-// Template: Domain Entity (framework-free)
-// Reference (live example): apps/api/src/contexts/users/domain/entities/user.ts
+// Template: Domain Entity (sem framework)
+// Referência (exemplo vivo): apps/api/src/contexts/users/domain/entities/user.ts
 //
 // Convenção ai-padrao:
-// - Constructor privado + factory method `build()` para validação
+// - Construtor privado + factory method `build()` para validação
 // - Props imutáveis (private readonly)
 // - Métodos de domínio retornam NOVA instância (não mutam)
 // - toJSON() para serialização (DTO em @ai-padrao/contracts)
@@ -31,7 +31,7 @@ export class <Entity> {
   private constructor(private readonly props: <Entity>Props) {}
 
   static build(p: <Entity>PrimitiveProps): <Entity> {
-    // Validate invariants HERE (throw on violation)
+    // Valida invariantes AQUI (lança em violação)
     return new <Entity>({
       id: p.id,
       <field>: <ValueObject>.create(p.<field>),
@@ -41,14 +41,14 @@ export class <Entity> {
     });
   }
 
-  // Getters (read-only access)
+  // Getters (acesso somente leitura)
   get id(): string { return this.props.id; }
   get <field>(): <ValueObject> { return this.props.<field>; }
   get createdAt(): Date { return this.props.createdAt; }
   get updatedAt(): Date { return this.props.updatedAt; }
   get version(): number { return this.props.version; }
 
-  // Domain methods (return new instance if mutated)
+  // Métodos de domínio (retornam nova instância se mutados)
   rename(next: <ValueObject>): <Entity> {
     if (this.props.<field>.equals(next)) {
       return this;

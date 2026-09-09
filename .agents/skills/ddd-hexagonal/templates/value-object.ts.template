@@ -1,20 +1,20 @@
-// Template: Value Object (immutable, self-validating)
-// Reference (live example): apps/api/src/contexts/users/domain/value-objects/email.ts
+// Template: Value Object (imutável, auto-validável)
+// Referência (exemplo vivo): apps/api/src/contexts/users/domain/value-objects/email.ts
 //
 // Convenção ai-padrao:
-// - Constructor privado + static factory `create()` que valida
+// - Construtor privado + factory estático `create()` que valida
 // - Imutável: sem setters, sem mutação interna
 // - Método `equals()` para comparação
-// - `value` getter para extrair o primitivo
-// - Throws em violação de invariante
+// - Getter `value` para extrair o primitivo
+// - Lança em violação de invariante
 
 export class <ValueObject> {
   private constructor(private readonly _value: string) {}
 
   static create(raw: string): <ValueObject> {
-    // Validate HERE (throw on violation)
+    // Valida AQUI (lança em violação)
     if (raw.trim().length === 0) {
-      throw new Error("<ValueObject> cannot be empty");
+      throw new Error("<ValueObject> não pode ser vazio");
     }
     return new <ValueObject>(raw.trim());
   }

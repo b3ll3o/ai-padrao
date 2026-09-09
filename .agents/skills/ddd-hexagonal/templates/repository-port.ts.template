@@ -1,5 +1,5 @@
-// Template: Repository Port (outbound interface for persistence)
-// Reference (live example): apps/api/src/contexts/users/domain/ports/user-repository.port.ts
+// Template: Repository Port (interface outbound para persistência)
+// Referência (exemplo vivo): apps/api/src/contexts/users/domain/ports/user-repository.port.ts
 //
 // Convenção ai-padrao:
 // - Interface pura, sem implementação
@@ -16,10 +16,10 @@ export interface <Entity>RepositoryPort {
   existsById(id: string): Promise<boolean>;
   save(entity: <Entity>): Promise<<Entity>>;
   delete(id: string): Promise<void>;
-  // ADR-014: audit-aware ports MUST also expose:
-  //   - findByIdIncludingDeleted(id): for restoring soft-deleted rows
-  //   - softDelete(id, actor): writes a history row, sets deletedAt
-  //   - restore(id, actor): clears deletedAt, writes a history row
-  //   - getHistory(id): returns the audit trail
-  // Skip these only for non-audited contexts (rare).
+  // ADR-014: ports audit-aware MUST também expor:
+  //   - findByIdIncludingDeleted(id): para restaurar rows soft-deleted
+  //   - softDelete(id, actor): escreve uma row de history, define deletedAt
+  //   - restore(id, actor): limpa deletedAt, escreve uma row de history
+  //   - getHistory(id): retorna o audit trail
+  // Pule essas apenas para contexts não auditados (raro).
 }

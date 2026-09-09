@@ -1,10 +1,10 @@
-// Template: In-Memory Repository (test double for use case tests)
-// Reference (live example): apps/api/src/contexts/users/application/testing/in-memory-user.repository.ts
+// Template: In-Memory Repository (test double para testes de use case)
+// Referência (exemplo vivo): apps/api/src/contexts/users/application/testing/in-memory-user.repository.ts
 //
 // Convenção ai-padrao:
 // - Implementa a port com Map<id, entity> em memória
 // - Lógica idêntica ao adapter real (happy + errors)
-// - Reset method para cleanup entre tests
+// - Método reset para cleanup entre testes
 // - SEM framework (sem @Injectable)
 
 import { <Entity> } from "../../domain/entities/<entity>";
@@ -35,7 +35,7 @@ export class InMemory<Entity>Repository implements <Entity>RepositoryPort {
     this.store.delete(id);
   }
 
-  // Test helper — NOT part of the port
+  // Helper de teste — NÃO faz parte da port
   reset(): void {
     this.store.clear();
   }
