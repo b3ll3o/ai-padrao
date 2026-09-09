@@ -12,8 +12,10 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:integration": "jest --config ./test/jest-integration.json --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand --setupFiles ./setup.ts",
     "test:coverage": "jest --coverage",
+    "test:all": "pnpm test && pnpm test:integration && pnpm test:e2e",
     "prisma:generate": "prisma generate",
     "prisma:migrate-dev": "prisma migrate dev",
     "prisma:seed": "prisma db seed"

@@ -18,7 +18,7 @@
 7. [Logs e erros](#7-logs-e-erros)
 8. [Auth e segurança](#8-auth-e-seguranca)
 9. [Observabilidade](#9-observabilidade)
-10. [Regras de teste](#10-regras-de-teste)
+10. [Pirâmide de testes obrigatória (unit + integração + e2e)](#10-piramide-de-testes-obrigatoria)
 11. [Cobertura mínima](#11-cobertura-minima)
 12. [Checklist de PR para a API](#12-checklist-de-pr-para-a-api)
 13. [Fluxo de mudança](#13-fluxo-de-mudanca)
@@ -210,28 +210,76 @@ composition root -> todas as camadas
 - Logs e traces compartilham `traceId` — correlacione via
   `traceparent` quando relevante.
 
-## 10. Regras de teste
+## 10. Pirâmide de testes obrigatória (unit + integração + e2e)
 
-Os testes DEVEM respeitar as mesmas fronteiras da arquitetura:
+A regra canônica vive em
+[`../../.agents/REGRAS.md` §9](../../.agents/REGRAS.md#9-piramide-de-testes-obrigatoria).
+Este §10 aplica aquela regra ao app `api` em três níveis:
 
-1. **Domínio:** unit tests puros. Sem NestJS, sem Prisma, sem HTTP.
-   Cobre entidades, value objects, invariantes, agregados, domain
-   services, factories e domain events.
-2. **Aplicação:** casos de uso com **fake ports** ou ports em memória
-   determinísticos; sem NestJS e sem banco real.
-3. **Adapters outbound:** testes de integração (com Testcontainers
-   Postgres quando o adapter envolver Prisma; cliente HTTP real com
-   `msw` quando envolver terceiros).
-4. **Adapters inbound (controllers):** testes e2e via Supertest
-   usando o injector do Fastify; cobrem validação, authn/authz,
-   serialização e contrato público.
-5. **Enforcement:** regras de dependência (forbidden imports) são
-   checadas em lint (`apps/api/eslint.config.mjs`) e/ou em testes
-   de arquitetura.
-6. **Regressão:** cada bugfix vem com um teste que falha antes do
-   fix e passa depois.
-7. **Smoke e2e:** um teste por contexto principal (login, refresh,
-   etc.) roda em CI.
+### 10.1 Unit (Jest + ports em memória)
+
+- Localização: `*.spec.ts` colado ao arquivo de produção em `src/**`.
+- Domínio: 100% puro. Sem NestJS, sem Prisma, sem HTTP. Cobre
+  entidades, value objects, invariantes, agregados, domain services,
+  factories e domain events.
+- Aplicação: casos de uso com **fake ports** ou ports em memória
+  determinísticos; sem NestJS e sem banco real.
+- Regras de dependência (forbidden imports) são checadas em lint
+  (`apps/api/eslint.config.mjs`) e/ou em testes de arquitetura.
+- Regressão: cada bugfix vem com um teste que falha antes do fix e
+  passa depois.
+- Comando: `pnpm --filter @ai-padrao/api test`.
+
+### 10.2 Integração (Testcontainers Postgres + Prisma real)
+
+- Localização: `*.integration-spec.ts` em `src/contexts/<context>/infrastructure/`
+  ou `test/integration/`.
+- Adapters outbound que tocam Postgres DEVEM ser exercidos contra um
+  Postgres descartável levantado via **Testcontainers** no `globalSetup`
+  de `apps/api/test/jest-integration.json`. A `DATABASE_URL` de teste é
+  apontada para esse container; o banco de dev **nunca** é usado.
+- Migrations são aplicadas no setup com `prisma migrate deploy` antes
+  dos testes rodarem (script `test:integration:setup` em
+  `apps/api/package.json`).
+- Cada teste é responsável pelo próprio rollback (transação envolvendo
+  o teste, ou truncamento de tabelas entre testes). Não confie em
+  ordem de execução.
+- Adapters HTTP externos: use `msw` (Mock Service Worker) em modo
+  servidor para exercitar o cliente contra handlers HTTP realistas;
+  `nock` é aceito como alternativa.
+- Comando: `pnpm --filter @ai-padrao/api test:integration`.
+
+Exemplo de arquivo aceito:
+`apps/api/src/contexts/users/infrastructure/persistence/prisma/prisma-user.repository.integration-spec.ts`.
+
+### 10.3 e2e (Supertest + Nest injector)
+
+- Localização: `*.e2e-spec.ts` em `apps/api/test/`.
+- Configuração: `apps/api/test/jest-e2e.json` (Jest apontando para o
+  padrão `*.e2e-spec.ts`, com `--runInBand` e setup em
+  `apps/api/test/setup.ts`).
+- O setup força `NODE_ENV=test`, secrets de JWT dummy e
+  `DATABASE_URL` apontando para o Postgres descartável
+  (Testcontainers) — não usar dev DB.
+- Cada e2e cobre um fluxo crítico inteiro: bootstrap do Nest,
+  pipes/guards globais, exception filter, persistência, contrato
+  público. Pelo menos um caso feliz + um caso de erro esperado
+  (validação, auth, conflito).
+- Não stub nada. Banco, fila e serviços externos rodam de verdade.
+- Use factories com timestamps únicos
+  (`` `test-${Date.now()}-${rand}@example.com` ``) para evitar
+  colisão entre execuções.
+- Comando: `pnpm --filter @ai-padrao/api test:e2e`.
+
+### 10.4 Comandos canônicos
+
+| Comando                            | O que roda                                                 |
+| ---------------------------------- | ---------------------------------------------------------- |
+| `pnpm --filter @ai-padrao/api test`            | suite unit (Jest)                       |
+| `pnpm --filter @ai-padrao/api test:integration` | suite integration (Testcontainers)      |
+| `pnpm --filter @ai-padrao/api test:e2e`        | suite e2e (Supertest + Nest injector)   |
+| `pnpm --filter @ai-padrao/api test:coverage`   | unit + cobertura com gate ≥80%          |
+| `pnpm --filter @ai-padrao/api test:all`        | unit + integration + e2e em sequência   |
 
 A regra raiz de **tolerância zero a testes pulados** vale integralmente.
 

@@ -21,8 +21,11 @@ ordem de leitura recomendada:
 ```bash
 pnpm --filter @ai-padrao/api typecheck   # type-check
 pnpm --filter @ai-padrao/api lint        # lint
-pnpm --filter @ai-padrao/api test        # testes unit + e2e
+pnpm --filter @ai-padrao/api test        # testes unit
+pnpm --filter @ai-padrao/api test:integration   # testes de integração (Postgres descartável)
+pnpm --filter @ai-padrao/api test:e2e    # testes e2e (Supertest)
 pnpm --filter @ai-padrao/api test:coverage   # cobertura ≥80%
+pnpm --filter @ai-padrao/api test:all     # unit + integration + e2e em sequência
 pnpm --filter @ai-padrao/api prisma:studio   # GUI do Prisma
 pnpm db:migrate          # roda migrations Prisma no container
 pnpm db:seed             # popula usuário admin
