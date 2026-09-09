@@ -139,3 +139,26 @@ correspondente antes do merge.
   a spec de design que originou o projeto.
 - [`docs/superpowers/plans/2026-08-04-ai-padrao-blueprint.md`](docs/superpowers/plans/2026-08-04-ai-padrao-blueprint.md) —
   o plano de implementação.
+
+## Deploy to VPS
+
+O repositório traz tudo o que é necessário para rodar o ai-padrao como
+ambiente de desenvolvimento em uma VPS Ubuntu nova, com HTTPS via Caddy +
+Let's Encrypt e deploys disparados por GitHub Actions em push na `main`.
+
+Toda a configuração fica em [`infra/`](infra/) — veja
+[`infra/README.md`](infra/README.md) para o fluxo completo.
+
+Caminho rápido:
+
+```bash
+# 1. Faz o bootstrap de uma VPS nova (uma vez, como root)
+scp infra/scripts/bootstrap-vps.sh root@HOST:/tmp/
+ssh root@HOST "bash /tmp/bootstrap-vps.sh"
+
+# 2. Adiciona a chave pública impressa como deploy key no GitHub +
+#    cadastra os secrets da VPS (VPS_SSH_KEY, VPS_HOST, VPS_USER, SSH_KNOWN_HOSTS)
+
+# 3. Push na main — o GitHub Actions faz o deploy automaticamente
+git push origin main
+```
