@@ -4,6 +4,12 @@ services:
   postgres:
     env_file:
       - /opt/ai-padrao/infra/.env.production
+    # Drop the host port mapping from docker-compose.yml. The base compose
+    # exposes 5432:5432 for local development convenience; in production the
+    # database must only be reachable from the docker network (api talks to
+    # it internally). Setting `ports: []` here clears any inherited mapping.
+    # Reference: project README forbids well-known ports (5432) in production.
+    ports: []
 
   api:
     env_file:
