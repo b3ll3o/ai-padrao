@@ -6,7 +6,7 @@
 //   (NÃO de @ai-padrao/db — esse pacote só re-exporta @prisma/client).
 // - Cada port tem dois providers:
 //   1. `useFactory` que injeta PrismaService e instancia o adapter concreto
-//      (sidestep INC-003 / ADR-002 metadata issues com `useClass`).
+//      (sidestep ADR-002 metadata issues com `useClass`).
 //   2. `useExisting` que aponta o token DI para o adapter instanciado.
 // - Exports use cases que outros módulos podem consumir.
 

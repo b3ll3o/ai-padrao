@@ -5,7 +5,7 @@
 // - Recebe use cases via construtor (NÃO services)
 // - DTOs são tipos derivados de Zod schemas em @ai-padrao/contracts
 // - Endpoints públicos usam `@Public()` (skip JWT)
-// - Fastify: usar `.header()` em vez de `.setHeader()` (INC-002)
+// - Fastify: usar `.header()` em vez de `.setHeader()` (ADR-001)
 
 import { Body, Controller, Get, Param, Post } from "@nestjs/common";
 import { z } from "zod";

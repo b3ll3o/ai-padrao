@@ -38,3 +38,8 @@ apps/api/prisma/migrations/dev.db*
 
 # python bytecode
 __pycache__/
+
+# claude-code runtime state (NOT policy — see .agents/skills/)
+# `.claude/skills` is a symlink to `.agents/skills/` and IS tracked.
+.claude/worktrees/
+.claude/scheduled_tasks.json
