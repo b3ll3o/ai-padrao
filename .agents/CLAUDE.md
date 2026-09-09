@@ -1,12 +1,24 @@
 # CLAUDE.md
 
-> **Canonical location:** `.agents/CLAUDE.md`. The root `CLAUDE.md` is a
-> symlink into this folder — see [`.agents/README.md`](README.md) for the
-> layout of the AI tooling tree (skills, SDD rules, etc.).
+> **Canonical location:** `.agents/CLAUDE.md`. The project follows a single
+> `.agents/` standard; there is no `CLAUDE.md` or `.claude/` directory at
+> the repo root — see [`.agents/README.md`](README.md) for the layout and
+> the tool-discovery rules.
 
 Guidance for Claude Code (claude.ai/code) when working in this repository.
 The project-wide AI-assistant rulebook lives in [`AGENTS.md`](AGENTS.md);
 this file only covers Claude-Code-specific orientation.
+
+## Configuring Claude Code to find skills under `.agents/skills/`
+
+Claude Code scans `~/.claude/skills/` (user) and `.claude/skills/`
+(project) by default. This project keeps skills under
+[`.agents/skills/`](skills/) instead. To make Claude Code find them in
+this repo, add `.agents/skills` to your machine-level
+`~/.claude/settings.json` under `skillsPaths`, or set the environment
+variable `CLAUDE_CODE_SKILLS_PATH=.agents/skills` before launching
+Claude Code. See [`.agents/README.md`](README.md) for the full
+discovery rationale.
 
 ## 1. Project identity
 
@@ -148,9 +160,10 @@ When you are asked to make a behavior change:
    spec delta to `.openspec/specs/<area>/<feature>.md`, append to
    `.openspec/CHANGELOG.md`, delete the change folder.
 
-When the user asks for documentation-only work (CLAUDE.md, README,
-ADRs, CONTRIBUTING, ARCHITECTURE), follow §10 of AGENTS.md: SDD is not
-required, but Conventional Commits still apply. Use the `sdd` scope
+When the user asks for documentation-only work (`.agents/CLAUDE.md`,
+`README.md`, ADRs, `CONTRIBUTING.md`, `ARCHITECTURE.md`), follow §10 of
+`AGENTS.md`: SDD is not required, but Conventional Commits still apply. Use
+the `sdd` scope
 for ADRs and `root` for the rest.
 
 When in doubt about whether an action is forbidden, consult

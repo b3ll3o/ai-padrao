@@ -45,7 +45,7 @@ contexts/users/
 ## Reference implementation
 
 This context is the **canonical reference** for the DDD-hexagonal
-shape in this repo. The skill `.claude/skills/ddd-hexagonal/SKILL.md`
+shape in this repo. The skill `.agents/skills/ddd-hexagonal/SKILL.md`
 points here for "what a complete bounded context looks like" when
 adding a new one.
 

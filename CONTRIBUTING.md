@@ -148,10 +148,10 @@ the fix.
 
 ## 9. Where to get help
 
-- AI-assistant rules (Claude Code, Gemini CLI, Codex): [`AGENTS.md`](AGENTS.md)
-- Claude Code orientation: [`CLAUDE.md`](CLAUDE.md)
+- AI-assistant rules (Claude Code, Gemini CLI, Codex): [`.agents/AGENTS.md`](.agents/AGENTS.md) (also at root as a symlink)
+- Claude Code orientation: [`.agents/CLAUDE.md`](.agents/CLAUDE.md)
 - Decision records: [`docs/decisions/README.md`](docs/decisions/README.md)
-- OpenSpec workflow: [`.openspec/AGENTS.md`](.openspec/AGENTS.md)
+- OpenSpec workflow: [`.openspec/AGENTS.md`](.openspec/AGENTS.md) (symlink into `.agents/sdd/AGENTS.md`)
 - Project status and quickstart: [`README.md`](README.md)
 
 For human help, mention `@<maintainer>` in the issue or PR.

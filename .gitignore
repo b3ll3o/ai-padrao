@@ -39,7 +39,10 @@ apps/api/prisma/migrations/dev.db*
 # python bytecode
 __pycache__/
 
-# claude-code runtime state (NOT policy — see .agents/skills/)
-# `.claude/skills` is a symlink to `.agents/skills/` and IS tracked.
+# agent runtime state (NOT policy — see .agents/)
+# Claude Code writes worktrees/ and scheduled_tasks.json under .claude/;
+# we no longer keep .claude/ in the repo, so these don't apply. Listed
+# here in case a contributor's local .claude/ shows up in git status
+# before they realise the policy.
 .claude/worktrees/
 .claude/scheduled_tasks.json
