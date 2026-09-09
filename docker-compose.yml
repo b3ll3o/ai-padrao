@@ -31,6 +31,7 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
+        required: false
     ports:
       - "3001:3001"
     volumes:
@@ -67,6 +68,8 @@ services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.110.0
     container_name: ai-padrao-otel
+    profiles:
+      - dev-tools
     command: ["--config=/etc/otel/config.yaml"]
     volumes:
       - ./infra/otel-collector.yaml:/etc/otel/config.yaml:ro
@@ -77,6 +80,8 @@ services:
   mailhog:
     image: mailhog/mailhog:v1.0.1
     container_name: ai-padrao-mailhog
+    profiles:
+      - dev-tools
     ports:
       # Host ports remapped to avoid collision with sibling pedi_ai_mailpit
       # (which binds 1025/8025). Container ports stay at 1025/8025 so internal
