@@ -11,11 +11,11 @@ services:
     environment:
       NODE_ENV: production
       CORS_ORIGINS: ${WEB_ORIGIN}
-    # NOTE: bind-mount removal is NOT achieved by omitting `volumes:`.
-    # Docker Compose merges volumes lists by mount-path; entries from
-    # the base file are kept. A separate refactor (Task 4b in the plan)
-    # moves dev-specific bind-mounts into docker-compose.override.yml
-    # so the base can run production-clean without them.
+    # Dev bind-mounts live in docker-compose.override.yml. The base compose is
+    # production-clean because Compose only auto-loads docker-compose.override.yml
+    # when no `-f` flag is used; this file is invoked via
+    # `docker compose -f docker-compose.yml -f infra/compose/docker-compose.vps.yml`
+    # which lists files explicitly and therefore does NOT auto-load the override.
 
   web:
     env_file:
@@ -23,8 +23,8 @@ services:
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: ${WEB_ORIGIN}
-    # Same caveat as api: bind-mounts from the base are still active
-    # in the merged config until Task 4b restructures the dev/prod split.
+    # Same as api: dev bind-mounts live in docker-compose.override.yml and are
+    # not auto-loaded in this production invocation.
 
   caddy:
     build: /opt/ai-padrao/repo/infra/caddy

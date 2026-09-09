@@ -15,6 +15,11 @@ WORKDIR /app
 COPY --from=deps /app ./
 COPY apps/web ./apps/web
 ENV NEXT_TELEMETRY_DISABLED=1
+# Build workspace packages first so dist/ is available before web compilation.
+# packages/contracts has main: "./dist/index.js", so without this step
+# `next build` fails to resolve @ai-padrao/contracts from web source.
+# Mirrors the same step in apps/api/Dockerfile.prod.
+RUN pnpm --filter @ai-padrao/contracts build
 RUN pnpm --filter @ai-padrao/web run build
 
 # Stage 3: runtime

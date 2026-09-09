@@ -21,7 +21,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: apps/api/Dockerfile
+      dockerfile: apps/api/Dockerfile.prod
     container_name: ai-padrao-api
     env_file: .env
     environment:
@@ -34,13 +34,16 @@ services:
         required: false
     ports:
       - "3001:3001"
-    # No bind-mounts: this image runs the compiled output from /app/apps/api/dist.
-    # Local-dev hot-reload mounts live in docker-compose.override.yml.
+    # Uses the pre-existing multi-stage apps/api/Dockerfile.prod (NODE_ENV=production,
+    # USER node, --frozen-lockfile, pnpm deploy --prod). No bind-mounts: the
+    # image runs the compiled output from /app/apps/api/dist. Local-dev hot-reload
+    # mounts live in docker-compose.override.yml, which auto-overrides this build
+    # with apps/api/Dockerfile.dev when `docker compose up` is run without `-f`.
 
   web:
     build:
       context: .
-      dockerfile: apps/web/Dockerfile
+      dockerfile: apps/web/Dockerfile.prod
     container_name: ai-padrao-web
     env_file: .env
     environment:
@@ -49,9 +52,11 @@ services:
       - api
     ports:
       - "3000:3000"
-    # No bind-mounts: this image serves the built Next.js output from
-    # /app/apps/web/.next. Local-dev hot-reload mounts live in
-    # docker-compose.override.yml.
+    # Uses the pre-existing multi-stage apps/web/Dockerfile.prod (Next.js standalone
+    # output, USER node). No bind-mounts: the image serves the built Next.js output
+    # from /app/apps/web/.next. Local-dev hot-reload mounts live in
+    # docker-compose.override.yml, which auto-overrides this build with
+    # apps/web/Dockerfile.dev when `docker compose up` is run without `-f`.
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.110.0
