@@ -9,6 +9,11 @@
     reverse_proxy web:3000
 }
 
+# BEGIN MAIL BLOCK — included in the rendered config only when
+# MAILHOG_SUBDOMAIN=true. The entrypoint script strips this block when the
+# flag is anything else (default: false). This prevents Caddy from trying to
+# obtain a Let's Encrypt cert for mail.{$DOMAIN} when no mail A record exists.
 mail.{$DOMAIN} {
     reverse_proxy mailhog:8025
 }
+# END MAIL BLOCK
