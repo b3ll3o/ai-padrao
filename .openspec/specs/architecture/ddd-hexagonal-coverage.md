@@ -1,38 +1,38 @@
-# Architecture specification delta
+# Delta de spec de arquitetura
 
-## ADDED Requirements
+## Requisitos ADICIONADOS
 
-### Requirement: Inward dependency direction
+### Requisito: Direção de dependência para dentro
 
-Both apps SHALL organize business capabilities as vertical contexts. Domain
-code SHALL NOT import frameworks or infrastructure, and application code SHALL
-depend on outbound capabilities through ports.
+Ambos os apps SHALL organizar capacidades de negócio como contextos verticais.
+Código de domínio SHALL NOT importar frameworks ou infrastructure, e código de
+aplicação SHALL depender de capacidades outbound através de ports.
 
-#### Scenario: API domain import validation
+#### Cenário: Validação de import de domínio da api
 
-- **WHEN** lint runs against an API domain or application file
-- **THEN** imports from NestJS, Fastify, Prisma, or infrastructure paths fail
+- **WHEN** o lint roda contra um arquivo de domínio ou aplicação da api
+- **THEN** imports de NestJS, Fastify, Prisma ou caminhos de infrastructure falham
 
-#### Scenario: Web domain import validation
+#### Cenário: Validação de import de domínio do web
 
-- **WHEN** lint runs against a web domain or application file
-- **THEN** imports from React, Next.js, browser APIs, or infrastructure paths fail
+- **WHEN** o lint roda contra um arquivo de domínio ou aplicação do web
+- **THEN** imports de React, Next.js, browser APIs ou caminhos de infrastructure falham
 
-### Requirement: Independent coverage gates
+### Requisito: Gates de cobertura independentes
 
-Each app SHALL enforce at least 80% statements, branches, functions, and lines.
+Cada app SHALL aplicar pelo menos 80% de statements, branches, functions e lines.
 
-#### Scenario: One metric is below 80%
+#### Cenário: Uma métrica está abaixo de 80%
 
-- **WHEN** an app's coverage command reports any metric below 80%
-- **THEN** that command and the aggregate root command fail
+- **WHEN** o comando de cobertura de um app reporta qualquer métrica abaixo de 80%
+- **THEN** esse comando e o comando raiz agregado falham
 
-#### Scenario: Both apps meet all thresholds
+#### Cenário: Ambos os apps atingem todos os thresholds
 
-- **WHEN** both app coverage commands report all four metrics at or above 80%
-- **THEN** the aggregate coverage command succeeds
+- **WHEN** ambos os comandos de cobertura de app reportam as quatro métricas iguais ou acima de 80%
+- **THEN** o comando de cobertura agregado sucede
 
-### Requirement: Contract preservation
+### Requisito: Preservação de contratos
 
-The migration SHALL preserve existing API routes, status codes, Zod contracts,
-cookie names, JWT claims, token rotation behavior, and web routes.
+A migração SHALL preservar rotas da API, status codes, contratos Zod, nomes de
+cookie, claims de JWT, comportamento de rotação de token e rotas web existentes.

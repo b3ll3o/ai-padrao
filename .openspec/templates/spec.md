@@ -1,22 +1,23 @@
-# Spec: <Area> — <Feature Name>
+# Spec: <Área> — <Nome da Feature>
 
-This spec describes the behavior of `<feature>` after the change is implemented.
+Esta spec descreve o comportamento de `<feature>` depois que a mudança
+for implementada.
 
-## Requirements
+## Requisitos
 
-The keywords **SHALL**, **SHOULD**, and **MAY** follow RFC 2119.
+As palavras-chave **SHALL**, **SHOULD** e **MAY** seguem a RFC 2119.
 
-### <Subsection>
+### <Subseção>
 
-- WHEN <condition>, THE system SHALL <behavior>.
-- WHEN <condition>, THE system SHOULD <behavior>.
-- THE system MAY <behavior> <under condition>.
+- WHEN <condição>, THE system SHALL <comportamento>.
+- WHEN <condição>, THE system SHOULD <comportamento>.
+- THE system MAY <comportamento> <sob condição>.
 
-## Examples
+## Exemplos
 
-### <Scenario>
+### <Cenário>
 
 ```
-<example input>
-<example output>
+<entrada de exemplo>
+<saída de exemplo>
 ```

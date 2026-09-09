@@ -1,34 +1,34 @@
-# Proposal: <Feature Name>
+# Proposta: <Nome da Feature>
 
-**Author:** <name or handle>
-**Date:** YYYY-MM-DD
-**Status:** Draft | Under Review | Approved | Rejected
+**Autor:** <nome ou handle>
+**Data:** YYYY-MM-DD
+**Status:** Rascunho | Em revisão | Aprovada | Rejeitada
 
-## Why
+## Por quê
 
-<What problem this solves. Who is affected. Why now.>
+<Que problema isto resolve. Quem é afetado. Por que agora.>
 
-## What changes
+## O que muda
 
-<Concrete bullet list of user-visible or system-visible effects.>
+<Lista em tópicos de efeitos visíveis ao usuário ou ao sistema.>
 
-## Impact
+## Impacto
 
-### Users
+### Usuários
 - ...
 
-### System
+### Sistema
 - ...
 
-### Other features
+### Outras features
 - ...
 
-## Out of scope
+## Fora do escopo
 
 - ...
 
-## Risks
+## Riscos
 
-| Risk | Mitigation |
-|------|------------|
-| ...  | ...        |
+| Risco | Mitigação |
+| ----- | --------- |
+| ...   | ...       |

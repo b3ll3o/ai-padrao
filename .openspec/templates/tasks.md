@@ -1,9 +1,9 @@
-# Tasks: <Feature Name>
+# Tarefas: <Nome da Feature>
 
-Reference: `proposal.md` in this folder.
+Referência: `proposal.md` nesta pasta.
 
-- [ ] 1. <Task description>
-      DoD: <Definition of Done — how we know this task is complete>
-- [ ] 2. <Task description>
+- [ ] 1. <Descrição da tarefa>
+      DoD: <Definition of Done — como sabemos que essa tarefa está pronta>
+- [ ] 2. <Descrição da tarefa>
       DoD: ...
 - [ ] 3. ...

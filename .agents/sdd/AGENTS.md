@@ -1,128 +1,155 @@
-# OpenSpec Workflow — Detailed Agent Guide
+# Workflow OpenSpec — Guia Detalhado para Agentes
 
-> **Canonical location:** `.agents/sdd/AGENTS.md`. The path
-> `.openspec/AGENTS.md` is a symlink into this folder for backward
-> compatibility — see [`.agents/README.md`](../README.md) for the full
-> AI tooling layout.
+> **Local canônico:** `.agents/sdd/AGENTS.md`. O caminho
+> `.openspec/AGENTS.md` é um symlink para esta pasta, mantido por
+> compatibilidade — veja [`.agents/README.md`](../README.md) para o
+> layout completo de tooling de IA.
 
-This file is the canonical reference for the SDD workflow enforced in this repo. AI agents and humans both follow it.
+Este arquivo é a referência canônica para o workflow SDD aplicado
+neste repo. Agentes de IA e humanos seguem o mesmo guia.
 
-## When to use OpenSpec
+## Quando usar OpenSpec
 
-**Use OpenSpec for:**
+**Use OpenSpec para:**
 
-- Any new feature (user-visible or internal)
-- Any change to existing behavior (endpoints, UI flows, business rules, data shape)
-- Any change to public contracts (API surface, database schema, shared types)
+- Qualquer feature nova (visível ao usuário ou interna)
+- Qualquer mudança de comportamento existente (endpoints, fluxos de
+  UI, regras de negócio, formato de dados)
+- Qualquer mudança em contratos públicos (superfície de API, schema
+  de banco, tipos compartilhados)
 
-**Do NOT use OpenSpec for:**
+**NÃO use OpenSpec para:**
 
-- Bug fixes where the spec already correctly describes the intended behavior (just fix the bug)
-- Cosmetic changes (typos, formatting, refactors with no behavior impact)
-- Dependency version bumps without behavior change
-- Documentation-only updates
+- Correções de bug cuja spec já descreve corretamente o comportamento
+  pretendido (apenas corrija o bug)
+- Mudanças cosméticas (typos, formatação, refactors sem impacto de
+  comportamento)
+- Bumps de versão de dependência sem mudança de comportamento
+- Atualizações apenas de documentação
 
-If unsure, **default to using OpenSpec** — the cost of an extra proposal is much lower than the cost of an unauthorized behavior change.
+Em caso de dúvida, **use OpenSpec por padrão** — o custo de uma
+proposta extra é muito menor que o custo de uma mudança de
+comportamento não autorizada.
 
-## The five steps
+## Os cinco passos
 
-### 1. Problem framing
+### 1. Enquadramento do problema
 
-Before opening a proposal, answer in one paragraph:
+Antes de abrir um proposal, responda em um parágrafo:
 
-- **What is the problem?** (User-facing symptom or internal gap)
-- **Who is affected?** (Which users / systems)
-- **Why now?** (Why this is the right time to fix it)
+- **Qual é o problema?** (Sintoma visível ao usuário ou gap interno)
+- **Quem é afetado?** (Quais usuários / sistemas)
+- **Por que agora?** (Por que esta é a hora certa de resolver)
 
 ### 2. Proposal
 
-Create `.openspec/changes/<feature-name>/` with these four files:
+Crie `.openspec/changes/<feature-name>/` com estes quatro arquivos:
 
 #### `proposal.md`
 
-Must contain these sections (in this order):
+Deve conter estas seções (nesta ordem):
 
-- **Why** — the problem and the value of solving it
-- **What changes** — concrete list of user-visible or system-visible effects
-- **Impact** — broken down by:
-  - Users (UX changes, new flows)
-  - System (new endpoints, new tables, new env vars)
-  - Other features (anything that depends on what's changing)
-- **Out of scope** — explicit list of what this proposal will NOT touch
-- **Risks** — at least one risk with its mitigation
+- **Por quê** — o problema e o valor de resolvê-lo
+- **O que muda** — lista concreta de efeitos visíveis ao usuário ou
+  ao sistema
+- **Impacto** — quebrado por:
+  - Usuários (mudanças de UX, novos fluxos)
+  - Sistema (novos endpoints, novas tabelas, novas env vars)
+  - Outras features (qualquer coisa que dependa do que está
+    mudando)
+- **Fora do escopo** — lista explícita do que este proposal NÃO vai
+  tocar
+- **Riscos** — pelo menos um risco com sua mitigação
 
 #### `tasks.md`
 
-Numbered, executable checklist. Each item MUST have a clear Definition of Done. Order tasks so each one is independently verifiable.
+Checklist numerado e executável. Cada item MUST ter uma Definition
+of Done clara. Ordene as tarefas de modo que cada uma seja
+independentemente verificável.
 
-Example:
+Exemplo:
 ```
-- [ ] 1. Add `Foo` model to Prisma schema
-      DoD: `prisma migrate dev` creates the table
-- [ ] 2. Implement `FooService.create()`
-      DoD: Unit test `foo.service.spec.ts` passes
+- [ ] 1. Adicionar o model `Foo` ao schema do Prisma
+      DoD: `prisma migrate dev` cria a tabela
+- [ ] 2. Implementar `FooService.create()`
+      DoD: Teste unit `foo.service.spec.ts` passa
 ```
 
 #### `design.md`
 
-Technical decisions that need explanation. Examples:
+Decisões técnicas que precisam de explicação. Exemplos:
 
-- Choice of library (and what was rejected)
-- Data shape decisions (why a JSON column vs a separate table)
-- Performance trade-offs
-- Security considerations
+- Escolha de biblioteca (e o que foi rejeitado)
+- Decisões de formato de dados (por que uma coluna JSON vs tabela
+  separada)
+- Trade-offs de performance
+- Considerações de segurança
 
-Skip `design.md` only if the proposal is so small that there's nothing to explain (e.g., adding a single endpoint).
+Pule `design.md` apenas se a proposal for tão pequena que não há
+nada para explicar (ex.: adicionar um único endpoint).
 
 #### `specs/<area>/spec.md`
 
-A delta document using **SHALL/SHOULD/MAY** (RFC 2119). Each requirement is one line:
+Um documento de delta usando **SHALL/SHOULD/MAY** (RFC 2119). Cada
+requisito é uma linha:
 
 ```
-WHEN a user requests password reset,
-THE system SHALL send an email containing a unique link valid for 1 hour,
-AND the link SHALL expire after first use.
+WHEN um usuário pede reset de senha,
+THE system SHALL enviar um e-mail contendo um link único válido por 1 hora,
+AND o link SHALL expirar após o primeiro uso.
 ```
 
-Keep it short, testable, unambiguous.
+Mantenha curto, testável e inequívoco.
 
-### 3. Review
+### 3. Revisão
 
-The proposal is **NOT** approved until a human explicitly says so. AI agents MUST wait for this approval before any code change.
+A proposal NÃO está aprovada até que um humano diga explicitamente
+que sim. Agentes de IA MUST esperar essa aprovação antes de qualquer
+mudança de código.
 
 ### 4. Build
 
-While implementing tasks, keep documentation discipline: JSDoc for reference work, ADR cross-links in `@remarks` for non-obvious decisions, BC README updates for new bounded contexts, runbooks for infra changes. Reviewers check this by hand.
+Durante a implementação das tarefas, mantenha disciplina de
+documentação: JSDoc para trabalho de referência, cross-links de
+ADR em `@remarks` para decisões não-óbvias, READMEs de BC
+atualizados para novos bounded contexts, runbooks para mudanças de
+infra. Revisores checam isso à mão.
 
-Execute the tasks in order. Each task = one commit (Conventional Commits format):
+Execute as tarefas em ordem. Cada tarefa = um commit (formato
+Conventional Commits):
 
 ```
-feat(api): task 1 - add PasswordResetToken model
-feat(api): task 2 - generate migration
-feat(api): task 3 - add Zod schemas for password reset
+feat(api): tarefa 1 - adicionar model PasswordResetToken
+feat(api): tarefa 2 - gerar migration
+feat(api): tarefa 3 - adicionar schemas Zod para reset de senha
 ```
 
-Reference the task number in the commit body so reviewers can map commits → checklist.
+Referencie o número da tarefa no corpo do commit para que
+revisores possam mapear commits → checklist.
 
-### 5. Archive
+### 5. Arquivamento
 
-After the PR is merged:
+Depois que o PR for merged:
 
-1. Move `.openspec/changes/<feature-name>/specs/<area>/spec.md` to `.openspec/specs/<area>/<feature-name>.md`
-2. Add a brief entry to `.openspec/CHANGELOG.md` (date, feature, author)
-3. Delete the rest of the change folder
+1. Mova `.openspec/changes/<feature-name>/specs/<area>/spec.md`
+   para `.openspec/specs/<area>/<feature-name>.md`
+2. Adicione uma entrada resumida em `.openspec/CHANGELOG.md`
+   (data, feature, autor)
+3. Apague o restante da pasta de change
 
-Git preserves history. The archived spec becomes the new source of truth for that feature.
+Git preserva histórico. A spec arquivada vira a nova fonte da
+verdade daquela feature.
 
 ## Templates
 
-See [`.openspec/templates/`](templates/) for starter files.
+Veja [`.openspec/templates/`](templates/) para arquivos iniciais.
 
-## Working in derived projects
+## Trabalhando em projetos derivados
 
-When you clone this repo to start a new project:
+Quando você clonar este repo para começar um novo projeto:
 
-1. Update `package.json` → `name`, `description`, `version`
-2. Update `.env.example` → secrets, project name
-3. Update `README.md` → project name + quickstart
-4. **Keep `.agents/` and `.openspec/` intact** — they are the rule, not the content
+1. Atualize `package.json` → `name`, `description`, `version`
+2. Atualize `.env.example` → segredos, nome do projeto
+3. Atualize `README.md` → nome do projeto + quickstart
+4. **Mantenha `.agents/` e `.openspec/` intactos** — eles são a
+   regra, não o conteúdo
