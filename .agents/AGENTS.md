@@ -73,8 +73,9 @@ nesta ordem:
    **não fazer**, em qualquer situação.
 2. [§5 Idioma padrão](REGRAS.md#5-idioma-padrao-pt-br) — toda prosa do
    projeto é pt-br; exceções técnicas listadas.
-3. [§8 Sem testes pulados](REGRAS.md#8-sem-testes-pulados) — tolerância
-   zero a `.skip`/`xit`/etc.
+3. [§9 Pirâmide de testes obrigatória](REGRAS.md#9-piramide-de-testes-obrigatoria) —
+   80% unit + integração + e2e para todo fluxo. Tolerância zero a
+   `.skip`/`xit`/etc. (também §8).
 
 Para implementar uma change OpenSpec aprovada (ou um plano
 `docs/superpowers/plans/<plan>.md`), leia também:

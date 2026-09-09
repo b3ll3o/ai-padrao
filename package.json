@@ -20,7 +20,10 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:integration": "turbo run test:integration",
+    "test:e2e": "turbo run test:e2e",
     "test:coverage": "pnpm --filter @ai-padrao/api test:coverage && pnpm --filter @ai-padrao/web test:coverage",
+    "test:all": "pnpm test && pnpm test:integration && pnpm test:e2e",
     "postmerge:install": "git config core.hooksPath .githooks",
     "clean": "turbo run clean && rm -rf node_modules"
   },

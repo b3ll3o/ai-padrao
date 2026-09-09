@@ -17,7 +17,8 @@
 6. [Stack técnico](#6-stack-tecnico)
 7. [Arquitetura (DDD + Hexagonal) e cobertura](#7-arquitetura-ddd--hexagonal-e-cobertura)
 8. [Sem testes pulados](#8-sem-testes-pulados)
-9. [Sem secrets em texto puro](#9-sem-secrets-em-texto-puro)
+9. [Pirâmide de testes obrigatória (80% unit + integração + e2e)](#9-piramide-de-testes-obrigatoria)
+10. [Sem secrets em texto puro](#10-sem-secrets-em-texto-puro)
 
 ---
 
@@ -293,7 +294,147 @@ Code reviewers e CI DEVEM varrer todo `*.spec.ts`, `*.test.ts`,
 `*.spec.tsx`, `*.test.tsx` e `package.json` em busca dos padrões acima e
 falhar o build quando qualquer um for encontrado.
 
-## 9. Sem secrets em texto puro
+## 9. Pirâmide de testes obrigatória (80% unit + integração + e2e)
+
+Esta seção é a versão canônica, curta e operacional, do que
+[§7](#7-arquitetura-ddd--hexagonal-e-cobertura) já esboça sobre cobertura.
+Os apps DEVEM aplicar a pirâmide de testes completa a **todo fluxo de
+negócio** (use case, rota HTTP, feature slice, mutation de UI). Testes
+unitários não bastam.
+
+### 9.1 Definição de fluxo
+
+Um **fluxo** é qualquer caminho ponta-a-ponta que altera estado, expõe um
+contrato novo ou exerce uma regra de negócio não-trivial. Concretamente:
+
+- API: cada par `(rota HTTP, status esperado)` que implementa um caso de
+  uso. Exemplos: `POST /api/auth/register`, `GET /api/users`,
+  `POST /api/auth/refresh`.
+- Web: cada jornada Server Component ou Client Component que realiza uma
+  mutation ou carrega dados não-triviais via `ky`/`fetch`. Exemplos:
+  fluxo de login, listagem de usuários, logout.
+- Regras de negócio com efeito colateral (jobs, eventos de domínio,
+  integrações com filas) também contam como fluxo, mesmo sem rota HTTP.
+
+### 9.2 Os três níveis obrigatórios
+
+| Nível         | O que cobre                                                              | Localização                                       | Regra   |
+| ------------- | ------------------------------------------------------------------------ | ------------------------------------------------- | ------- |
+| **Unit**      | Domain puro + casos de uso com ports em memória/fakes                    | `*.spec.ts` colado ao código (`src/**/__tests__`)  | §7 + §9.3 |
+| **Integração** | Adapters outbound com dependência real (Postgres, Redis, HTTP, filas)   | `*.integration-spec.ts` em `src/**` ou `test/`    | §9.4    |
+| **e2e**       | API HTTP completa (Supertest + Nest injector) ou browser real (Playwright) | `*.e2e-spec.ts` em `test/` da app                 | §9.5    |
+
+Mocks manuais (ex.: `jest.fn()`) só são aceitos em testes unitários.
+Adapters que tocam banco, fila ou serviço externo DEVEM ser exercidos
+contra a dependência real em algum teste de integração — não adianta
+mockar Prisma para um repositório e nunca ver a query SQL rodar.
+
+### 9.3 Regra de cobertura unitária (mínimo 80%)
+
+Cada app DEVE manter, de forma independente, **no mínimo 80%** em cada
+métrica de cobertura:
+
+- statements: 80%
+- branches: 80%
+- functions: 80%
+- lines: 80%
+
+CI e o comando `pnpm test:coverage` DEVEM falhar se qualquer uma dessas
+métricas em qualquer app estiver abaixo de 80%. Um app ou workspace NÃO
+compensa shortfall do outro. Não baixe thresholds, não exclua código de
+negócio da cobertura, não adicione diretivas `/* istanbul ignore */`
+para fazer o gate passar, nem escreva testes sem assertiva.
+
+Exclusões de cobertura se limitam a código gerado, declaration files,
+configuração declarativa e composition roots que contenham apenas fiação
+de dependência. Lógica de negócio, controllers, casos de uso, adapters,
+ramos de erro, modelos de domínio, formulários e componentes
+comportamentais NÃO PODEM ser excluídos para bater o threshold. Cada
+exclusão precisa ser explícita e justificada ao lado da configuração de
+cobertura.
+
+### 9.4 Regra de teste de integração (todo fluxo com efeito colateral)
+
+**Todo fluxo que toca dependência externa real (banco, fila, cache,
+serviço HTTP terceiro) DEVE ter pelo menos um teste de integração que
+exerça essa dependência real.** Esta regra existe porque mocks manuais
+não pegam SQL mal-formado, índices faltando, constraints de schema, drift
+de tipo entre Prisma client e banco, problemas de conexão/timeout, ou
+concorrência transacional.
+
+- Localização: `*.integration-spec.ts` em `src/**` (colado ao adapter)
+  ou `test/integration/` (cross-cutting).
+- Como rodar: `pnpm --filter <app> test:integration`.
+- Para Postgres: use **Testcontainers** (`testcontainers` package)
+  orquestrado em `globalSetup`, ou um Postgres descartável criado pelo
+  `docker-compose.test.yml`. A `DATABASE_URL` de teste aponta para esse
+  banco descartável — nunca para o banco de dev.
+- Migrations são aplicadas no setup (`prisma migrate deploy` ou
+  `prisma db push`) antes dos testes rodarem.
+- Cada teste é responsável por seu próprio rollback (transação
+  envolvendo o teste, ou truncamento de tabelas entre testes). Não
+  confie em ordem de execução.
+- Adapters HTTP externos: use `msw` (Mock Service Worker) em modo
+  servidor para exercitar o cliente contra handlers HTTP realistas;
+  `nock` é aceito como alternativa.
+- Filas/Redis: use `Testcontainers Redis` ou um `ioredis-mock` apenas
+  se o adapter já estiver coberto por um teste de integração contra
+  Redis real em outro nível.
+
+### 9.5 Regra de teste e2e (todo fluxo HTTP/UI)
+
+**Todo fluxo que expõe um contrato HTTP (api) ou uma jornada do usuário
+(web) DEVE ter pelo menos um teste e2e.** O objetivo do e2e é provar que
+o sistema inteiro se comporta como esperado ponta-a-ponta: bootstrap do
+Nest, pipes/guards globais, exception filter, persistência, contratos.
+
+- API: `*.e2e-spec.ts` em `apps/api/test/`, executado via
+  `pnpm --filter @ai-padrao/api test:e2e` (Jest + Supertest contra o
+  injector do Fastify). Config em `apps/api/test/jest-e2e.json`.
+- Web: `*.e2e-spec.tsx` em `apps/web/e2e/` ou `apps/web/test/e2e/`,
+  executado via `pnpm --filter @ai-padrao/web test:e2e` (Playwright ou
+  similar). O caminho do navegador DEVE incluir o fluxo de login
+  sempre que a página testada exigir sessão.
+- O setup do e2e (variáveis de ambiente, migrations) vive em
+  `apps/<app>/test/setup.ts` e `apps/<app>/test/jest-e2e.json`.
+- Cada e2e cobre **um fluxo crítico**: pelo menos um caso feliz + um
+  caso de erro esperado (validação, auth, conflito). Cenários
+  puramente unitários NÃO devem virar e2e — use o nível certo.
+- Não stub nada em e2e. Banco, fila e serviços externos rodam de
+  verdade (descartáveis via Testcontainers/docker-compose.test).
+- Não invente dados mágicos — use factories com timestamps únicos
+  (ex.: `\`test-\${Date.now()}-\${rand}@example.com\``) para evitar
+  colisão entre execuções.
+
+### 9.6 Comandos canônicos por app
+
+| Comando                            | Roda                                                          |
+| ---------------------------------- | ------------------------------------------------------------- |
+| `pnpm test`                        | suite unit (Jest para api, Vitest para web)                   |
+| `pnpm test:integration`            | suite integration (Testcontainers Postgres/Redis, msw)        |
+| `pnpm test:e2e`                    | suite e2e (Supertest na api, Playwright no web)               |
+| `pnpm test:coverage`               | unit + mede cobertura com gate ≥80%                           |
+| `pnpm test:all`                    | unit + integration + e2e em sequência (CI usa este)           |
+
+`pnpm test:all` é o que CI invoca por padrão. PRs DEVEM manter este
+comando verde local antes de pedir review.
+
+### 9.7 Aplicação
+
+Code reviewers e CI DEVEM:
+
+1. Falhar o PR se um novo fluxo não trouxer testes nos três níveis
+   quando aplicável (use case novo ⇒ unit; adapter novo ⇒ integration;
+   rota nova ⇒ e2e).
+2. Falhar o PR se algum teste estiver pulado — [§8](#8-sem-testes-pulados)
+   prevalece.
+3. Falhar o PR se a cobertura cair abaixo de 80% em qualquer métrica.
+
+A regra de ouro: **se um teste passa com tudo mockado, ainda falta o
+teste de integração. Se um teste mocka banco/fila/HTTP em e2e, está
+errado.**
+
+## 10. Sem secrets em texto puro
 
 `~/.claude/settings.json` desta máquina carrega um `ANTHROPIC_AUTH_TOKEN`
 (`sk-cp-…`) e um `GITHUB_PERSONAL_ACCESS_TOKEN` (`github_pat_…`) em texto
