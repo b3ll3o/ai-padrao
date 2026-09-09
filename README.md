@@ -32,7 +32,7 @@ Abra:
 | App web     | <http://localhost:3000>      |
 | API         | <http://localhost:3001>      |
 | Swagger UI  | <http://localhost:3001/docs> |
-| MailHog UI  | <http://localhost:18025>     |
+| MailHog UI  | <http://localhost:18025> (requer `pnpm up:tools`) |
 
 Usuário seed padrão: `admin@ai-padrao.local` / `admin123`.
 
@@ -47,7 +47,7 @@ Usuário seed padrão: `admin@ai-padrao.local` / `admin123`.
 | Banco           | PostgreSQL 16                                                                |
 | Observabilidade | SDK OpenTelemetry + OTel Collector                                           |
 | E-mail (dev)    | MailHog (portas do host `11025` / `18025` para evitar colisão entre projetos) |
-| Container       | `docker-compose.yml` com 5 serviços (postgres, api, web, mailhog, otel-collector) |
+| Container       | `docker-compose.yml` com 3 serviços base (postgres, api, web) + `mailhog` + `otel-collector` opt-in via `--profile dev-tools` |
 | Editor          | Visual Studio Code (configuração do workspace em `.vscode/`)                 |
 
 ## Arquitetura

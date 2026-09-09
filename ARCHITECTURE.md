@@ -32,9 +32,12 @@ decisões específicas veja [`docs/decisions/`](docs/decisions/).
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-O dev local roda tudo em `docker-compose.yml`. Produção tira os
-containers `mailhog` e `otel-collector` e aponta api/web para
-equivalentes gerenciados.
+O dev local roda `docker compose up -d` para `postgres + api + web`.
+Para incluir os containers de tooling (`mailhog` e `otel-collector`),
+use `docker compose --profile dev-tools up -d` (atalho `pnpm up:tools`).
+Em produção os mesmos serviços de tooling ficam sob o mesmo profile
+(`infra/compose/docker-compose.vps.yml`), e api/web apontam para
+equivalentes gerenciados quando aplicável.
 
 ## 2. Forma do monorepo
 

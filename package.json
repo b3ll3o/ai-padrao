@@ -10,6 +10,7 @@
   },
   "scripts": {
     "up": "docker compose up -d",
+    "up:tools": "docker compose --profile dev-tools up -d",
     "down": "docker compose down",
     "logs": "docker compose logs -f",
     "db:migrate": "docker compose exec api pnpm --filter @ai-padrao/api prisma:migrate-dev",

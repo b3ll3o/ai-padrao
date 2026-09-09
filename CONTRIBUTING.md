@@ -11,7 +11,8 @@ Requer:
 
 - Node 22+ (`.nvmrc` / `engines.node` em `package.json`)
 - pnpm 9 (`corepack enable` ativa a versão fixada)
-- Docker + Docker Compose (para `postgres`, `mailhog`, `otel-collector`)
+- Docker + Docker Compose v2.20+ (para `postgres`, `api`, `web`;
+  `mailhog` e `otel-collector` são opt-in via `--profile dev-tools`)
 - Visual Studio Code (recomendado; configuração do workspace em
   `.vscode/`)
 
@@ -23,7 +24,8 @@ cd my-project
 corepack enable
 pnpm install
 cp .env.example .env
-pnpm up           # sobe postgres + mailhog + otel-collector
+pnpm up           # sobe postgres + api + web
+pnpm up:tools     # idem + mailhog + otel-collector (--profile dev-tools)
 pnpm db:migrate
 pnpm db:seed      # cria admin@ai-padrao.local / admin123
 pnpm dev          # turbo roda api + web em paralelo com hot-reload

@@ -39,7 +39,8 @@ Todos os comandos rodam da raiz do repo salvo indicação. Definidos em
 [`package.json`](package.json).
 
 ```bash
-pnpm up               # docker compose up -d (postgres + mailhog)
+pnpm up               # docker compose up -d (postgres + api + web)
+pnpm up:tools         # idem + mailhog + otel-collector (--profile dev-tools)
 pnpm down             # docker compose down
 pnpm logs             # docker compose logs -f
 pnpm db:migrate       # prisma migrate dev (dentro do container da api)
