@@ -98,7 +98,8 @@ correspondente antes do merge.
 
 | Comando           | O que faz                                |
 | ----------------- | ---------------------------------------- |
-| `pnpm up`         | Sobe todos os serviços Docker            |
+| `pnpm up`         | Sobe postgres + api + web                |
+| `pnpm up:tools`   | Sobe idem + mailhog + otel-collector (`--profile dev-tools`) |
 | `pnpm down`       | Para todos os serviços                   |
 | `pnpm logs`       | Tail dos logs de todos os serviços       |
 | `pnpm db:migrate` | Aplica migrations Prisma (no container da api) |

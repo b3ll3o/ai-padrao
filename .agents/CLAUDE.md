@@ -76,7 +76,7 @@ Para rodar um único teste (de qualquer pacote):
 ├── .openspec/        Fluxo SDD (proposal → approval → build → archive).
 ├── .githooks/        Gates locais de pre-push + post-merge.
 ├── infra/            Dockerfiles, compose, config do OTel Collector.
-└── docker-compose.yml  Postgres + MailHog + OTel Collector para dev local.
+└── docker-compose.yml  Postgres + api + web (mailhog/otel sob `--profile dev-tools`).
 ```
 
 **Fluxo de requisição (web → api):** Server Component / Route Handler

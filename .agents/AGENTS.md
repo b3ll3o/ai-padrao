@@ -29,7 +29,8 @@ As regras locais abaixo complementam (e nunca enfraquecem) o livro raiz:
 ## Comandos comuns
 
 ```bash
-pnpm up               # sobe todos os serviços Docker
+pnpm up               # sobe postgres + api + web
+pnpm up:tools         # idem + mailhog + otel-collector (--profile dev-tools)
 pnpm down             # para os serviços
 pnpm logs             # tail dos logs
 pnpm db:migrate       # aplica migrations Prisma (no container da api)

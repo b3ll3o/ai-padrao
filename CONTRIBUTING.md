@@ -25,11 +25,13 @@ corepack enable
 pnpm install
 cp .env.example .env
 pnpm up           # sobe postgres + api + web
-pnpm up:tools     # idem + mailhog + otel-collector (--profile dev-tools)
 pnpm db:migrate
 pnpm db:seed      # cria admin@ai-padrao.local / admin123
 pnpm dev          # turbo roda api + web em paralelo com hot-reload
 ```
+
+Para incluir `mailhog` e `otel-collector` no ambiente local, use
+`pnpm up:tools` no lugar de `pnpm up` (ativa o `--profile dev-tools`).
 
 Se o `pnpm install` reclamar de peer deps, veja ADR-001 no
 [índice de decisões](docs/decisions/README.md) antes de adicionar

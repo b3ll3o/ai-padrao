@@ -36,8 +36,9 @@ O dev local roda `docker compose up -d` para `postgres + api + web`.
 Para incluir os containers de tooling (`mailhog` e `otel-collector`),
 use `docker compose --profile dev-tools up -d` (atalho `pnpm up:tools`).
 Em produção os mesmos serviços de tooling ficam sob o mesmo profile
-(`infra/compose/docker-compose.vps.yml`), e api/web apontam para
-equivalentes gerenciados quando aplicável.
+(override separado do `docker-compose.yml` da raiz; criado em task
+posterior deste plano), e api/web apontam para equivalentes
+gerenciados quando aplicável.
 
 ## 2. Forma do monorepo
 
@@ -170,9 +171,14 @@ de correlação (interceptor request-id); cada chamada Prisma é
 traced; cada linha de log carrega os mesmos ids de trace + span.
 
 Em dev, os traces exportam para o container `otel-collector` via
-OTLP (gRPC :4317). O collector faz fan-out para o backend que o
-time usa (Jaeger, Tempo, Honeycomb). A taxa de sampling é
-configurada por ambiente via `OTEL_TRACES_SAMPLER_ARG`.
+OTLP (gRPC :4317) **apenas quando ele está rodando** (suba a stack
+de tooling com `pnpm up:tools` ou `docker compose --profile
+dev-tools up -d`). Por padrão `OTEL_SDK_DISABLED=true` silencia o
+exporter contra o collector ausente quando só `pnpm up` está
+ativo — para inspecionar traces locais, flip para `false` em
+`.env`. O collector faz fan-out para o backend que o time usa
+(Jaeger, Tempo, Honeycomb). A taxa de sampling é configurada por
+ambiente via `OTEL_TRACES_SAMPLER_ARG`.
 
 Pino é o transporte de log. `console.*` é proibido em
 `apps/api/src/main.ts` (ADR-006). Todo outro módulo usa o
