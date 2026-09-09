@@ -1,0 +1,14 @@
+{$DOMAIN} {
+    encode gzip zstd
+    # Block requests for sensitive paths at the proxy layer.
+    # Returns 404 instead of leaking that the files exist.
+    @blocked path /.env /.git/* /admin/* /.dockerignore /.openspec/* /Dockerfile*
+    respond @blocked 404
+
+    reverse_proxy /api/* api:3001
+    reverse_proxy web:3000
+}
+
+mail.{$DOMAIN} {
+    reverse_proxy mailhog:8025
+}
