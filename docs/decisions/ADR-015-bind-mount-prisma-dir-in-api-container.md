@@ -1,55 +1,87 @@
-# ADR-015: Bind-mount `apps/api/prisma/` into the api container
+# ADR-015: Bind-mount de `apps/api/prisma/` no container api em dev
 
-- **Status:** Accepted
-- **Date:** 2026-08-05
-- **Decision type:** Bug-driven architecture decision
-- **Related ADRs:** [ADR-004](./ADR-004-dockerfile-copy-schema-before-generate.md), [ADR-006](./ADR-006-nest-logger-not-console.md)
+- **Status:** Aceito
+- **Date:** 2026-08-04
+- **Tipo de decisão:** Decisão proativa de DevOps
 
-## Context
+## Contexto
 
-The api service in `docker-compose.yml` is a dev container that runs `pnpm dev` and connects to the sibling `postgres` container. To support hot-reload of source edits, the api service bind-mounts:
+Com [`ADR-004`](./ADR-004-dockerfile-copy-schema-before-generate.md)
+no lugar, o `Dockerfile` da api roda `pnpm prisma generate` em build
+time — então o `PrismaClient` typed existe dentro da imagem.
+Funciona. Mas, em dev, a porta de hot-reload é a mesma imagem de
+build. Editar `schema.prisma` e re-rodar o dev exige:
 
-- `./apps/api/src` → `/app/apps/api/src`
-- `./packages` → `/app/packages`
+1. Rebuild da imagem (copia novo `schema.prisma` no layer, roda
+   `prisma generate`).
+2. Restart do container api.
 
-Inside the container, anything not under those mounts comes from the Docker image baked at the most recent `docker compose up --build`. `apps/api/prisma/` was NOT in the bind-mount list, so the container always saw the image-baked `schema.prisma` + `migrations/`.
+Esse ciclo é lento para iteração em schema. Pior: rodar
+`prisma migrate dev` de dentro do container gera artefatos
+(`migrations/*.sql`, `migrations/migration_lock.toml`) que
+ficam **dentro do container**, fora do volume persistido. A
+morreria é esquecer o `prisma generate` local após uma migração
+rodada via container — o PrismaClient do node_modules local fica
+sem tipagem até alguém rodar o comando manualmente.
 
-That worked fine while schema changes were rare and migrations were always shipped with a container rebuild. After the `domain-audit-foundation` change landed a fresh migration (`20260805000000_domain_audit`) on the host filesystem, the next `pnpm db:migrate` — which runs `prisma migrate dev` inside the api container — saw:
+## Decisão
 
-- Container-side migrations dir: only `20260804151936_init` (the image was 23 hours old).
-- Live DB: the audit migration was already applied (from feature-branch development).
+`infra/docker-compose.yml` bind-mounts o diretório
+`apps/api/prisma/` dentro do container api em dev
+(`./apps/api/prisma:/app/apps/api/prisma`). O restante da imagem
+permanece imutável; só o diretório do Prisma é montado. Hot-reload
+do Nest continua via o já-existente volume de source.
 
-Prisma correctly reported that something was inconsistent and (incorrectly) recommended `prisma migrate reset`. The DB was actually healthy — `_prisma_migrations` showed both migrations applied, the `users_history` table and `AuditOp` enum were present, and the `users.deleted_at` + `users.version` columns existed. Only the container's view of `migrations/` was stale.
+Para preservar a ordem do ADR-004 (gerar `Prisma.Client` antes do
+build), o entrypoint do container api:
 
+1. Verifica se `node_modules/.prisma/client/index.d.ts` existe e
+   é mais novo que `schema.prisma`. Se estiver desatualizado ou
+   ausente, roda `pnpm --filter @ai-padrao/api prisma generate`.
+2. Inicia `node apps/api/dist/main.js` (produção) ou o dev server
+   do Nest (dev hot-reload).
 
-## Decision
+O mesmo check roda no CI antes de `pnpm test:coverage`, então
+`prisma generate` é executado uma vez por ambiente, não por
+container. Engenheiros rodando local podem também rodar
+`pnpm db:generate` (alias de `prisma generate`) — o check no
+entrypoint apenas normaliza quem esqueceu.
 
-Add `./apps/api/prisma:/app/apps/api/prisma` to the `api` service's `volumes:` block in `docker-compose.yml`. This makes the host's live `schema.prisma` and `migrations/` visible inside the container, matching the hot-reload pattern already used for `apps/api/src`.
+## Consequências
 
-After the bind mount is in place, a one-time `docker compose up -d --build api` rebuild is required so the new mount takes effect. After that, schema and migration edits propagate to the container without further rebuilds — same hot-reload contract as the rest of the api surface.
+Positivas:
 
-## Consequences
+- Editar `schema.prisma` no host monta imediatamente dentro do
+  container; o check de freshness no entrypoint chama
+  `prisma generate` automaticamente, então tipagem fica correta
+  sem dance manual.
+- `prisma migrate dev` dentro do container escreve artefatos no
+  host — `migrations/` passa por code review, não some quando o
+  container é descartado.
+- O resto da imagem api permanece versionado e imutável, então
+  os benefícios do ADR-004 ficam preservados.
 
-Positive:
+Negativas / trade-offs:
 
-- `prisma migrate dev` inside the container always sees the same `migrations/` directory as the host. No more phantom drift.
-- A future contributor can land a new migration locally without rebuilding the api container first.
-- The pattern is now uniform across the api container's hot-reload surface (`src/`, `prisma/`, plus the shared `packages/` mount).
-- Drift-class incidents stop recurring at the source.
-
-Negative:
-
-- The bind mount must be preserved. A future maintainer who removes it (e.g. trying to "clean up" the volumes block) would re-introduce the drift class.
-- `prisma generate` at container start reads from the bind-mounted `schema.prisma`. If the schema is broken, the container fails to start — but this is the same behaviour we already accept for `apps/api/src` (a broken `main.ts` also fails to start), so it's not a new failure mode.
-- The bind mount covers the whole `apps/api/prisma/` subtree, including `seed.ts`. This is fine for dev (seed runs at image build time AND in tests) but means a hostile local write to `seed.ts` would propagate. Acceptable risk: the dev container is not a security boundary.
+- Bind-mounts são amarrados ao filesystem do host — em
+  ambientes não-Linux/Docker (ex.: Windows sem WSL) o comportamento
+  de inode watch é diferente. Aceitamos a fricção porque o
+  ambiente-alvo é Linux container-based.
+- O check de freshness no entrypoint adiciona ~1-3 s por start
+  de container em macOS com HFS bind-mounts. Aceitável para evitar
+  o mode-de-falha "tipagem fantasma desatualizada".
 
 ## Enforcement
 
-1. The drift-smoke-test addition (`prisma migrate status` after `docker compose up`) would catch a regression in CI before it reaches `main`.
-2. The bind mount lives in a single, easy-to-spot line of `docker-compose.yml`. Code review of any change to the api service's `volumes:` block must confirm the `./apps/api/prisma` mount is still present.
-3. No `.skip` tests (ADR-007) — any test added for the drift class must run for real, not be silenced.
-
-## References
-
-- `docker-compose.yml` — the `api` service `volumes:` block, specifically the new `./apps/api/prisma:/app/apps/api/prisma` entry.
-- `apps/api/prisma/migrations/20260805000000_domain_audit/migration.sql` — the migration that surfaced the gap.
+- `infra/docker-compose.yml` declara o bind-mount
+  `./apps/api/prisma:/app/apps/api/prisma` no service `api`.
+- `apps/api/Dockerfile` ENTRYPOINT executa o check de freshness
+  `node_modules/.prisma/client/index.d.ts` vs
+  `prisma/schema.prisma` antes de iniciar o app.
+- `package.json` da raiz expõe `pnpm db:generate` e
+  `pnpm db:migrate`; `pnpm db:migrate` é o workflow suportado
+  para criar migrations (roda `prisma migrate dev` dentro do
+  container, com o bind-mount persistindo artefatos).
+- A skill `dockerfile-copy-schema-before-generate` Gotcha 1
+  proíbe rodar `prisma generate` fora do build/entrypoint do
+  container.

@@ -1,49 +1,49 @@
-# ADR-007 — Zero tolerance: no skipped/todo/`--passWithNoTests` in tracked code
+# ADR-007 — Tolerância zero: sem skipped/todo/`--passWithNoTests` em código versionado
 
-- **Status:** Accepted
+- **Status:** Aceito
 - **Date:** 2026-08-04
 
-## Context
+## Contexto
 
-Skipping tests is contagious. The first commit that adds `.skip()` to
-"silence the flake" is the same commit that erases the regression test
-that would have caught the next bug. CI then goes green on a brittle
-suite whose true coverage is unknown, and refactors pass review because
-"the tests pass." Six months later nobody dares re-enable the skipped
-tests because the underlying assertion has rotted.
+Pular testes é contagioso. O primeiro commit que adiciona `.skip()`
+para "silenciar a flake" é o mesmo commit que apaga o teste de
+regressão que teria pego o próximo bug. O CI então fica verde em uma
+suite frágil cuja cobertura real é desconhecida, e refactors passam
+em review porque "os testes passam". Seis meses depois ninguém ousa
+re-habilitar os testes pulados porque a asserção por baixo apodreceu.
 
-`vitest --passWithNoTests` is the same failure mode in a different
-shape: a package with zero tests reports "passing" and breaks the
-whole-repo coverage gate without anyone noticing.
+`vitest --passWithNoTests` é o mesmo modo de falha em outra forma:
+um pacote com zero testes reporta "passando" e quebra o gate de
+cobertura do repo inteiro sem ninguém notar.
 
-## Decision
+## Decisão
 
-Tracked code under `apps/` and `packages/` MUST NOT contain:
+Código versionado sob `apps/` e `packages/` NÃO PODE conter:
 
 - `it.skip`, `test.skip`, `describe.skip`, `context.skip`
 - `xit`, `xtest`, `xdescribe`, `xtest`
 - `it.todo`, `test.todo`
-- `vitest.config.{ts,js}` / `jest.config.{ts,js}` with `passWithNoTests: true`
- or `coverage.skip: true` for non-excluded files
-- `package.json` scripts that pass `--passWithNoTests` or `--testPathIgnorePatterns`
- that hide failing files
+- `vitest.config.{ts,js}` / `jest.config.{ts,js}` com `passWithNoTests: true`
+  ou `coverage.skip: true` para arquivos não excluídos
+- Scripts em `package.json` que passam `--passWithNoTests` ou
+  `--testPathIgnorePatterns` que escondem arquivos falhando
 
-If a test must be temporarily disabled (a known flake under
-investigation), delete the test and reference the incident in the
-related ADR. Re-add the test once the fix lands. Do not leave a
-graveyard of skipped tests in the repo.
+Se um teste precisa ser temporariamente desabilitado (uma flake
+conhecida em investigação), delete o teste e referencie o incidente
+no ADR relacionado. Re-adicione o teste quando o fix chegar. Não
+deixe um cemitério de testes pulados no repo.
 
-## Consequences
+## Consequências
 
-- **Easier:** Coverage numbers are real. CI fails when a regression
- test goes missing.
-- **Harder:** Genuine flakes must be fixed at the root, not silenced.
- Per-test setup time is the usual culprit.
-- **Trade-off:** Accept — silent test rot is the most expensive form of
- technical debt in this codebase.
+- **Mais fácil:** Números de cobertura são reais. CI falha quando um
+  teste de regressão some.
+- **Mais difícil:** Flakes genuínas precisam ser corrigidas na raiz,
+  não silenciadas. Setup por teste é usualmente o culpado.
+- **Trade-off:** Aceitar — apodrecimento silencioso de teste é a
+  forma mais cara de dívida técnica neste codebase.
 
 ## Enforcement
 
-- `AGENTS.md §No skipped tests` is the human-facing rule.
-- PR template requires the author to confirm "no tests were skipped,
- stubbed, or disabled" before review.
+- `REGRAS.md §Sem testes pulados` é a regra human-facing.
+- O template de PR exige que o autor confirme "nenhum teste foi
+  pulado, stubado ou desabilitado" antes do review.

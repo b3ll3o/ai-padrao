@@ -1,34 +1,37 @@
-# ADR-001 — Use Fastify reply API, not Node ServerResponse API
+# ADR-001 — Usar a API de reply do Fastify, não a `ServerResponse` do Node
 
-- **Status:** Accepted
+- **Status:** Aceito
 - **Date:** 2026-08-04
 
-## Context
+## Contexto
 
-In NestJS under `FastifyAdapter`, `context.switchToHttp().getResponse()`
-returns a Fastify `FastifyReply`, not a Node `http.ServerResponse`. Writing
-interceptors/middleware/decorators that call Node response methods
-(`res.setHeader`, `res.cookie`, `res.send`) compiles cleanly, passes unit
-tests that mock the response, and explodes at runtime with "is not a
-function" errors — once real traffic hits.
+No NestJS sob `FastifyAdapter`,
+`context.switchToHttp().getResponse()` retorna um `FastifyReply` do
+Fastify, não um `http.ServerResponse` do Node. Escrever interceptors,
+middleware ou decorators que chamam métodos de response do Node
+(`res.setHeader`, `res.cookie`, `res.send`) compila limpo, passa em
+testes unit que mockam o response, e explode em runtime com erros
+"is not a function" — assim que tráfego real chega.
 
-## Decision
+## Decisão
 
-In any file under `apps/api/src/` that obtains an HTTP response from a
-NestJS execution context, use Fastify's `reply.header(name, value)` and
-`reply.send(payload)` APIs. Type the response as `FastifyReply` (import
-from `fastify`) and document any cross-API call.
+Em qualquer arquivo sob `apps/api/src/` que obtenha o response HTTP a
+partir do execution context do NestJS, use as APIs `reply.header(name,
+value)` e `reply.send(payload)` do Fastify. Tipa o response como
+`FastifyReply` (importado de `fastify`) e documente qualquer chamada
+cross-API.
 
-A quick mental rule: if the variable was named `res`, rename it to `reply`
-and switch every method to the Fastify equivalent.
+Uma regra mental rápida: se a variável se chamava `res`, renomeie para
+`reply` e troque todo método para o equivalente Fastify.
 
-## Consequences
+## Consequências
 
-- **Easier:** Interceptors and guards compile against the actual response
- shape; failures surface at type-check time, not runtime.
-- **Harder:** Patterns borrowed from Express middleware need manual translation.
-- **Trade-off:** Accept — the alternative (silently wrong at runtime) is
- strictly worse; we already lived it.
+- **Mais fácil:** Interceptors e guards compilam contra o response
+  real; falhas surgem em type-check, não em runtime.
+- **Mais difícil:** Padrões emprestados de middleware Express exigem
+  tradução manual.
+- **Trade-off:** Aceitar — a alternativa (silenciosamente errado em
+  runtime) é estritamente pior; já vivemos isso.
 
 ## Enforcement
 

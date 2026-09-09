@@ -1,45 +1,46 @@
-# ADR-005 — Non-default host ports in `docker-compose.yml`
+# ADR-005 — Host ports fora do padrão em `docker-compose.yml`
 
-- **Status:** Accepted
+- **Status:** Aceito
 - **Date:** 2026-08-04
 
-## Context
+## Contexto
 
-`docker-compose.yml` defaults `1025:1025` and `8025:8025` for MailHog (SMTP
+`docker-compose.yml` padronizava `1025:1025` e `8025:8025` para MailHog
+(SMTP + web UI). Essas são portas bem-conhecidas com as quais
+qualquer cliente SMTP local ou sessão de browser colide. Quando um
+desenvolvedor já roda MailHog ou um relay corporativo nessas portas,
+o bind falha silenciosamente e o container sai sem mostrar a causa.
+Documentos de onboarding foram escritos assumindo "MailHog está em
+8025" — e essa suposição só era verdadeira na máquina do autor
+original.
 
-- web UI). These are well-known ports that any local SMTP client or
- browser session collides with. When a developer already runs Mailhog or
- a corporate relay on those ports, the bind fails silently and the
- container exits without surfacing the cause. Onboarding documents had
- been written assuming "MailHog is at 8025" — and that assumption was
- true on the original author's machine only.
+## Decisão
 
-## Decision
-
-Host-side ports in `docker-compose.yml` MUST be off-default for any
-service whose upstream default would collide with other local tooling:
+Host ports em `docker-compose.yml` DEVEM ser fora do padrão para
+qualquer serviço cujo default upstream colidiria com outras
+ferramentas locais:
 
 ```yaml
 services:
- mailhog:
- ports:
- - "11025:1025" # SMTP — off-default on the host
- - "18025:8025" # Web UI — off-default on the host
+  mailhog:
+    ports:
+      - "11025:1025" # SMTP — fora do padrão no host
+      - "18025:8025" # Web UI — fora do padrão no host
 ```
 
-Pick a host port ≥ 10000 to keep the change obvious. Document the actual
-host port in `.env.example` and in the project's `README.md` quickstart.
-Do not bind to the upstream default on the host even if the container
-default is the same.
+Escolha uma porta de host ≥ 10000 para tornar a mudança óbvia.
+Documente a porta de host real em `.env.example` e no quickstart do
+`README.md` do projeto. Não faça bind do default upstream no host
+mesmo que o default do container seja o mesmo.
 
-## Consequences
+## Consequências
 
-- **Easier:** New contributors don't collide with already-running
- services. Port-mismatch failures become obvious.
-- **Harder:** The "what port is MailHog on?" question requires reading
- the README instead of guessing 8025.
-- **Trade-off:** Accept — local-port collisions have wasted hours across
- the team; this is a one-time change.
+- **Mais fácil:** Novos contribuidores não colidem com serviços já
+  rodando. Falhas de mismatch de porta ficam óbvias.
+- **Mais difícil:** A pergunta "em que porta está o MailHog?" exige
+  ler o README em vez de chutar 8025.
+- **Trade-off:** Aceitar — colisões de porta local desperdiçaram
+  horas no time; esta é uma mudança única.
 
 ## Enforcement
 

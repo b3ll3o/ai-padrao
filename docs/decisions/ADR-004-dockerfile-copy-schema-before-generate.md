@@ -1,40 +1,42 @@
-# ADR-004 — Dockerfile: copy prisma schema BEFORE `prisma generate`
+# ADR-004 — Dockerfile: copiar o schema do Prisma ANTES de `prisma generate`
 
-- **Status:** Accepted
+- **Status:** Aceito
 - **Date:** 2026-08-04
 
-## Context
+## Contexto
 
-`prisma generate` reads `apps/api/prisma/schema.prisma` from the build
-context. If the `COPY apps/api ./apps/api` line comes AFTER the
-`RUN pnpm --filter … exec prisma generate` line, the schema is not in
-the image at generate-time. The error is loud on a clean rebuild:
-"Could not find Prisma Schema that is required for this command" — but
-often missed because CI cached layers from a previous successful build,
-and the running container starts up just fine.
+`prisma generate` lê `apps/api/prisma/schema.prisma` a partir do
+contexto de build. Se a linha `COPY apps/api ./apps/api` vier
+DEPOIS da linha `RUN pnpm --filter … exec prisma generate`, o schema
+não está na imagem no momento do generate. O erro é alto em rebuild
+limpo: "Could not find Prisma Schema that is required for this
+command" — mas frequentemente passa despercebido porque CI faz cache
+das camadas de um build anterior bem-sucedido, e o container sobe
+tranquilo.
 
-## Decision
+## Decisão
 
-The Dockerfile for any service that runs `prisma generate` during the
-build MUST place the schema in the build context BEFORE the generate
-step. The canonical shape:
+O Dockerfile de qualquer serviço que rode `prisma generate` durante o
+build DEVE colocar o schema no contexto de build ANTES do passo de
+generate. A forma canônica:
 
 ```dockerfile
-COPY apps/api/prisma ./apps/api/prisma # schema first
+COPY apps/api/prisma ./apps/api/prisma # schema primeiro
 RUN pnpm --filter @ai-padrao/api exec prisma generate
-COPY apps/api ./apps/api # rest of the app
+COPY apps/api ./apps/api # resto do app
 ```
 
-For new Dockerfiles, follow this exact ordering. For existing ones, the
-auto-check below will surface the bug.
+Para Dockerfiles novos, siga esta ordem exata. Para os existentes, o
+auto-check abaixo vai flagar o bug.
 
-## Consequences
+## Consequências
 
-- **Easier:** Cold-cache builds work; image rebuilds from a clean state
- succeed.
-- **Harder:** Slightly larger intermediate layer (the schema copy adds
- ~10 KB). Negligible.
-- **Trade-off:** Accept — zero-cost fix for a build-breaker.
+- **Mais fácil:** Builds com cache frio funcionam; rebuilds de imagem
+  a partir de estado limpo dão certo.
+- **Mais difícil:** Camada intermediária levemente maior (a cópia do
+  schema adiciona ~10 KB). Insignificante.
+- **Trade-off:** Aceitar — correção de custo zero para um build-
+  breaker.
 
 ## Enforcement
 

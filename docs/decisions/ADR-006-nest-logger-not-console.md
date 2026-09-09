@@ -1,45 +1,47 @@
-# ADR-006 — Use Nest `Logger`, not `console.*` in `main.ts`
+# ADR-006 — Use o `Logger` do Nest, não `console.*`, em `main.ts`
 
-- **Status:** Accepted
+- **Status:** Aceito
 - **Date:** 2026-08-04
 
-## Context
+## Contexto
 
-NestJS ships `Logger` (and the contextual `Logger` passed to services via
-`new Logger(Service.name)`). It writes through Pino (when configured) and
-respects log levels, JSON mode, and redaction. `console.log` in
-`apps/api/src/main.ts` bypasses all of that — log level is hard-coded
-"always print", the structured-log shape is lost, and redaction doesn't
-run. Worse, in production a stray `console.log("user:", user)` becomes
-a PII leak.
+O NestJS vem com `Logger` (e o `Logger` contextual passado a services
+via `new Logger(Service.name)`). Ele escreve através do Pino (quando
+configurado) e respeita log levels, modo JSON e redação. `console.log`
+em `apps/api/src/main.ts` ignora tudo isso — o log level é
+hardcoded como "sempre imprime", o formato structured-log é perdido
+e a redação não roda. Pior: em produção, um `console.log("user:",
+user)` solto vira vazamento de PII.
 
-## Decision
+## Decisão
 
-`apps/api/src/main.ts` MUST use the Nest `Logger` for every startup-time
-log line. Service-level files (controllers, guards, interceptors) MUST
-`new Logger(Name)` at the top of the class and use `this.logger`. Raw
-`console.log|warn|error|info|debug` is forbidden in `main.ts` and
-discouraged everywhere else (test setup files excepted).
+`apps/api/src/main.ts` DEVE usar o `Logger` do Nest para toda linha
+de log de startup. Arquivos de nível de service (controllers, guards,
+interceptors) DEVEM `new Logger(Name)` no topo da classe e usar
+`this.logger`. `console.log|warn|error|info|debug` cru é proibido em
+`main.ts` e desencorajado em todo lugar (exceto arquivos de setup de
+teste).
 
 ```ts
 import { Logger } from "@nestjs/common";
 
 async function bootstrap() {
- const app = await NestFactory.create(AppModule, { bufferLogs: true });
- app.useLogger(app.get(Logger)); // pino bridge in prod
- await app.listen(3000);
- Logger.log("API listening on :3000", "Bootstrap");
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(Logger)); // ponte pino em prod
+  await app.listen(3000);
+  Logger.log("API listening on :3000", "Bootstrap");
 }
 ```
 
-## Consequences
+## Consequências
 
-- **Easier:** Structured logs flow to the same sink as request logs;
- redaction works; log-level filters apply.
-- **Harder:** `console.log` for debug-printing is no longer free —
- developers reach for `Logger.debug` and forget to enable debug level.
-- **Trade-off:** Accept — PII risk and log-quality regressions are
- worth the friction.
+- **Mais fácil:** Logs estruturados fluem para o mesmo sink que logs
+  de request; redação funciona; filtros de log level aplicam.
+- **Mais difícil:** `console.log` para debug-print não é mais
+  gratuito — devs recorrem a `Logger.debug` e esquecem de habilitar
+  o nível debug.
+- **Trade-off:** Aceitar — risco de PII e regressões de qualidade de
+  log valem o atrito.
 
 ## Enforcement
 

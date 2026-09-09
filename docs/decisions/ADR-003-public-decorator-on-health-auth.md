@@ -1,45 +1,47 @@
-# ADR-003 — `@Public()` required on health/auth endpoints
+# ADR-003 — `@Public()` obrigatório em endpoints de health/auth
 
-- **Status:** Accepted
+- **Status:** Aceito
 - **Date:** 2026-08-04
 
-## Context
+## Contexto
 
-We register `JwtAuthGuard` globally via `APP_GUARD` so every endpoint is
-authenticated by default. Without an explicit opt-out, infra-level
-endpoints (`/api/health`, login, register, refresh) are also auth-gated.
-Health probes (Kubernetes liveness, Docker `HEALTHCHECK`, monitoring
-agents) carry no JWT — they expect a 200. A globally-guarded health
-endpoint returns 401 and marks the pod unhealthy, causing restart loops.
+Registramos `JwtAuthGuard` globalmente via `APP_GUARD` para que todo
+endpoint seja autenticado por padrão. Sem um opt-out explícito,
+endpoints de nível de infraestrutura (`/api/health`, login, register,
+refresh) também ficam gated. Probes de health (liveness do
+Kubernetes, `HEALTHCHECK` do Docker, agentes de monitoramento) não
+carregam JWT — esperam 200. Um endpoint de health globalmente guarded
+retorna 401 e marca o pod como unhealthy, causando loops de restart.
 
-## Decision
+## Decisão
 
-Endpoints that must be reachable without authentication MUST carry the
-`@Public()` decorator at the class level:
+Endpoints que precisam ser acessíveis sem autenticação DEVEM carregar
+o decorator `@Public()` no nível da classe:
 
 ```ts
 @Public()
 @ApiTags("health")
 @Controller("health")
 export class HealthController {
- /* ... */
+  /* ... */
 }
 ```
 
-Required: `health`, `auth/login`, `auth/register`, `auth/refresh`. No
-exceptions. Endpoint-local overrides are not supported — `@Public()` is
-class-level only.
+Obrigatórios: `health`, `auth/login`, `auth/register`, `auth/refresh`.
+Sem exceções. Overrides por endpoint não são suportados — `@Public()`
+é somente no nível de classe.
 
-## Consequences
+## Consequências
 
-- **Easier:** Health probes work; users can authenticate.
-- **Harder:** A new unauthenticated endpoint requires remembering the
- decorator (mitigated by the auto-check below).
-- **Trade-off:** Accept — the alternative is operational breakage that
- is hard to attribute to a missing decorator.
+- **Mais fácil:** Probes de health funcionam; usuários conseguem se
+  autenticar.
+- **Mais difícil:** Um novo endpoint não autenticado exige lembrar do
+  decorator (mitigado pelo auto-check abaixo).
+- **Trade-off:** Aceitar — a alternativa é uma quebra operacional
+  difícil de atribuir a um decorator faltando.
 
 ## Enforcement
 
 - Skill: `nestjs-fastify-gotchas` Gotcha 4.
-- E2E test: `apps/api/test/health.e2e-spec.ts` hits `/api/health` without
- a token and expects 200.
+- Teste e2e: `apps/api/test/health.e2e-spec.ts` bate em `/api/health`
+  sem token e espera 200.

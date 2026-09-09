@@ -1,51 +1,53 @@
-# ADR-011 — No plaintext tokens in tracked source
+# ADR-011 — Sem tokens em texto puro no source versionado
 
-- **Status:** Accepted
+- **Status:** Aceito
 - **Date:** 2026-08-04
 
-## Context
+## Contexto
 
-Real API keys leaked into a tracked `.env.example` rewrite during the
-ai-padrao stabilization wave. The pattern looked like an example value
-(`sk-ant-api03-EXAMPLE…`) and survived code review; the actual leak
-came from a copy-paste from a different project's `.env`. Once in git
-history, secret rotation is the only remediation — git filter-branch is
-not safe for shared repositories.
+Chaves reais de API vazaram em um rewrite versionado de
+`.env.example` durante a onda de estabilização do `ai-padrao`. O
+padrão parecia um valor de exemplo (`sk-ant-api03-EXAMPLE…`) e
+sobreviveu ao code review; o vazamento real veio de um copy-paste de
+um `.env` de outro projeto. Uma vez no histórico git, rotação de
+secret é a única remediação — `git filter-branch` não é seguro para
+repositórios compartilhados.
 
-Heuristic detection covers the well-known shapes (Anthropic, GitHub
-PAT, OpenAI, AWS access-key) without false-positive risk on common
-strings. The detection runs at build time, before push, so the leak
-never reaches `origin`.
+Detecção heurística cobre os formatos bem-conhecidos (Anthropic,
+GitHub PAT, OpenAI, AWS access-key) sem risco de falso-positivo em
+strings comuns. A detecção roda em build time, antes do push, então
+o vazamento nunca chega em `origin`.
 
-## Decision
+## Decisão
 
-Tracked source under `apps/` and `packages/` MUST NOT contain
-hardcoded tokens matching the shape of:
+Source versionado sob `apps/` e `packages/` NÃO PODE conter tokens
+hardcoded com o formato de:
 
 - `sk-ant-…`, `sk-cp-…` (Anthropic)
 - `ghp_…`, `github_pat_…` (GitHub)
-- `sk-…` of length ≥ 32 (OpenAI)
-- `AKIA…` of length 20 (AWS access key id)
+- `sk-…` de comprimento ≥ 32 (OpenAI)
+- `AKIA…` de comprimento 20 (AWS access key id)
 
-Test fixtures (`*.spec.ts`, `*.test.ts`, `*.mock.ts`, `*.fixture.ts`)
-are excluded by file path; env files (`.env`, `.env.example`) are
-excluded by `.gitignore` and never scanned.
+Fixtures de teste (`*.spec.ts`, `*.test.ts`, `*.mock.ts`,
+`*.fixture.ts`) são excluídas por caminho; env files (`.env`,
+`.env.example`) são excluídos via `.gitignore` e nunca escaneados.
 
-Secrets belong in `.env` (which is gitignored) or a runtime secret
-store. They MUST be referenced via `process.env.NAME` or a typed
-config loader, never interpolated into source.
+Secrets pertencem ao `.env` (gitignored) ou a um secret store de
+runtime. DEVEM ser referenciados via `process.env.NAME` ou um typed
+config loader, nunca interpolados no source.
 
-## Consequences
+## Consequências
 
-- **Easier:** Common secret leaks fail the build instead of the post-
- mortem. The check is fast (single `grep -rE`).
-- **Harder:** A new token shape requires updating the regex list
- before the new shape can be checked in.
-- **Trade-off:** Accept — secret-rotation cost is vastly higher than
- the maintenance cost of a regex list.
+- **Mais fácil:** Vazamentos comuns de secret falham o build em vez
+  do post-mortem. A checagem é rápida (um único `grep -rE`).
+- **Mais difícil:** Um novo formato de token exige atualizar a lista
+  de regex antes que o novo formato possa ser commitado.
+- **Trade-off:** Aceitar — custo de rotação de secret é vastamente
+  maior que o custo de manutenção da lista de regex.
 
 ## Enforcement
 
-- `AGENTS.md §No plaintext secrets` is the human-facing rule.
-- A documented follow-up (not yet an INC): expand detection to
- Stripe (`sk_live_…`, `rk_live_…`) and SendGrid (`SG.…) shapes.
+- `REGRAS.md §Sem secrets em texto puro` é a regra human-facing.
+- Um follow-up documentado (ainda não um INC): expandir a detecção
+  para os formatos do Stripe (`sk_live_…`, `rk_live_…`) e SendGrid
+  (`SG.…`).

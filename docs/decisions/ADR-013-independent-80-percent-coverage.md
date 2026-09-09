@@ -1,97 +1,106 @@
-# ADR-013: Independent 80% coverage gate per app and per metric
+# ADR-013: Gate de cobertura de 80% independente por app e por métrica
 
-- **Status:** Accepted
+- **Status:** Aceito
 - **Date:** 2026-08-04
-- **Decision type:** Proactive architecture decision
-- **Related ADRs:** [ADR-012](./ADR-012-vertical-bounded-contexts.md)
+- **Tipo de decisão:** Decisão proativa de arquitetura
+- **ADRs relacionados:** [ADR-012](./ADR-012-vertical-bounded-contexts.md)
 
-## Context
+## Contexto
 
-Before this ADR, coverage reporting was an opt-in per-app baseline. There
-was no enforced threshold and no per-metric breakdown. That created two
-recurring failure modes:
+Antes deste ADR, o report de cobertura era uma baseline opt-in por
+app. Não havia threshold aplicado nem breakdown por métrica. Isso
+criava dois modos de falha recorrentes:
 
-1. **Silent undercoverage.** A refactor that removed tests could ship green
- as long as the suite passed. "Coverage" was a number in a report no one
- read.
-2. **Averaging hides holes.** A combined "monorepo coverage" report could
- report 85% lines while one app sat at 60% — the weak link was masked by
- the strong one.
+1. **Subcobertura silenciosa.** Um refactor que removesse testes
+   podia passar verde desde que a suite rodasse. "Cobertura" era
+   um número em um report que ninguém lia.
+2. **Média esconde buracos.** Um report combinado de "cobertura do
+   monorepo" podia reportar 85% de lines enquanto um app ficava a
+   60% — o elo fraco era mascarado pelo forte.
 
-Both apps also need **independent** gates: a feature added to `apps/web`
-should not be able to "pay for" coverage debt in `apps/api`, and vice
-versa. Cross-app averaging would let a healthy app subsidize a neglected
-one.
+Os dois apps também precisam de gates **independentes**: uma feature
+adicionada em `apps/web` não deve poder "pagar" pela dívida de
+cobertura em `apps/api`, e vice-versa. Média cross-app deixaria um
+app saudável subsidiar um negligenciado.
 
-## Decision
+## Decisão
 
-Coverage is enforced **independently** per app and per metric:
+Cobertura é aplicada **independentemente** por app e por métrica:
 
-- Each app configures its own Jest/Vitest coverage with explicit
- thresholds:
- - `apps/api/jest.config.ts` — `coverageThreshold.global` = `{ statements:
-80, branches: 80, functions: 80, lines: 80 }`, with an explicit
- `collectCoverageFrom` list that excludes specs and `*.module.ts`
- composition files.
- - `apps/web/vitest.config.ts` — `coverage.thresholds` = `{ statements:
-80, branches: 80, functions: 80, lines: 80 }`, with `provider: "v8"`
- and an explicit `include`/`exclude` list (excludes `*.spec.{ts,tsx}`,
- `app/layout.tsx`, `app/providers.tsx`).
-- A single root command, `pnpm test:coverage`, runs each app's coverage
- gate in sequence. It fails if **any one metric in any one app** drops
- below 80%.
-- CI (`.github/workflows/ci.yml`) runs `pnpm test:coverage` once, after
- `pnpm test` and before `pnpm build`. The gate is **not** re-run from
- `prebuild` to avoid duplicate work in the same pipeline — `prebuild`
- runs the equivalent check.
-- Each app's `package.json` exposes its own `test:coverage` script for
- local debugging (e.g. `pnpm --filter @ai-padrao/api test:coverage`).
+- Cada app configura sua própria cobertura do Jest/Vitest com
+  thresholds explícitos:
+  - `apps/api/jest.config.ts` — `coverageThreshold.global` =
+    `{ statements: 80, branches: 80, functions: 80, lines: 80 }`,
+    com uma `collectCoverageFrom` explícita que exclui specs e
+    `*.module.ts` (arquivos de composition).
+  - `apps/web/vitest.config.ts` — `coverage.thresholds` =
+    `{ statements: 80, branches: 80, functions: 80, lines: 80 }`,
+    com `provider: "v8"` e listas `include`/`exclude` explícitas
+    (exclui `*.spec.{ts,tsx}`, `app/layout.tsx`,
+    `app/providers.tsx`).
+- Um comando raiz único, `pnpm test:coverage`, roda o gate de
+  cobertura de cada app em sequência. Ele falha se **qualquer uma
+  das métricas em qualquer um dos apps** cair abaixo de 80%.
+- CI (`.github/workflows/ci.yml`) roda `pnpm test:coverage` uma
+  vez, depois de `pnpm test` e antes de `pnpm build`. O gate
+  **não** é rodado de novo a partir do `prebuild` para evitar
+  trabalho duplicado no mesmo pipeline — `prebuild` roda a
+  checagem equivalente.
+- Cada `package.json` de app expõe seu próprio `test:coverage`
+  para debug local (ex.: `pnpm --filter @ai-padrao/api
+  test:coverage`).
 
-The four metrics — statements, branches, functions, lines — are enforced
-separately. Lowering a threshold, excluding business code, adding
-`coverage-ignore` directives, or writing meaningless tests to satisfy the
-gate are forbidden.
+As quatro métricas — statements, branches, functions e lines — são
+aplicadas separadamente. Abaixar um threshold, excluir código de
+negócio, adicionar diretivas `coverage-ignore` ou escrever testes
+sem significado para satisfazer o gate são proibidos.
 
-## Consequences
+## Consequências
 
-Positive:
+Positivas:
 
-- A coverage regression cannot ship green on either app. The gate fails
- the build with the exact metric and file the runner reports.
-- The "healthy app subsidizes the neglected app" failure mode is
- structurally impossible — the gate is per-app, per-metric.
-- Local iteration is fast: engineers run `pnpm --filter <app>
-test:coverage` to debug a single app without booting both.
-- CI is honest about the gate. There is one source of truth
- (`pnpm test:coverage`), so test thresholds cannot drift between local
- and CI.
+- Uma regressão de cobertura não pode passar verde em nenhum dos
+  apps. O gate falha o build com a métrica exata e o arquivo que o
+  runner reporta.
+- O modo "app saudável subsidia app negligenciado" é
+  estruturalmente impossível — o gate é por app, por métrica.
+- Iteração local é rápida: engenheiros rodam `pnpm --filter <app>
+  test:coverage` para debugar um único app sem subir os dois.
+- CI é honesto sobre o gate. Existe uma fonte da verdade
+  (`pnpm test:coverage`), então thresholds de teste não podem
+  divergir entre local e CI.
 
-Negative / trade-offs:
+Negativas / trade-offs:
 
-- New code MUST come with tests, or the gate fails. This is intentional,
- but it raises the floor for "tiny" changes — see ADR-012 for the
- pragmatic-DDD caveat that keeps purely declarative surfaces exempt from
- contrived domain abstractions.
-- Vitest and Jest report thresholds slightly differently (e.g. v8's branch
- metric vs Jest's `branches`). The 80% floor is generous enough that
- minor metric-mismatch noise does not cause false negatives, but the
- per-app configs are version-locked in `pnpm-lock.yaml` and must move
- together.
-- The gate enforces a number, not a quality. A meaningless test still
- raises coverage. This is mitigated by the no-skipped-tests check ( and by code review — the gate is necessary but not
- sufficient.
+- Código novo PRECISA vir com testes, ou o gate falha. Isso é
+  intencional, mas sobe o chão para mudanças "pequenas" — veja
+  ADR-012 para a ressalva de DDD pragmático que mantém superfícies
+  puramente declarativas isentas de abstrações de domínio
+  forçadas.
+- Vitest e Jest reportam thresholds levemente diferentes (ex.: a
+  métrica branches do v8 vs a de Jest). O chão de 80% é generoso
+  o suficiente para que ruído de mismatch de métrica não cause
+  falso-negativo, mas as configs por app são versionadas em
+  `pnpm-lock.yaml` e precisam se mover juntas.
+- O gate aplica um número, não qualidade. Um teste sem significado
+  ainda sobe cobertura. Isso é mitigado pela checagem de
+  no-skipped-tests e por code review — o gate é necessário mas
+  não suficiente.
 
 ## Enforcement
 
-- `apps/api/jest.config.ts` and `apps/web/vitest.config.ts` declare the
- thresholds. Both runners fail the build if any threshold is unmet.
-- `pnpm test:coverage` at the repo root runs both apps in sequence.
-- [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs the equivalent check, `pnpm typecheck`, `pnpm lint`, `pnpm test`,
- `pnpm test:coverage`, then `pnpm build` in that order. Coverage is the
- last gate before `pnpm build`.
-- [`CONTRIBUTING.md`](../CONTRIBUTING.md) lists `pnpm test:coverage` in
- the validation commands and states the four 80% thresholds per app in
- the Definition of Done.
-- `AGENTS.md` global rules forbid lowering the thresholds, excluding
- business code, adding coverage-ignore directives, or writing
- meaningless tests.
+- `apps/api/jest.config.ts` e `apps/web/vitest.config.ts`
+  declaram os thresholds. Ambos os runners falham o build se
+  qualquer threshold não for atingido.
+- `pnpm test:coverage` na raiz do repo roda os dois apps em
+  sequência.
+- [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) roda a
+  checagem equivalente, `pnpm typecheck`, `pnpm lint`, `pnpm test`,
+  `pnpm test:coverage`, depois `pnpm build` nessa ordem.
+  Cobertura é o último gate antes do `pnpm build`.
+- [`CONTRIBUTING.md`](../CONTRIBUTING.md) lista `pnpm
+  test:coverage` entre os comandos de validação e declara os
+  quatro thresholds de 80% por app na Definition of Done.
+- As regras globais de `REGRAS.md` proíbem baixar os thresholds,
+  excluir código de negócio, adicionar diretivas de ignore de
+  cobertura, ou escrever testes sem significado.
