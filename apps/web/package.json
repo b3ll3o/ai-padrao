@@ -9,7 +9,10 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "VITE_CJS_IGNORE_WARNING=true vitest run",
-    "test:coverage": "VITE_CJS_IGNORE_WARNING=true vitest run --coverage"
+    "test:integration": "VITE_CJS_IGNORE_WARNING=true vitest run --config ./vitest.integration.config.ts",
+    "test:e2e": "node ./test/e2e-placeholder.mjs",
+    "test:coverage": "VITE_CJS_IGNORE_WARNING=true vitest run --coverage",
+    "test:all": "pnpm test && pnpm test:integration && pnpm test:e2e"
   },
   "dependencies": {
     "@ai-padrao/config-tailwind": "workspace:*",

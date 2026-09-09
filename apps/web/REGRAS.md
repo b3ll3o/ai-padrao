@@ -21,7 +21,7 @@
 10. [Performance e SEO](#10-performance-e-seo)
 11. [Segurança client-side](#11-seguranca-client-side)
 12. [Logs e erros](#12-logs-e-erros)
-13. [Regras de teste](#13-regras-de-teste)
+13. [Pirâmide de testes obrigatória (unit + integração + e2e)](#13-piramide-de-testes-obrigatoria)
 14. [Cobertura mínima](#14-cobertura-minima)
 15. [Checklist de PR para o web](#15-checklist-de-pr-para-o-web)
 16. [Fluxo de mudança](#16-fluxo-de-mudanca)
@@ -245,28 +245,83 @@ composition root -> todas as camadas
   observabilidade da API via `requestId`/`traceId`.
 - Mensagens da UI em pt-br (idioma padrão do projeto).
 
-## 13. Regras de teste
+## 13. Pirâmide de testes obrigatória (unit + integração + e2e)
 
-Os testes DEVEM respeitar as mesmas fronteiras da arquitetura:
+A regra canônica vive em
+[`../../.agents/REGRAS.md` §9](../../.agents/REGRAS.md#9-piramide-de-testes-obrigatoria).
+Este §13 aplica aquela regra ao app `web` em três níveis:
 
-1. **Domínio:** unit tests puros — sem React, sem Next, sem rede.
-   Cobre entidades, value objects, invariantes e domain services.
-2. **Aplicação:** casos de uso com **fakes** ou ports em memória
-   determinísticos; sem React, sem rede.
-3. **Adapters presentation:** formulários, hooks, view models e
-   componentes críticos (comportamentais) usando
-   `@testing-library/react`. Renderize a árvore real, não faça
-   mock de componente interno para validar UI.
-4. **Adapters infrastructure:** clientes HTTP, cookies e adapters
-   de navegação com testes determinísticos (`msw` para rede;
-   `jsdom` para cookies).
-5. **Fluxos críticos:** cubra login, registro, sessão, refresh,
-   logout e redirecionamentos; estes valem regressão por bugfix.
-6. **Enforcement:** imports proibidos (React/Next/etc. em
-   `domain/`) são checados via ESLint
-   (`apps/web/eslint.config.mjs`).
-7. **Regressão:** cada bugfix vem com um teste que falha antes do
-   fix e passa depois.
+### 13.1 Unit (Vitest + jsdom + Testing Library)
+
+- Localização: `*.spec.ts` / `*.spec.tsx` colado ao arquivo de produção
+  em `src/features/<context>/...` ou `src/components/...`.
+- Domínio: 100% puro — sem React, sem Next, sem rede. Cobre entidades,
+  value objects, invariantes e domain services.
+- Aplicação: casos de uso com **fakes** ou ports em memória
+  determinísticos; sem React, sem rede.
+- Adapters presentation: formulários, hooks, view models e componentes
+  críticos (comportamentais) usando `@testing-library/react`. Renderize
+  a árvore real, não faça mock de componente interno para validar UI.
+- Fluxos críticos cobertos: login, registro, sessão, refresh, logout
+  e redirecionamentos — estes valem regressão por bugfix.
+- Enforcement: imports proibidos (React/Next/etc. em `domain/`) são
+  checados via ESLint (`apps/web/eslint.config.mjs`).
+- Regressão: cada bugfix vem com um teste que falha antes do fix e
+  passa depois.
+- Comando: `pnpm --filter @ai-padrao/web test`.
+
+### 13.2 Integração (msw + infra real quando aplicável)
+
+- Localização: `*.integration-spec.tsx` em `src/features/<context>/infrastructure/`
+  ou `test/integration/`.
+- Adapters infrastructure (clientes HTTP, cookies, navegação) DEVEM ser
+  exercitados contra `msw` (Mock Service Worker) em modo servidor com
+  handlers HTTP realistas — não vale mockar `fetch` à mão.
+- Cookies httpOnly e storage de browser: use `@vitest/browser` ou
+  `jsdom` configurado para o contexto do app; cada teste limpa o
+  storage em `beforeEach`.
+- Comandos: `pnpm --filter @ai-padrao/web test:integration`.
+
+### 13.3 e2e (Playwright + browser real)
+
+- Localização: `*.e2e-spec.tsx` em `apps/web/e2e/` ou `apps/web/test/e2e/`.
+- Ferramenta: **Playwright** (Chromium, Firefox, WebKit). O navegador
+  sobe de verdade contra um servidor de dev real (`pnpm dev` em
+  paralelo ou build de produção).
+- Cada e2e cobre uma jornada inteira: Server Component → fetch →
+  resposta tipada → render → interação do usuário. Pelo menos um caso
+  feliz + um caso de erro esperado (validação, redirect quando não
+  autenticado).
+- O fluxo de login é parte do setup padrão: a maioria das páginas
+  exige sessão; o teste usa um helper `loginAs(page, email)` que
+  registra um usuário via API e injeta o cookie de sessão no contexto
+  do navegador.
+- Não stub nada em e2e — a API pode ser apontada para um servidor
+  descartável (Testcontainers / docker-compose.test) ou para um
+  mock-server (msw em modo servidor) **apenas** quando a API não está
+  disponível. Em CI, a API roda via Testcontainers.
+- Comando: `pnpm --filter @ai-padrao/web test:e2e`.
+- **Estado atual (2026-09-09):** o web ainda não adotou `@playwright/test`.
+  O script `test:e2e` em `apps/web/package.json` aponta para
+  `apps/web/test/e2e-placeholder.mjs`, que imprime uma mensagem de
+  status e sai com código 0 para não quebrar `test:all`. Esta lacuna é
+  intencional: a suíte de **integração** (`test:integration`, §13.2)
+  cobre hoje o ciclo real do adapter HTTP contra um servidor HTTP
+  local, então a regra de "dependência real" da raiz (§9.4) está
+  satisfeita para o adapter de auth. Quando o Playwright for adotado
+  (mudança rastreada em uma change OpenSpec futura), este placeholder
+  é substituído por `playwright.config.ts` + specs em `apps/web/e2e/`,
+  e o script volta a ser `playwright test`.
+
+### 13.4 Comandos canônicos
+
+| Comando                             | O que roda                                              |
+| ----------------------------------- | ------------------------------------------------------- |
+| `pnpm --filter @ai-padrao/web test`             | suite unit (Vitest + Testing Library) |
+| `pnpm --filter @ai-padrao/web test:integration` | suite integration (msw + infra real)   |
+| `pnpm --filter @ai-padrao/web test:e2e`         | suite e2e (Playwright)                |
+| `pnpm --filter @ai-padrao/web test:coverage`    | unit + cobertura com gate ≥80%         |
+| `pnpm --filter @ai-padrao/web test:all`         | unit + integration + e2e em sequência  |
 
 A regra raiz de **tolerância zero a testes pulados** vale
 integralmente.

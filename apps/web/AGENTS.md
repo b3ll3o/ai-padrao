@@ -22,8 +22,11 @@ ordem de leitura recomendada:
 ```bash
 pnpm --filter @ai-padrao/web typecheck   # type-check
 pnpm --filter @ai-padrao/web lint        # lint
-pnpm --filter @ai-padrao/web test        # testes (Vitest)
+pnpm --filter @ai-padrao/web test        # testes unit (Vitest)
+pnpm --filter @ai-padrao/web test:integration   # testes de integração (msw)
+pnpm --filter @ai-padrao/web test:e2e    # testes e2e (Playwright)
 pnpm --filter @ai-padrao/web test:coverage   # cobertura ≥80%
+pnpm --filter @ai-padrao/web test:all     # unit + integration + e2e em sequência
 pnpm --filter @ai-padrao/web build       # build de produção Next.js
 pnpm --filter @ai-padrao/web start       # servidor de produção
 ```
