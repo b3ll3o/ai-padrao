@@ -1,119 +1,78 @@
-# ai-padrao — Project Rules for AI Agents
+# ai-padrao — Orientação para Agentes de IA
 
-> **Canonical location:** `.agents/AGENTS.md`. The root `AGENTS.md` is a
-> symlink into this folder — see [`.agents/README.md`](README.md) for the
-> layout of the AI tooling tree (skills, SDD rules, etc.).
+> **Local canônico:** `.agents/AGENTS.md`. O `AGENTS.md` da raiz é um
+> symlink para esta pasta — veja [`.agents/README.md`](README.md) para o
+> layout da árvore de tooling de IA (skills, regras, SDD, etc.).
 
-This file is read by Claude Code, Gemini CLI, Codex, and any other AI assistant working in this repo. (The team uses Visual Studio Code as the editor of record; workspace settings live in `.vscode/`.)
+Este arquivo é lido pelo Claude Code, Gemini CLI, Codex e qualquer outra
+assistente de IA que atue neste repositório. (O time usa Visual Studio
+Code como editor de referência; as configurações do workspace ficam em
+`.vscode/`.)
 
-## 🚨 SDD is MANDATORY 🚨
+Para IA, o **primeiro passo** é ler os dois arquivos abaixo — eles são a
+fonte da verdade para o que pode e o que não pode ser feito aqui:
 
-**Every new feature or behavior change in this project MUST follow the SDD (Specification-Driven Development) workflow via OpenSpec.**
+1. **[`.agents/REGRAS.md`](REGRAS.md)** — livro de regras completo do
+   monorepo (SDD, idioma pt-br, sem testes pulados, sem secrets, etc.).
+2. **[`.agents/sdd/AGENTS.md`](sdd/AGENTS.md)** — procedimento SDD /
+   OpenSpec (especificação → aprovação → tarefas → archive).
 
-Before writing any code, you MUST:
+As regras locais abaixo complementam (e nunca enfraquecem) o livro raiz:
 
-1. Create a folder `.openspec/changes/<feature-name>/` containing `proposal.md`, `tasks.md`, `design.md`, and a spec delta under `specs/<area>/spec.md`.
-2. Wait for a human to **approve** the proposal.
-3. Then — and only then — implement the tasks in order.
+- [`apps/api/AGENTS.md`](../../apps/api/AGENTS.md) — regras do app api
+  (contextos delimitados, ports/adapters NestJS, regras de teste).
+- [`apps/web/AGENTS.md`](../../apps/web/AGENTS.md) — regras do app web
+  (feature contexts, presentation/infra, regras de teste).
 
-Full workflow and templates: [`.agents/sdd/AGENTS.md`](sdd/AGENTS.md) (the path `.openspec/AGENTS.md` is a symlink into this folder for tools that still expect it there).
-
-## What does NOT require SDD
-
-- Cosmetic changes (typos, formatting, refactors with no behavior change)
-- Dependency version bumps without API impact
-- Documentation fixes
-
-These MUST still use [Conventional Commits](https://www.conventionalcommits.org/) format.
-
-## Forbidden actions
-
-- ❌ Open a PR that changes behavior without a corresponding `.openspec/changes/<feature>/`
-- ❌ Start coding before `proposal.md` is approved
-- ❌ Use `localStorage` for tokens (auth uses httpOnly cookies)
-- ❌ Import Prisma directly into `apps/web` (only `apps/api` may use Prisma)
-- ❌ Modify `apps/api/prisma/schema.prisma` without coordinating with the contracts in `packages/contracts`
-- ❌ **Skip, disable, or stub a test.** The repo uses zero-tolerance for skipped tests — see [No skipped tests](#no-skipped-tests) below.
-
-## Tech stack reminder
-
-- Monorepo: pnpm 9 + Turborepo 2
-- Backend: NestJS 11 (Fastify) + Prisma 6 + Zod (`nestjs-zod`)
-- Frontend: Next.js 15 (App Router) + Tailwind 4 + shadcn/ui
-- Auth: JWT access (15m) + rotated refresh in httpOnly cookie, Argon2id passwords
-- Observability: OpenTelemetry SDK + OTel Collector (OTLP)
-
-## Architecture and coverage requirements
-
-Both applications MUST follow Domain-Driven Design (DDD) and hexagonal
-architecture. Organize business capabilities as vertical bounded contexts,
-keep dependencies pointing toward the domain, and isolate frameworks and
-infrastructure behind ports and adapters. Apply DDD pragmatically: do not create
-domain abstractions for code that is purely presentational or declarative.
-
-Detailed app-specific rules:
-
-- [`apps/api/AGENTS.md`](apps/api/AGENTS.md) — API bounded contexts, domain and
-  application boundaries, NestJS/Prisma adapters, and API testing rules.
-- [`apps/web/AGENTS.md`](apps/web/AGENTS.md) — frontend feature contexts,
-  presentation/infrastructure adapters, and web testing rules.
-
-Each app MUST independently maintain at least **80%** statements, branches,
-functions, and lines. CI and the coverage command MUST fail if any one metric in
-either app is below 80%. Another app or workspace cannot compensate for the
-shortfall. Do not lower thresholds, exclude business code, add coverage-ignore
-directives, or write meaningless tests to satisfy the gate.
-
-These local rule files extend this root rulebook and MUST NOT weaken the SDD,
-security, or no-skipped-test requirements below.
-
-## Common commands
+## Comandos comuns
 
 ```bash
-pnpm up               # start all Docker services
-pnpm down             # stop services
-pnpm logs             # tail logs
-pnpm db:migrate       # apply Prisma migrations (in api container)
-pnpm db:seed          # seed admin user
-pnpm test             # run unit + e2e tests across packages
-pnpm lint             # lint all packages
-pnpm typecheck        # type-check all packages
+pnpm up               # sobe todos os serviços Docker
+pnpm down             # para os serviços
+pnpm logs             # tail dos logs
+pnpm db:migrate       # aplica migrations Prisma (no container da api)
+pnpm db:seed          # popula usuário admin
+pnpm test             # roda testes unit + e2e em todos os pacotes
+pnpm lint             # lint em todos os pacotes
+pnpm typecheck        # type-check em todos os pacotes
 ```
 
-## No skipped tests
+Mais detalhes do fluxo de comandos de cada app: [`CONTRIBUTING.md`](../../CONTRIBUTING.md) e [`apps/api/AGENTS.md`](../../apps/api/AGENTS.md) · [`apps/web/AGENTS.md`](../../apps/web/AGENTS.md).
 
-**Zero tolerance.** The repo MUST NOT contain any skipped, disabled, or stubbed test. Concretely, none of the following are permitted in any tracked file:
+## Estrutura da pasta `.agents/`
 
-| Pattern                                         | Examples                                                          |
-| ----------------------------------------------- | ----------------------------------------------------------------- |
-| Jest/Vitest `.skip()`                           | `it.skip(...)`, `test.skip(...)`, `describe.skip(...)`            |
-| `xit` / `xdescribe` / `xtest`                   | the `x`-prefixed aliases                                          |
-| `test.todo()` / `it.todo()`                     | "I promise to write this later" — write it now or don't write it  |
-| Empty spec files                                | `*.spec.ts` / `*.test.ts` containing zero `it()` / `test()` calls |
-| Trivial-pass placeholders                       | `it('placeholder', () => { expect(true).toBe(true); })`           |
-| Runner flags that mask empty suites             | `--passWithNoTests`, `vitest --passWithNoTests`                   |
-| E2E tests skipped because infra is "down"       | e.g. `it.skipIf(!db)` — bring the infra up or don't ship the test |
-| Vitest config `test.skip`                       | `test: { skip: true }` in any `vitest.config.*`                   |
-| Conditional `describe` / `it` based on env vars | `if (process.env.X) describe(...)` — fix the env or fix the test  |
+```text
+.agents/
+├── AGENTS.md        # este arquivo (orientação rápida)
+├── REGRAS.md        # livro de regras completo do monorepo
+├── CLAUDE.md        # notas específicas do Claude Code
+├── README.md        # layout de skills + convenções
+├── sdd/             # fluxo OpenSpec/SDD (proposal → tasks → archive)
+└── skills/          # Agent Skills (SKILL.md por skill)
+    └── ddd-hexagonal/
+        ├── SKILL.md
+        ├── CHECKLIST.md
+        └── templates/
+```
 
-### Why
+Para descobrir skills além desta lista, rode em qualquer pasta do
+repositório:
 
-A skipped test is a lie. It says "this is covered" while delivering zero signal. We learned this the hard way during stabilization: every green build hid at least one assumption that wasn't actually exercised — e.g. `/api/health` was "covered" by tests but in fact 401'd because no e2e test ever called it without a token.
+```bash
+ls .agents/skills/*/SKILL.md
+```
 
-### What to do instead
+## Atalho: regras mais cobradas
 
-- The behavior isn't ready yet → **don't write the test yet**. Add it as a task in the relevant `.openspec/changes/<feature>/tasks.md` and ship it together.
-- The behavior needs a missing piece (env, secret, infra) → **add the missing piece first**, then add the test.
-- The test would be flaky → **fix the root cause** (test isolation, factory fixtures, transaction rollback). Never paper over it with `.skip`.
-- The test depends on an external service that isn't always available → **mock it deterministically** with the test factory, or **use Testcontainers** to make it available.
+Se você só puder ler três seções do [`.agents/REGRAS.md`](REGRAS.md), leia
+nesta ordem:
 
-### Enforcement
+1. [§3 Ações proibidas](REGRAS.md#3-acoes-proibidas) — lista do que
+   **não fazer**, em qualquer situação.
+2. [§4 Idioma padrão](REGRAS.md#4-idioma-padrao-pt-br) — toda prosa do
+   projeto é pt-br; exceções técnicas listadas.
+3. [§7 Sem testes pulados](REGRAS.md#7-sem-testes-pulados) — tolerância
+   zero a `.skip`/`xit`/etc.
 
-Code reviewers and CI MUST scan every `*.spec.ts`, `*.test.ts`, `*.spec.tsx`, `*.test.tsx`, and `package.json` for the patterns above and fail the build if any match.
-
-## No plaintext secrets
-
-`~/.claude/settings.json` on this machine carries a live `ANTHROPIC_AUTH_TOKEN` (`sk-cp-…`) and `GITHUB_PERSONAL_ACCESS_TOKEN` (`github_pat_…`) in plaintext. Any agent that copies tool inputs into a persistent log, a commit message, or a doc risks writing these tokens to disk. The two-layer defense:
-
-1. **Manual redaction (seatbelt).** Agents MUST redact tokens from any captured tool output before persisting it. Never paste raw tool inputs into a commit, a doc, or a `.harness/`-style log directory. The previous automated L1 capture hook has been removed; redaction is now the agent's responsibility.
-2. **Secret-shape scan at pre-push (airbag).** The `.githooks/pre-push` script greps every `*.ts`/`*.tsx`/`*.js`/`*.jsx` under `apps/` and `packages/` for known token shapes (`sk-ant-`, `sk-cp-`, `ghp_`, `github_pat_`, `AKIA…`) and fails the push if any match.
+Em caso de dúvida sobre uma ação específica, abra
+[`REGRAS.md`](REGRAS.md) antes de agir.
